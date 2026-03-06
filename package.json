@@ -1,0 +1,18 @@
+{
+  "name": "lotto",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "description": "Cloudflare에 무료로 배포한다는 구체적인 목표에 맞춰, **'비용 '0'원 + 고성능 + 바이브 코딩 친화적'**인 최적의 기술 스택을 제안해 드립니다. Cloudflare 생태계는 JavaScript/TypeScript 기반의 Serverless(서버리스) 환경에서 가장 강력한 성능을 발휘합니다. 따라서 이전의 Python 중심 설계보다 Cloudflare Native 스택으로 전환하는 것이 배포와 유지보수에 훨씬 유리합니다. 다음은 **바이브 코딩(AI 에이전트 지시)**을 통해 구현할 수 있는 최적화된 기술 스택과 로드맵입니다.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
