@@ -205,9 +205,9 @@ app.post('/api/generate', async (c) => {
       return pool[pool.length - 1].num;
     }
 
-    // 홀짝 균형(2~4개 홀수) + 연속 번호 3개 이상 방지 조건 충족 시까지 재시도
+    // v3.0: 홀짝균형 + 연속방지 + 합계범위 + 구간분포 + 끝수중복방지
     let result: number[] = [];
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
       const picked = new Set<number>();
       const pool = [...weights];
       while (picked.size < 6) {
@@ -216,22 +216,49 @@ app.post('/api/generate', async (c) => {
       }
       const sorted = Array.from(picked).sort((a, b) => a - b);
 
-      // 홀짝 비율 체크
+      // 1. 홀짝 비율 (홀수 2~4개)
       const oddCount = sorted.filter(n => n % 2 === 1).length;
-      const evenOddOk = oddCount >= 2 && oddCount <= 4;
+      if (oddCount < 2 || oddCount > 4) continue;
 
-      // 연속 번호 3개 이상 체크
+      // 2. 연속 번호 3개 이상 방지
       let maxConsec = 1, cur = 1;
       for (let i = 1; i < sorted.length; i++) {
         cur = sorted[i] === sorted[i - 1] + 1 ? cur + 1 : 1;
         if (cur > maxConsec) maxConsec = cur;
       }
+      if (maxConsec >= 3) continue;
+
+      // 3. 합계 범위 (당첨번호 합계 분포: 100~175)
+      const sum = sorted.reduce((a, b) => a + b, 0);
+      if (sum < 100 || sum > 175) continue;
+
+      // 4. 번호 구간 분포 (5구간 중 최소 3구간 이상)
+      const zones = new Set(sorted.map(n => Math.ceil(n / 10)));
+      if (zones.size < 3) continue;
+
+      // 5. 끝수(1의 자리) 중복 최대 2개
+      const tailCounts = new Map<number, number>();
+      for (const n of sorted) {
+        const t = n % 10;
+        tailCounts.set(t, (tailCounts.get(t) ?? 0) + 1);
+      }
+      if (Math.max(...tailCounts.values()) > 2) continue;
 
       result = sorted;
-      if (evenOddOk && maxConsec < 3) break;
+      break;
     }
 
-    return c.json({ numbers: result, algorithm: 'v2.0 (빈도+최근추세+홀짝균형)' });
+    // 50회 시도 후 미충족 시 마지막 결과 사용
+    if (result.length === 0) {
+      const picked = new Set<number>();
+      while (picked.size < 6) {
+        const avail = weights.filter(x => !picked.has(x.num));
+        picked.add(weightedPick(avail));
+      }
+      result = Array.from(picked).sort((a, b) => a - b);
+    }
+
+    return c.json({ numbers: result, algorithm: 'v3.0 (빈도+추세+홀짝+합계범위+구간분포+끝수균형)' });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
