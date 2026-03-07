@@ -151,38 +151,32 @@ app.post('/api/generate', async (c) => {
       return c.json({ sets, algorithm: 'v3.0 (랜덤 - 데이터 없음)' });
     }
 
-    const NUMBERS_SQL = `
-      SELECT drwtNo1 as num FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
-      SELECT drwtNo2 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
-      SELECT drwtNo3 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
-      SELECT drwtNo4 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
-      SELECT drwtNo5 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
-      SELECT drwtNo6 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo
-    `;
+    // 전체 회차 조회 (JS에서 집계 — D1 compound SELECT 한계 우회)
+    const { results: allDraws } = await c.env.DB.prepare(
+      'SELECT drwtNo1,drwtNo2,drwtNo3,drwtNo4,drwtNo5,drwtNo6 FROM lotto_history'
+    ).all() as { results: { drwtNo1:number;drwtNo2:number;drwtNo3:number;drwtNo4:number;drwtNo5:number;drwtNo6:number }[] };
 
-    // 전체 빈도
-    const { results: freqRows } = await c.env.DB.prepare(`
-      WITH t AS (SELECT drwNo FROM lotto_history)
-      SELECT num, COUNT(*) as cnt FROM (${NUMBERS_SQL}) GROUP BY num
-    `).all() as { results: { num: number; cnt: number }[] };
-
-    // 최근 30회 빈도
     const recentN = Math.min(30, total);
-    const { results: recentRows } = await c.env.DB.prepare(`
-      WITH t AS (SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT ${recentN})
-      SELECT num, COUNT(*) as cnt FROM (${NUMBERS_SQL}) GROUP BY num
-    `).all() as { results: { num: number; cnt: number }[] };
-
-    // 최근 15회 출현 번호 (콜드 판별용)
     const coldN = Math.min(15, total);
-    const { results: coldRows } = await c.env.DB.prepare(`
-      WITH t AS (SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT ${coldN})
-      SELECT DISTINCT num FROM (${NUMBERS_SQL})
-    `).all() as { results: { num: number }[] };
 
-    const freqMap = new Map(freqRows.map(r => [r.num, r.cnt]));
-    const recentMap = new Map(recentRows.map(r => [r.num, r.cnt]));
-    const recentSet = new Set(coldRows.map(r => r.num));
+    const { results: recentDraws } = await c.env.DB.prepare(
+      'SELECT drwtNo1,drwtNo2,drwtNo3,drwtNo4,drwtNo5,drwtNo6 FROM lotto_history ORDER BY drwNo DESC LIMIT ?'
+    ).bind(recentN).all() as { results: { drwtNo1:number;drwtNo2:number;drwtNo3:number;drwtNo4:number;drwtNo5:number;drwtNo6:number }[] };
+
+    const COLS = ['drwtNo1','drwtNo2','drwtNo3','drwtNo4','drwtNo5','drwtNo6'] as const;
+
+    const freqMap = new Map<number, number>();
+    for (const row of allDraws)
+      for (const col of COLS) freqMap.set(row[col], (freqMap.get(row[col]) ?? 0) + 1);
+
+    const recentMap = new Map<number, number>();
+    const recentSet = new Set<number>();
+    for (const row of recentDraws)
+      for (const col of COLS) { recentMap.set(row[col], (recentMap.get(row[col]) ?? 0) + 1); }
+
+    // 콜드 판별: 최근 15회 미출현
+    for (const row of recentDraws.slice(0, coldN))
+      for (const col of COLS) recentSet.add(row[col]);
 
     const maxFreq = Math.max(...freqMap.values(), 1);
     const maxRecent = Math.max(...recentMap.values(), 1);
