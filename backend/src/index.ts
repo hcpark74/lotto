@@ -140,11 +140,15 @@ app.post('/api/generate', async (c) => {
     const totalRow: any = await c.env.DB.prepare('SELECT COUNT(*) as n FROM lotto_history').first();
     const total: number = totalRow?.n ?? 0;
 
-    // 데이터 없으면 순수 랜덤
+    // 데이터 없으면 순수 랜덤 5세트
     if (total === 0) {
-      const set = new Set<number>();
-      while (set.size < 6) set.add(Math.floor(Math.random() * 45) + 1);
-      return c.json({ numbers: Array.from(set).sort((a, b) => a - b), algorithm: 'v2.0 (랜덤 - 데이터 없음)' });
+      const LABELS = ['홀짝 균형형', '연속 독립형', '합계 안정형', '구간 분포형', '끝수 균형형'];
+      const sets = LABELS.map(label => {
+        const s = new Set<number>();
+        while (s.size < 6) s.add(Math.floor(Math.random() * 45) + 1);
+        return { numbers: Array.from(s).sort((a, b) => a - b), label };
+      });
+      return c.json({ sets, algorithm: 'v3.0 (랜덤 - 데이터 없음)' });
     }
 
     const NUMBERS_SQL = `
@@ -205,60 +209,54 @@ app.post('/api/generate', async (c) => {
       return pool[pool.length - 1].num;
     }
 
-    // v3.0: 홀짝균형 + 연속방지 + 합계범위 + 구간분포 + 끝수중복방지
-    let result: number[] = [];
-    for (let attempt = 0; attempt < 50; attempt++) {
+    // v3.0: 특성별 5세트 생성 (모두 빈도+추세 가중치 기반)
+    const SET_CONFIGS: { label: string; check: (s: number[]) => boolean }[] = [
+      {
+        label: '홀짝 균형형',
+        check: (s) => s.filter(n => n % 2 === 1).length === 3, // 정확히 3홀 3짝
+      },
+      {
+        label: '연속 독립형',
+        check: (s) => { // 연속번호 없음
+          for (let i = 1; i < s.length; i++) if (s[i] === s[i - 1] + 1) return false;
+          return true;
+        },
+      },
+      {
+        label: '합계 안정형',
+        check: (s) => { const sum = s.reduce((a, b) => a + b, 0); return sum >= 115 && sum <= 160; },
+      },
+      {
+        label: '구간 분포형',
+        check: (s) => new Set(s.map(n => Math.ceil(n / 10))).size >= 4, // 5구간 중 4구간 이상
+      },
+      {
+        label: '끝수 균형형',
+        check: (s) => { // 끝자리 모두 다름
+          const tails = s.map(n => n % 10);
+          return new Set(tails).size === s.length;
+        },
+      },
+    ];
+
+    function pickSet(check: (s: number[]) => boolean): number[] {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const picked = new Set<number>();
+        while (picked.size < 6) {
+          picked.add(weightedPick(weights.filter(x => !picked.has(x.num))));
+        }
+        const sorted = Array.from(picked).sort((a, b) => a - b);
+        if (check(sorted)) return sorted;
+      }
+      // 조건 미충족 시 마지막 결과 반환
       const picked = new Set<number>();
-      const pool = [...weights];
-      while (picked.size < 6) {
-        const avail = pool.filter(x => !picked.has(x.num));
-        picked.add(weightedPick(avail));
-      }
-      const sorted = Array.from(picked).sort((a, b) => a - b);
-
-      // 1. 홀짝 비율 (홀수 2~4개)
-      const oddCount = sorted.filter(n => n % 2 === 1).length;
-      if (oddCount < 2 || oddCount > 4) continue;
-
-      // 2. 연속 번호 3개 이상 방지
-      let maxConsec = 1, cur = 1;
-      for (let i = 1; i < sorted.length; i++) {
-        cur = sorted[i] === sorted[i - 1] + 1 ? cur + 1 : 1;
-        if (cur > maxConsec) maxConsec = cur;
-      }
-      if (maxConsec >= 3) continue;
-
-      // 3. 합계 범위 (당첨번호 합계 분포: 100~175)
-      const sum = sorted.reduce((a, b) => a + b, 0);
-      if (sum < 100 || sum > 175) continue;
-
-      // 4. 번호 구간 분포 (5구간 중 최소 3구간 이상)
-      const zones = new Set(sorted.map(n => Math.ceil(n / 10)));
-      if (zones.size < 3) continue;
-
-      // 5. 끝수(1의 자리) 중복 최대 2개
-      const tailCounts = new Map<number, number>();
-      for (const n of sorted) {
-        const t = n % 10;
-        tailCounts.set(t, (tailCounts.get(t) ?? 0) + 1);
-      }
-      if (Math.max(...tailCounts.values()) > 2) continue;
-
-      result = sorted;
-      break;
+      while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))));
+      return Array.from(picked).sort((a, b) => a - b);
     }
 
-    // 50회 시도 후 미충족 시 마지막 결과 사용
-    if (result.length === 0) {
-      const picked = new Set<number>();
-      while (picked.size < 6) {
-        const avail = weights.filter(x => !picked.has(x.num));
-        picked.add(weightedPick(avail));
-      }
-      result = Array.from(picked).sort((a, b) => a - b);
-    }
+    const sets = SET_CONFIGS.map(({ label, check }) => ({ label, numbers: pickSet(check) }));
 
-    return c.json({ numbers: result, algorithm: 'v3.0 (빈도+추세+홀짝+합계범위+구간분포+끝수균형)' });
+    return c.json({ sets, algorithm: 'v3.0' });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }

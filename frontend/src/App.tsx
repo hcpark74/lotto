@@ -76,10 +76,13 @@ function DrawRow({ draw, highlight = false }: { draw: DrawResult; highlight?: bo
     );
 }
 
+type LottoSet = { numbers: number[]; label: string };
+
+const FALLBACK_LABELS = ['홀짝 균형형', '연속 독립형', '합계 안정형', '구간 분포형', '끝수 균형형'];
+
 function App() {
-    const [numbers, setNumbers] = useState<number[]>([]);
+    const [sets, setSets] = useState<LottoSet[]>([]);
     const [loading, setLoading] = useState(false);
-    const [algorithm, setAlgorithm] = useState('');
 
     const [results, setResults] = useState<DrawResult[]>([]);
     const [resultsLoading, setResultsLoading] = useState(false);
@@ -114,19 +117,19 @@ function App() {
 
     const generateNumbers = async () => {
         setLoading(true);
-        setNumbers([]);
+        setSets([]);
         try {
             const res = await fetch(`${API_URL}/api/generate`, { method: 'POST' });
             if (!res.ok) throw new Error(`API ${res.status}`);
             const data = await res.json();
-            setNumbers(data.numbers);
-            setAlgorithm(data.algorithm);
+            setSets(data.sets);
         } catch {
-            const set = new Set<number>();
-            while (set.size < 6) set.add(Math.floor(Math.random() * 45) + 1);
-            const nums = Array.from(set).sort((a, b) => a - b);
-            setNumbers(nums);
-            setAlgorithm('로컬 랜덤');
+            const fallback = FALLBACK_LABELS.map(label => {
+                const s = new Set<number>();
+                while (s.size < 6) s.add(Math.floor(Math.random() * 45) + 1);
+                return { label, numbers: Array.from(s).sort((a, b) => a - b) };
+            });
+            setSets(fallback);
         } finally {
             setLoading(false);
         }
@@ -159,18 +162,28 @@ function App() {
                         </div>
 
                         {/* Ball area */}
-                        <div className="px-6 py-8">
-                            <div className="flex justify-center gap-2 min-h-[44px] items-center">
-                                {numbers.length > 0 ? (
-                                    numbers.map((num, i) => <Ball key={i} num={num} delay={i * 60} />)
-                                ) : (
+                        <div className="px-4 py-4">
+                            {sets.length > 0 ? (
+                                <div className="space-y-3">
+                                    {sets.map((set, si) => (
+                                        <div key={si} className="flex items-center gap-2">
+                                            <span className="text-xs font-semibold shrink-0 w-20 text-right" style={{ color: '#033074' }}>
+                                                {set.label}
+                                            </span>
+                                            <div className="flex gap-1.5 flex-wrap">
+                                                {set.numbers.map((num, i) => (
+                                                    <Ball key={i} num={num} delay={si * 60 + i * 30} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex justify-center items-center min-h-[44px]">
                                     <p className="text-gray-400 text-sm">
                                         {loading ? '번호 생성 중...' : '아래 버튼을 눌러 번호를 생성하세요'}
                                     </p>
-                                )}
-                            </div>
-                            {algorithm && (
-                                <p className="text-center text-xs text-gray-400 mt-3">{algorithm}</p>
+                                </div>
                             )}
                         </div>
 
