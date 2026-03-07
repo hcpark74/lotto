@@ -14,49 +14,40 @@ app.get('/', (c) => {
   return c.text('Lotto Analysis API')
 })
 
-// 1. 메인 페이지 HTML에서 최신 회차 번호를 추출하는 함수
-async function getLatestDrawNo(): Promise<number | null> {
-  try {
-    const response = await fetch("https://www.dhlottery.co.kr/common.do?method=main", {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`Main page fetch failed: ${response.status}`);
-      return null;
-    }
-    const html = await response.text();
-    // 더 유연한 정규식 (공백, 따옴표 등 대응)
-    const match = html.match(/id=['"]lottoDrwNo['"]>\s*(\d+)\s*<\/strong>/);
-    return match ? parseInt(match[1]) : null;
-  } catch (e) {
-    return null;
-  }
+// 날짜 계산으로 최신 회차 추정 (1회: 2002-12-07 KST)
+function getLatestDrawNo(): number {
+  const FIRST_DRAW = new Date('2002-12-07T12:00:00Z'); // 2002-12-07 21:00 KST
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+  return Math.max(1, Math.floor((Date.now() - FIRST_DRAW.getTime()) / MS_PER_WEEK) + 1);
 }
 
-// 2. 특정 회차의 결과를 가져오는 함수 (공식 API)
+// 공식 JSON API로 특정 회차 결과 조회
 async function fetchLottoResult(drwNo: number) {
   try {
     const url = `https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${drwNo}`;
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Referer': 'https://www.dhlottery.co.kr/common.do?method=main',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.dhlottery.co.kr/',
+        'Accept': 'application/json',
+      },
     });
-
+    if (!response.ok) return null;
     const data: any = await response.json();
-    if (!data || data.returnValue !== 'success') return null;
-    return data;
-  } catch (e: any) {
+    if (data.returnValue !== 'success') return null;
+    return {
+      drwNo: data.drwNo,
+      drwNoDate: data.drwNoDate,
+      drwtNo1: data.drwtNo1,
+      drwtNo2: data.drwtNo2,
+      drwtNo3: data.drwtNo3,
+      drwtNo4: data.drwtNo4,
+      drwtNo5: data.drwtNo5,
+      drwtNo6: data.drwtNo6,
+      bnusNo: data.bnusNo,
+      firstWinamnt: data.firstWinamnt,
+    };
+  } catch (e) {
     return null;
   }
 }
@@ -64,8 +55,7 @@ async function fetchLottoResult(drwNo: number) {
 // Sync latest data
 app.post('/api/sync', async (c) => {
   try {
-    const latestDraw = await getLatestDrawNo();
-    if (!latestDraw) return c.json({ success: false, error: "Could not fetch latest draw number" });
+    const latestDraw = getLatestDrawNo();
 
     const lastEntry: any = await c.env.DB.prepare('SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT 1').first();
     let currentDrwNo = (lastEntry?.drwNo || 0) + 1;
@@ -104,6 +94,29 @@ app.post('/api/sync', async (c) => {
   }
 })
 
+// Get draw results
+app.get('/api/results', async (c) => {
+  try {
+    const limit = Math.min(Number(c.req.query('limit') ?? 10), 50);
+    const drwNo = c.req.query('drwNo');
+
+    if (drwNo) {
+      const row = await c.env.DB.prepare(
+        'SELECT * FROM lotto_history WHERE drwNo = ?'
+      ).bind(Number(drwNo)).first();
+      if (!row) return c.json({ error: '해당 회차 데이터가 없습니다.' }, 404);
+      return c.json(row);
+    }
+
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM lotto_history ORDER BY drwNo DESC LIMIT ?'
+    ).bind(limit).all();
+    return c.json(results);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+})
+
 // Get latest stats
 app.get('/api/stats/hot', async (c) => {
   // Simple frequency analysis for all numbers
@@ -123,29 +136,105 @@ app.get('/api/stats/hot', async (c) => {
 
 // Generate numbers
 app.post('/api/generate', async (c) => {
-  // AI-weighted logic: mix of top frequent numbers and random
-  const hotNumbers: any = await c.env.DB.prepare(`
-    SELECT num FROM (
-      SELECT drwtNo1 as num FROM lotto_history
-      UNION ALL SELECT drwtNo2 FROM lotto_history
-      UNION ALL SELECT drwtNo3 FROM lotto_history
-      UNION ALL SELECT drwtNo4 FROM lotto_history
-      UNION ALL SELECT drwtNo5 FROM lotto_history
-      UNION ALL SELECT drwtNo6 FROM lotto_history
-    ) GROUP BY num ORDER BY COUNT(*) DESC LIMIT 15
-  `).all();
+  try {
+    const totalRow: any = await c.env.DB.prepare('SELECT COUNT(*) as n FROM lotto_history').first();
+    const total: number = totalRow?.n ?? 0;
 
-  const hotSet = hotNumbers.results.map((r: any) => r.num);
-  const pool = [...hotSet, ...Array.from({ length: 45 }, (_, i) => i + 1)]; // Weight hot numbers higher
+    // 데이터 없으면 순수 랜덤
+    if (total === 0) {
+      const set = new Set<number>();
+      while (set.size < 6) set.add(Math.floor(Math.random() * 45) + 1);
+      return c.json({ numbers: Array.from(set).sort((a, b) => a - b), algorithm: 'v2.0 (랜덤 - 데이터 없음)' });
+    }
 
-  const generated = new Set<number>();
-  while (generated.size < 6) {
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    generated.add(pick);
+    const NUMBERS_SQL = `
+      SELECT drwtNo1 as num FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
+      SELECT drwtNo2 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
+      SELECT drwtNo3 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
+      SELECT drwtNo4 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
+      SELECT drwtNo5 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo UNION ALL
+      SELECT drwtNo6 FROM lotto_history h JOIN t ON h.drwNo = t.drwNo
+    `;
+
+    // 전체 빈도
+    const { results: freqRows } = await c.env.DB.prepare(`
+      WITH t AS (SELECT drwNo FROM lotto_history)
+      SELECT num, COUNT(*) as cnt FROM (${NUMBERS_SQL}) GROUP BY num
+    `).all() as { results: { num: number; cnt: number }[] };
+
+    // 최근 30회 빈도
+    const recentN = Math.min(30, total);
+    const { results: recentRows } = await c.env.DB.prepare(`
+      WITH t AS (SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT ${recentN})
+      SELECT num, COUNT(*) as cnt FROM (${NUMBERS_SQL}) GROUP BY num
+    `).all() as { results: { num: number; cnt: number }[] };
+
+    // 최근 15회 출현 번호 (콜드 판별용)
+    const coldN = Math.min(15, total);
+    const { results: coldRows } = await c.env.DB.prepare(`
+      WITH t AS (SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT ${coldN})
+      SELECT DISTINCT num FROM (${NUMBERS_SQL})
+    `).all() as { results: { num: number }[] };
+
+    const freqMap = new Map(freqRows.map(r => [r.num, r.cnt]));
+    const recentMap = new Map(recentRows.map(r => [r.num, r.cnt]));
+    const recentSet = new Set(coldRows.map(r => r.num));
+
+    const maxFreq = Math.max(...freqMap.values(), 1);
+    const maxRecent = Math.max(...recentMap.values(), 1);
+
+    // 가중치 계산: 전체빈도 40% + 최근30회 60%, 콜드번호 50% 페널티
+    const weights = Array.from({ length: 45 }, (_, i) => {
+      const num = i + 1;
+      const freqScore = (freqMap.get(num) ?? 0) / maxFreq;
+      const recentScore = (recentMap.get(num) ?? 0) / maxRecent;
+      const isCold = !recentSet.has(num);
+      let w = freqScore * 0.4 + recentScore * 0.6;
+      if (isCold) w *= 0.5;
+      return { num, weight: Math.max(w, 0.02) }; // 최소 가중치 보장
+    });
+
+    // 누적 가중치 기반 랜덤 선택
+    function weightedPick(pool: { num: number; weight: number }[]): number {
+      const total = pool.reduce((s, x) => s + x.weight, 0);
+      let r = Math.random() * total;
+      for (const x of pool) {
+        r -= x.weight;
+        if (r <= 0) return x.num;
+      }
+      return pool[pool.length - 1].num;
+    }
+
+    // 홀짝 균형(2~4개 홀수) + 연속 번호 3개 이상 방지 조건 충족 시까지 재시도
+    let result: number[] = [];
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const picked = new Set<number>();
+      const pool = [...weights];
+      while (picked.size < 6) {
+        const avail = pool.filter(x => !picked.has(x.num));
+        picked.add(weightedPick(avail));
+      }
+      const sorted = Array.from(picked).sort((a, b) => a - b);
+
+      // 홀짝 비율 체크
+      const oddCount = sorted.filter(n => n % 2 === 1).length;
+      const evenOddOk = oddCount >= 2 && oddCount <= 4;
+
+      // 연속 번호 3개 이상 체크
+      let maxConsec = 1, cur = 1;
+      for (let i = 1; i < sorted.length; i++) {
+        cur = sorted[i] === sorted[i - 1] + 1 ? cur + 1 : 1;
+        if (cur > maxConsec) maxConsec = cur;
+      }
+
+      result = sorted;
+      if (evenOddOk && maxConsec < 3) break;
+    }
+
+    return c.json({ numbers: result, algorithm: 'v2.0 (빈도+최근추세+홀짝균형)' });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
   }
-
-  const result = Array.from(generated).sort((a, b) => a - b);
-  return c.json({ numbers: result, algorithm: "v1.0 (Frequency Weighted)" });
 })
 
 export default {
@@ -153,11 +242,7 @@ export default {
   async scheduled(event: ScheduledEvent, env: Bindings, ctx: ExecutionContext) {
     console.log("Cron execution started");
 
-    const latestDraw = await getLatestDrawNo();
-    if (!latestDraw) {
-      console.error("Cron: Could not fetch latest draw number");
-      return;
-    }
+    const latestDraw = getLatestDrawNo();
 
     const lastEntry: any = await env.DB.prepare('SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT 1').first();
     let currentDrwNo = (lastEntry?.drwNo || 0) + 1;

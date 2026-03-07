@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "init-db": "wrangler d1 execute lotto_db --local --file=./schema.sql"
+    "deploy": "node scripts/deploy.mjs",
+    "init-db": "wrangler d1 execute lotto_db --local --file=./schema.sql",
+    "seed": "node scripts/seed.js",
+    "seed:apply": "wrangler d1 execute lotto_db --remote --file=./seed.sql"
   },
   "keywords": [],
   "author": "",
