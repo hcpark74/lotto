@@ -20,4 +20,4 @@ try {
 
 const mergedEnv = { ...process.env, ...env };
 
-execSync('wrangler deploy', { stdio: 'inherit', env: mergedEnv });
+execSync('npx wrangler deploy', { stdio: 'inherit', env: mergedEnv });

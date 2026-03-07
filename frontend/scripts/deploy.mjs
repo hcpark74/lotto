@@ -20,8 +20,8 @@ try {
 
 const mergedEnv = { ...process.env, ...env };
 
-execSync('vite build', { stdio: 'inherit', env: mergedEnv });
-execSync('wrangler pages deploy dist --project-name=lotto-frontend --commit-dirty=true', {
+execSync('npx vite build', { stdio: 'inherit', env: mergedEnv });
+execSync('npx wrangler pages deploy dist --project-name=lotto-frontend --commit-dirty=true', {
     stdio: 'inherit',
     env: mergedEnv,
 });
