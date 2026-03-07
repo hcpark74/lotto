@@ -237,6 +237,19 @@ app.post('/api/generate', async (c) => {
           return new Set(tails).size === s.length;
         },
       },
+      {
+        label: '✨ 종합 균형형',
+        check: (s) => { // 5개 조건 모두 충족
+          const oddOk = s.filter(n => n % 2 === 1).length === 3;
+          let noConsec = true;
+          for (let i = 1; i < s.length; i++) if (s[i] === s[i - 1] + 1) { noConsec = false; break; }
+          const sum = s.reduce((a, b) => a + b, 0);
+          const sumOk = sum >= 115 && sum <= 160;
+          const zoneOk = new Set(s.map(n => Math.ceil(n / 10))).size >= 4;
+          const tailOk = new Set(s.map(n => n % 10)).size === s.length;
+          return oddOk && noConsec && sumOk && zoneOk && tailOk;
+        },
+      },
     ];
 
     function pickSet(check: (s: number[]) => boolean): number[] {
