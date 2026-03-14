@@ -14,61 +14,95 @@ app.get('/', (c) => {
   return c.text('Lotto Analysis API')
 })
 
-// 날짜 계산으로 최신 회차 추정 (1회: 2002-12-07 KST)
-function getLatestDrawNo(): number {
-  const FIRST_DRAW = new Date('2002-12-07T12:00:00Z'); // 2002-12-07 21:00 KST
-  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
-  return Math.max(1, Math.floor((Date.now() - FIRST_DRAW.getTime()) / MS_PER_WEEK) + 1);
+const LOTTO_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  'Referer': 'https://www.dhlottery.co.kr/lt645/result',
+  'Accept': 'application/json',
+  'X-Requested-With': 'XMLHttpRequest',
 }
 
-// 공식 JSON API로 특정 회차 결과 조회
+type LottoHistoryItem = {
+  ltEpsd: number;
+  ltRflYmd: string;
+  tm1WnNo: number;
+  tm2WnNo: number;
+  tm3WnNo: number;
+  tm4WnNo: number;
+  tm5WnNo: number;
+  tm6WnNo: number;
+  bnsWnNo: number;
+  rnk1WnAmt: number;
+}
+
+async function getLatestDrawNo() {
+  const response = await fetch('https://www.dhlottery.co.kr/lt645/result', {
+    headers: LOTTO_HEADERS,
+  })
+
+  if (!response.ok) {
+    throw new Error(`최신 회차 조회 실패 (${response.status})`)
+  }
+
+  const html = await response.text()
+  const match = html.match(/id="opt_val"\s+value="(\d+)"/)
+
+  if (!match) {
+    throw new Error('최신 회차 번호를 찾을 수 없습니다.')
+  }
+
+  return Number(match[1])
+}
+
 async function fetchLottoResult(drwNo: number) {
   try {
-    const url = `https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${drwNo}`;
+    const url = `https://www.dhlottery.co.kr/lt645/selectPstLt645InfoNew.do?srchDir=center&srchLtEpsd=${drwNo}&srchCursorLtEpsd=${drwNo}`
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://www.dhlottery.co.kr/',
-        'Accept': 'application/json',
-      },
-    });
-    if (!response.ok) return null;
-    const data: any = await response.json();
-    if (data.returnValue !== 'success') return null;
+      headers: LOTTO_HEADERS,
+    })
+
+    if (!response.ok) return null
+
+    const data = await response.json() as { data?: { list?: LottoHistoryItem[] } }
+    const item = data?.data?.list?.find((row) => row.ltEpsd === drwNo)
+
+    if (!item) return null
+
+    const date = String(item.ltRflYmd)
+
     return {
-      drwNo: data.drwNo,
-      drwNoDate: data.drwNoDate,
-      drwtNo1: data.drwtNo1,
-      drwtNo2: data.drwtNo2,
-      drwtNo3: data.drwtNo3,
-      drwtNo4: data.drwtNo4,
-      drwtNo5: data.drwtNo5,
-      drwtNo6: data.drwtNo6,
-      bnusNo: data.bnusNo,
-      firstWinamnt: data.firstWinamnt,
-    };
+      drwNo: item.ltEpsd,
+      drwNoDate: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`,
+      drwtNo1: item.tm1WnNo,
+      drwtNo2: item.tm2WnNo,
+      drwtNo3: item.tm3WnNo,
+      drwtNo4: item.tm4WnNo,
+      drwtNo5: item.tm5WnNo,
+      drwtNo6: item.tm6WnNo,
+      bnusNo: item.bnsWnNo,
+      firstWinamnt: item.rnk1WnAmt,
+    }
   } catch (e) {
-    return null;
+    return null
   }
 }
 
 // Sync latest data
 app.post('/api/sync', async (c) => {
   try {
-    const latestDraw = getLatestDrawNo();
+    const latestDraw = await getLatestDrawNo()
 
-    const lastEntry: any = await c.env.DB.prepare('SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT 1').first();
-    let currentDrwNo = (lastEntry?.drwNo || 0) + 1;
-    let syncedCount = 0;
-    const maxSyncPerRequest = 10;
-    let lastResult = null;
+    const lastEntry: any = await c.env.DB.prepare('SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT 1').first()
+    let currentDrwNo = (lastEntry?.drwNo || 0) + 1
+    let syncedCount = 0
+    const maxSyncPerRequest = 10
+    let lastResult: any = null
 
     while (currentDrwNo <= latestDraw && syncedCount < maxSyncPerRequest) {
-      const result = await fetchLottoResult(currentDrwNo);
-      lastResult = result;
+      const result = await fetchLottoResult(currentDrwNo)
+      lastResult = result
 
       if (!result) {
-        break;
+        break
       }
 
       await c.env.DB.prepare(
@@ -77,20 +111,21 @@ app.post('/api/sync', async (c) => {
       ).bind(
         result.drwNo, result.drwNoDate, result.drwtNo1, result.drwtNo2, result.drwtNo3,
         result.drwtNo4, result.drwtNo5, result.drwtNo6, result.bnusNo, result.firstWinamnt
-      ).run();
+      ).run()
 
-      currentDrwNo++;
-      syncedCount++;
+      currentDrwNo++
+      syncedCount++
     }
 
     return c.json({
       success: true,
       syncedCount,
       nextDrwNo: currentDrwNo,
+      latestDraw,
       debug: lastResult
-    });
+    })
   } catch (error: any) {
-    return c.json({ success: false, error: error.message }, 500);
+    return c.json({ success: false, error: error.message }, 500)
   }
 })
 
@@ -119,19 +154,30 @@ app.get('/api/results', async (c) => {
 
 // Get latest stats
 app.get('/api/stats/hot', async (c) => {
-  // Simple frequency analysis for all numbers
-  const query = `
-    SELECT num, COUNT(*) as count FROM (
-      SELECT drwtNo1 as num FROM lotto_history
-      UNION ALL SELECT drwtNo2 FROM lotto_history
-      UNION ALL SELECT drwtNo3 FROM lotto_history
-      UNION ALL SELECT drwtNo4 FROM lotto_history
-      UNION ALL SELECT drwtNo5 FROM lotto_history
-      UNION ALL SELECT drwtNo6 FROM lotto_history
-    ) GROUP BY num ORDER BY count DESC LIMIT 10
-  `;
-  const { results } = await c.env.DB.prepare(query).all();
-  return c.json(results);
+  try {
+    const { results: draws } = await c.env.DB.prepare(
+      'SELECT drwtNo1,drwtNo2,drwtNo3,drwtNo4,drwtNo5,drwtNo6 FROM lotto_history'
+    ).all() as { results: { drwtNo1:number;drwtNo2:number;drwtNo3:number;drwtNo4:number;drwtNo5:number;drwtNo6:number }[] };
+
+    const counts = new Map<number, number>();
+    const cols = ['drwtNo1', 'drwtNo2', 'drwtNo3', 'drwtNo4', 'drwtNo5', 'drwtNo6'] as const;
+
+    for (const draw of draws) {
+      for (const col of cols) {
+        const value = draw[col];
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+    }
+
+    const hot = Array.from(counts.entries())
+      .map(([num, count]) => ({ num, count }))
+      .sort((a, b) => b.count - a.count || a.num - b.num)
+      .slice(0, 10);
+
+    return c.json(hot);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
 })
 
 // Generate numbers
