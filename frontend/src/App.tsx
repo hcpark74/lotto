@@ -5,7 +5,6 @@ import {
     Info,
     Search,
     Sparkles,
-    TrendingUp,
     Waves,
 } from 'lucide-react';
 
@@ -19,7 +18,6 @@ type DrawResult = {
 };
 
 type LottoSet = { numbers: number[]; label: string };
-type HotNumber = { num: number; count: number };
 type BallTheme = { base: string; mid: string; dark: string; text: string };
 type SyncResponse = {
     success: boolean;
@@ -464,7 +462,6 @@ function App() {
     const [results, setResults] = useState<DrawResult[]>([]);
     const [resultsLoading, setResultsLoading] = useState(false);
 
-    const [hotNumbers, setHotNumbers] = useState<HotNumber[]>([]);
     const [syncLoading, setSyncLoading] = useState(false);
     const [syncMessage, setSyncMessage] = useState('');
     const [syncError, setSyncError] = useState('');
@@ -505,19 +502,8 @@ function App() {
         }
     };
 
-    const loadHotNumbers = async () => {
-        try {
-            const res = await fetch(`${API_URL}/api/stats/hot`);
-            const data = res.ok ? await res.json() : [];
-            setHotNumbers(Array.isArray(data) ? data : []);
-        } catch {
-            setHotNumbers([]);
-        }
-    };
-
     useEffect(() => {
         loadResults();
-        loadHotNumbers();
     }, []);
 
     useEffect(() => {
@@ -610,7 +596,7 @@ function App() {
                 throw new Error(data.error || '동기화에 실패했습니다.');
             }
 
-            await Promise.all([loadResults(), loadHotNumbers()]);
+            await loadResults();
             const now = new Date();
             setLastSyncedAt(now);
             setLastSyncedDraw(data.latestDraw ?? null);
@@ -695,7 +681,7 @@ function App() {
                         )}
                     </section>
 
-                    <section className="mt-6 lg:mt-8">
+                    <section className="mt-5 lg:mt-6">
                         <SectionCard
                             title="추천 번호 세트"
                             eyebrow="추천 번호"
@@ -712,9 +698,13 @@ function App() {
                             }
                             accent="soft"
                         >
-                            <div className="mb-4 flex items-center justify-end">
+                            <div className="mb-3 flex items-center justify-end">
                                 <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">5개 조합</div>
                             </div>
+
+                            <p className="mb-3 text-sm text-slate-500">
+                                전체 빈도와 최근 30회 빈도를 가중치로 반영하고, 합계/홀짝/연속수 조건을 통과한 조합만 추천합니다.
+                            </p>
 
                             {sets.length > 0 ? (
                                 <div className="space-y-3">
@@ -732,49 +722,7 @@ function App() {
                         </SectionCard>
                     </section>
 
-                    <section className="mt-6 lg:mt-8">
-                        <SectionCard title="분석 리포트" eyebrow="통계 정보" icon={<TrendingUp className="h-5 w-5" />}>
-                            {hotNumbers.length > 0 ? (
-                                <>
-                                    <div className="hot-summary mb-4 rounded-[22px] px-4 py-4 sm:rounded-[24px]">
-                                        <div className="flex flex-wrap items-center justify-between gap-3">
-                                            <div>
-                                                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">가장 많이 나온 번호</div>
-                                                <div className="mt-1 text-lg font-semibold tracking-tight text-slate-950">No. {hotNumbers[0].num}</div>
-                                            </div>
-                                            <div className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                                                {hotNumbers[0].count}회 출현
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                    {hotNumbers.slice(0, 10).map((item, index) => (
-                                        <div key={item.num} className="hot-card rounded-[20px] px-3 py-3 sm:rounded-[22px]">
-                                            <div className="flex items-center gap-3">
-                                                <div className="hot-rank">{index + 1}</div>
-                                                <Ball num={item.num} size="sm" delay={index * 25} />
-                                                <div className="flex-1">
-                                                    <div className="text-sm font-semibold text-slate-900">번호 {item.num}</div>
-                                                    <div className="text-xs text-slate-500">출현 {item.count}회</div>
-                                                </div>
-                                                <div className="rounded-full bg-slate-50 px-3 py-1 text-right">
-                                                    <div className="text-sm font-semibold text-emerald-700">
-                                                        {((item.count / (hotNumbers[0]?.count || 1)) * 100).toFixed(0)}%
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <p className="text-sm text-slate-500">핫 넘버 통계를 아직 불러오지 못했습니다.</p>
-                            )}
-                        </SectionCard>
-                    </section>
-
-                    <section id="lookup-section" className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[0.85fr_1.15fr]">
+                    <section id="lookup-section" className="mt-5 grid gap-5 lg:mt-6 lg:grid-cols-[0.85fr_1.15fr]">
                         <SectionCard title="회차 탐색" eyebrow="회차 조회" icon={<Search className="h-5 w-5" />}>
                             <div className="flex flex-col gap-3 sm:flex-row">
                                 <input
@@ -870,7 +818,7 @@ function App() {
                         </SectionCard>
                     </section>
 
-                    <section className="mt-5 grid gap-4 lg:mt-6 lg:grid-cols-[1.2fr_0.8fr]">
+                    <section className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-[1.2fr_0.8fr]">
                         <SectionCard title="번호 색상 안내" eyebrow="번호 안내" icon={<Waves className="h-5 w-5" />} bodyClassName="py-4 sm:py-4">
                             <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                                 {[1, 11, 21, 31, 41].map((n, i) => {
@@ -888,7 +836,7 @@ function App() {
                         </SectionCard>
                     </section>
 
-                    <section className="mt-5 lg:mt-6">
+                    <section className="mt-4 lg:mt-5">
                         <div className="panel flex flex-col gap-2 rounded-[24px] px-4 py-3 text-[13px] text-slate-600 sm:flex-row sm:items-start sm:px-5 sm:text-sm">
                             <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 sm:h-5 sm:w-5" />
                             <p className="leading-5 sm:leading-6">

@@ -20,6 +20,12 @@ type DrawNumbersRow = {
 type GeneratedSet = {
   label: string;
   numbers: number[];
+  meta?: {
+    sum: number;
+    oddCount: number;
+    maxConsecutiveRun: number;
+    passedRules: string[];
+  };
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -120,7 +126,7 @@ const SET_CONFIGS: { label: string; check: (s: number[]) => boolean }[] = [
     label: '합계 안정형',
     check: (s) => {
       const sum = s.reduce((a, b) => a + b, 0)
-      return sum >= 115 && sum <= 160
+      return sum >= 110 && sum <= 155
     },
   },
   {
@@ -133,17 +139,69 @@ const SET_CONFIGS: { label: string; check: (s: number[]) => boolean }[] = [
   },
 ]
 
-function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
-  if (draws.length === 0) {
-    return SET_CONFIGS.map(({ label }) => {
-      const picked = new Set<number>()
-      while (picked.size < 6) picked.add(Math.floor(Math.random() * 45) + 1)
-      return { label, numbers: Array.from(picked).sort((a, b) => a - b) }
-    })
+const RECENT_DRAW_COUNT = 30
+const COLD_DRAW_COUNT = 15
+const MAX_PICK_ATTEMPTS = 200
+
+function buildFallbackSet(label: string): GeneratedSet {
+  const picked = new Set<number>()
+  while (picked.size < 6) picked.add(Math.floor(Math.random() * 45) + 1)
+  const numbers = Array.from(picked).sort((a, b) => a - b)
+  return {
+    label,
+    numbers,
+    meta: buildSetMeta(numbers, ['fallback-random']),
+  }
+}
+
+function getOddCount(numbers: number[]) {
+  return numbers.filter(n => n % 2 === 1).length
+}
+
+function getConsecutiveRun(numbers: number[]) {
+  let maxRun = 1
+  let currentRun = 1
+
+  for (let i = 1; i < numbers.length; i++) {
+    if (numbers[i] === numbers[i - 1] + 1) {
+      currentRun += 1
+      maxRun = Math.max(maxRun, currentRun)
+    } else {
+      currentRun = 1
+    }
   }
 
-  const recentN = Math.min(30, draws.length)
-  const coldN = Math.min(15, draws.length)
+  return maxRun
+}
+
+function getSum(numbers: number[]) {
+  return numbers.reduce((a, b) => a + b, 0)
+}
+
+function buildSetMeta(numbers: number[], passedRules: string[]) {
+  return {
+    sum: getSum(numbers),
+    oddCount: getOddCount(numbers),
+    maxConsecutiveRun: getConsecutiveRun(numbers),
+    passedRules,
+  }
+}
+
+function passesCommonRules(numbers: number[]) {
+  const sum = getSum(numbers)
+  const oddCount = getOddCount(numbers)
+  const maxConsecutiveRun = getConsecutiveRun(numbers)
+
+  return sum >= 100
+    && sum <= 175
+    && oddCount >= 2
+    && oddCount <= 4
+    && maxConsecutiveRun < 3
+}
+
+function buildWeights(draws: DrawNumbersRow[]) {
+  const recentN = Math.min(RECENT_DRAW_COUNT, draws.length)
+  const coldN = Math.min(COLD_DRAW_COUNT, draws.length)
   const recentDraws = draws.slice(-recentN)
   const coldDraws = recentDraws.slice(-coldN)
 
@@ -162,7 +220,7 @@ function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
   const maxFreq = Math.max(...freqMap.values(), 1)
   const maxRecent = Math.max(...recentMap.values(), 1)
 
-  const weights = Array.from({ length: 45 }, (_, i) => {
+  return Array.from({ length: 45 }, (_, i) => {
     const num = i + 1
     const freqScore = (freqMap.get(num) ?? 0) / maxFreq
     const recentScore = (recentMap.get(num) ?? 0) / maxRecent
@@ -171,31 +229,57 @@ function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
     if (isCold) weight *= 0.5
     return { num, weight: Math.max(weight, 0.02) }
   })
+}
 
-  function weightedPick(pool: { num: number; weight: number }[]) {
-    const total = pool.reduce((s, x) => s + x.weight, 0)
-    let r = Math.random() * total
-    for (const x of pool) {
-      r -= x.weight
-      if (r <= 0) return x.num
+function weightedPick(pool: { num: number; weight: number }[]) {
+  const total = pool.reduce((s, x) => s + x.weight, 0)
+  let r = Math.random() * total
+  for (const x of pool) {
+    r -= x.weight
+    if (r <= 0) return x.num
+  }
+  return pool[pool.length - 1].num
+}
+
+function pickWeightedNumbers(weights: { num: number; weight: number }[]) {
+  const picked = new Set<number>()
+  while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))))
+  return Array.from(picked).sort((a, b) => a - b)
+}
+
+function pickSet(label: string, weights: { num: number; weight: number }[], check: (s: number[]) => boolean): GeneratedSet {
+  for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
+    const numbers = pickWeightedNumbers(weights)
+    if (passesCommonRules(numbers) && check(numbers)) {
+      return {
+        label,
+        numbers,
+        meta: buildSetMeta(numbers, ['common-rules', label]),
+      }
     }
-    return pool[pool.length - 1].num
   }
 
-  function pickSet(check: (s: number[]) => boolean) {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const picked = new Set<number>()
-      while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))))
-      const sorted = Array.from(picked).sort((a, b) => a - b)
-      if (check(sorted)) return sorted
+  for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
+    const numbers = pickWeightedNumbers(weights)
+    if (passesCommonRules(numbers)) {
+      return {
+        label,
+        numbers,
+        meta: buildSetMeta(numbers, ['common-rules', 'fallback-set-rule-relaxed']),
+      }
     }
-
-    const picked = new Set<number>()
-    while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))))
-    return Array.from(picked).sort((a, b) => a - b)
   }
 
-  return SET_CONFIGS.map(({ label, check }) => ({ label, numbers: pickSet(check) }))
+  return buildFallbackSet(label)
+}
+
+function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
+  if (draws.length === 0) {
+    return SET_CONFIGS.map(({ label }) => buildFallbackSet(label))
+  }
+
+  const weights = buildWeights(draws)
+  return SET_CONFIGS.map(({ label, check }) => pickSet(label, weights, check))
 }
 
 function countMatches(picked: number[], draw: DrawNumbersRow) {
@@ -318,6 +402,9 @@ app.get('/api/generate/backtest', async (c) => {
     let totalMatches = 0
     let bestMatchSum = 0
     let bonusHitCount = 0
+    let commonRulePassCount = 0
+    let relaxedFallbackCount = 0
+    let randomFallbackCount = 0
     const hitDistribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } as Record<number, number>
     const bestHitDistribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } as Record<number, number>
     let threePlusCount = 0
@@ -332,9 +419,13 @@ app.get('/api/generate/backtest', async (c) => {
 
       for (let i = 0; i < sets.length; i++) {
         const matches = matchCounts[i]
+        const passedRules = sets[i].meta?.passedRules ?? []
         totalSets++
         totalMatches += matches
         hitDistribution[matches]++
+        if (passedRules.includes('common-rules')) commonRulePassCount++
+        if (passedRules.includes('fallback-set-rule-relaxed')) relaxedFallbackCount++
+        if (passedRules.includes('fallback-random')) randomFallbackCount++
         if (matches >= 3) threePlusCount++
         if (matches >= 4) fourPlusCount++
         if (matches >= 5) fivePlusCount++
@@ -346,12 +437,17 @@ app.get('/api/generate/backtest', async (c) => {
     }
 
     return c.json({
-      algorithm: 'v3.0',
+      algorithm: 'v3.1',
       evaluatedDraws: targetDraws.length,
       setsPerDraw: SET_CONFIGS.length,
       totalGeneratedSets: totalSets,
       averageMatchPerSet: Number((totalMatches / totalSets).toFixed(3)),
       averageBestMatchPerDraw: Number((bestMatchSum / targetDraws.length).toFixed(3)),
+      generationQuality: {
+        commonRulePassRate: Number((commonRulePassCount / totalSets * 100).toFixed(2)),
+        relaxedFallbackRate: Number((relaxedFallbackCount / totalSets * 100).toFixed(2)),
+        randomFallbackRate: Number((randomFallbackCount / totalSets * 100).toFixed(2)),
+      },
       setHitRate: {
         match3Plus: Number((threePlusCount / totalSets * 100).toFixed(2)),
         match4Plus: Number((fourPlusCount / totalSets * 100).toFixed(2)),
@@ -375,7 +471,7 @@ app.post('/api/generate', async (c) => {
     // 데이터 없으면 순수 랜덤 5세트
     if (total === 0) {
       const sets = buildGeneratedSets([])
-      return c.json({ sets, algorithm: 'v3.0 (랜덤 - 데이터 없음)' });
+      return c.json({ sets, algorithm: 'v3.1 (랜덤 - 데이터 없음)' });
     }
 
     // 전체 회차 조회 (JS에서 집계 — D1 compound SELECT 한계 우회)
@@ -385,7 +481,7 @@ app.post('/api/generate', async (c) => {
 
     const sets = buildGeneratedSets(allDraws)
 
-    return c.json({ sets, algorithm: 'v3.0' });
+    return c.json({ sets, algorithm: 'v3.1' });
   } catch (error: any) {
     return c.json({ error: error.message }, 500);
   }
