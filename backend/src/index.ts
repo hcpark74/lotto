@@ -43,6 +43,13 @@ const LOTTO_HEADERS = {
   'X-Requested-With': 'XMLHttpRequest',
 }
 
+const PENSION_HEADERS = {
+  'User-Agent': LOTTO_HEADERS['User-Agent'],
+  'Referer': 'https://www.dhlottery.co.kr/pt720/result',
+  'Accept': 'application/json',
+  'X-Requested-With': 'XMLHttpRequest',
+}
+
 type LottoHistoryItem = {
   ltEpsd: number;
   ltRflYmd: string;
@@ -54,6 +61,65 @@ type LottoHistoryItem = {
   tm6WnNo: number;
   bnsWnNo: number;
   rnk1WnAmt: number;
+}
+
+type Pension720DrawRecord = {
+  draw_no: number;
+  draw_date: string;
+  winning_band: string;
+  winning_number: string;
+  bonus_number: string;
+  synced_at: string;
+  raw_payload?: string;
+}
+
+type Pension720SyncSummary = {
+  syncedCount: number;
+  latestDraw: number;
+  nextDrawNo: number;
+}
+
+type Pension720PrizeCountRecord = {
+  draw_no: number;
+  rank_no: number;
+  internet_count: number;
+  store_count: number;
+  total_count: number;
+  win_amount: number | null;
+  total_amount: number | null;
+  raw_payload?: string;
+}
+
+type Pension720ListItem = {
+  psltEpsd?: number | string;
+  psltRflYmd?: string;
+  wnBndNo?: number | string;
+  wnRnkVl?: number | string;
+  bnsRnkVl?: number | string;
+  [key: string]: unknown;
+}
+
+type Pension720PrizeInfoItem = {
+  ltEpsd?: number | string;
+  wnRnk?: number | string;
+  wnInternetCnt?: number | string;
+  wnStoreCnt?: number | string;
+  wnTotalCnt?: number | string;
+  wnAmt?: number | string;
+  totAmt?: number | string;
+  [key: string]: unknown;
+}
+
+type PensionRecommendationSet = {
+  label: string;
+  number: string;
+  meta: {
+    sum: number;
+    oddCount: number;
+    uniqueDigitCount: number;
+    maxDuplicateCount: number;
+    hasThreeConsecutive: boolean;
+  };
 }
 
 async function getLatestDrawNo() {
@@ -105,6 +171,236 @@ async function fetchLottoResult(drwNo: number) {
     }
   } catch (e) {
     return null
+  }
+}
+
+async function getLatestPensionDrawNo() {
+  const draws = await fetchPensionDrawList()
+  const latest = draws[0]
+  const latestDrawNo = Number(latest?.psltEpsd)
+
+  if (!Number.isFinite(latestDrawNo) || latestDrawNo <= 0) {
+    throw new Error('연금복권 최신 회차 번호를 찾을 수 없습니다.')
+  }
+
+  return latestDrawNo
+}
+
+async function fetchPensionDrawList(): Promise<Pension720ListItem[]> {
+  const response = await fetch('https://www.dhlottery.co.kr/pt720/selectPstPt720WnList.do', {
+    headers: PENSION_HEADERS,
+  })
+
+  if (!response.ok) {
+    throw new Error(`연금복권 회차 목록 조회 실패 (${response.status})`)
+  }
+
+  const data = await response.json() as { data?: { result?: Pension720ListItem[] } }
+  const results = data?.data?.result
+
+  if (!Array.isArray(results) || results.length === 0) {
+    throw new Error('연금복권 회차 목록 데이터가 비어 있습니다.')
+  }
+
+  return results
+}
+
+function mapPensionDraw(row: Pension720ListItem): Pension720DrawRecord | null {
+  const drawNo = Number(row.psltEpsd)
+  const date = String(row.psltRflYmd ?? '')
+  const winningBand = String(row.wnBndNo ?? '').trim()
+  const winningNumber = String(row.wnRnkVl ?? '').trim()
+  const bonusNumber = String(row.bnsRnkVl ?? '').trim()
+
+  if (!Number.isFinite(drawNo) || drawNo <= 0) return null
+  if (!date || !winningBand || !winningNumber || !bonusNumber) return null
+
+  const normalizedDate = date.length === 8
+    ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
+    : date
+
+  return {
+    draw_no: drawNo,
+    draw_date: normalizedDate,
+    winning_band: winningBand,
+    winning_number: winningNumber,
+    bonus_number: bonusNumber,
+    synced_at: new Date().toISOString(),
+    raw_payload: JSON.stringify(row),
+  }
+}
+
+async function fetchPensionPrizeCounts(drawNo: number): Promise<Pension720PrizeInfoItem[]> {
+  const response = await fetch(`https://www.dhlottery.co.kr/pt720/selectPstPt720WnInfo.do?srchPsltEpsd=${drawNo}`, {
+    headers: PENSION_HEADERS,
+  })
+
+  if (!response.ok) {
+    throw new Error(`연금복권 당첨 통계 조회 실패 (${response.status})`)
+  }
+
+  const data = await response.json() as { data?: { result?: Pension720PrizeInfoItem[] } }
+  const results = data?.data?.result
+
+  if (!Array.isArray(results)) {
+    throw new Error('연금복권 당첨 통계 데이터가 비어 있습니다.')
+  }
+
+  return results
+}
+
+function mapPensionPrizeCount(row: Pension720PrizeInfoItem): Pension720PrizeCountRecord | null {
+  const drawNo = Number(row.ltEpsd)
+  const rankNo = Number(row.wnRnk)
+
+  if (!Number.isFinite(drawNo) || drawNo <= 0) return null
+  if (!Number.isFinite(rankNo) || rankNo <= 0) return null
+
+  return {
+    draw_no: drawNo,
+    rank_no: rankNo,
+    internet_count: Number(row.wnInternetCnt ?? 0),
+    store_count: Number(row.wnStoreCnt ?? 0),
+    total_count: Number(row.wnTotalCnt ?? 0),
+    win_amount: row.wnAmt == null ? null : Number(row.wnAmt),
+    total_amount: row.totAmt == null ? null : Number(row.totAmt),
+    raw_payload: JSON.stringify(row),
+  }
+}
+
+function getDigitSum(digits: number[]) {
+  return digits.reduce((sum, digit) => sum + digit, 0)
+}
+
+function getOddDigitCount(digits: number[]) {
+  return digits.filter(digit => digit % 2 === 1).length
+}
+
+function getUniqueDigitCount(digits: number[]) {
+  return new Set(digits).size
+}
+
+function hasThreeConsecutiveDigits(digits: number[]) {
+  for (let i = 0; i <= digits.length - 3; i++) {
+    const ascending = digits[i] + 1 === digits[i + 1] && digits[i + 1] + 1 === digits[i + 2]
+    const descending = digits[i] - 1 === digits[i + 1] && digits[i + 1] - 1 === digits[i + 2]
+    if (ascending || descending) {
+      return true
+    }
+  }
+  return false
+}
+
+function getMaxDuplicateCount(digits: number[]) {
+  const counts = new Map<number, number>()
+  for (const digit of digits) counts.set(digit, (counts.get(digit) ?? 0) + 1)
+  return Math.max(...counts.values(), 1)
+}
+
+function buildPensionRecommendation(label: string) {
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+    const sum = getDigitSum(digits)
+    const oddCount = getOddDigitCount(digits)
+    const uniqueDigitCount = getUniqueDigitCount(digits)
+    const threeConsecutive = hasThreeConsecutiveDigits(digits)
+    const maxDuplicateCount = getMaxDuplicateCount(digits)
+
+    if (sum < 22 || sum > 34) continue
+    if (oddCount < 2 || oddCount > 4) continue
+    if (uniqueDigitCount < 4) continue
+    if (threeConsecutive) continue
+    if (maxDuplicateCount >= 3) continue
+
+    return {
+      label,
+      number: digits.join(''),
+      meta: {
+        sum,
+        oddCount,
+        uniqueDigitCount,
+        maxDuplicateCount,
+        hasThreeConsecutive: threeConsecutive,
+      },
+    }
+  }
+
+  const fallbackDigits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+  return {
+    label,
+    number: fallbackDigits.join(''),
+    meta: {
+      sum: getDigitSum(fallbackDigits),
+      oddCount: getOddDigitCount(fallbackDigits),
+      uniqueDigitCount: getUniqueDigitCount(fallbackDigits),
+      maxDuplicateCount: getMaxDuplicateCount(fallbackDigits),
+      hasThreeConsecutive: hasThreeConsecutiveDigits(fallbackDigits),
+    },
+  }
+}
+
+function buildPensionRecommendations() {
+  return [buildPensionRecommendation('정교 추천 1세트')]
+}
+
+async function syncPensionResults(db: D1Database, limit = 0): Promise<Pension720SyncSummary> {
+  const latestDraw = await getLatestPensionDrawNo()
+  const list = await fetchPensionDrawList()
+
+  const lastEntry = await db.prepare(
+    'SELECT draw_no FROM pension720_draws ORDER BY draw_no DESC LIMIT 1'
+  ).first<{ draw_no: number }>()
+
+  const currentMaxDraw = lastEntry?.draw_no ?? 0
+  const newDraws = list
+    .map(mapPensionDraw)
+    .filter((row): row is Pension720DrawRecord => row !== null)
+    .filter(row => row.draw_no > currentMaxDraw)
+    .sort((a, b) => a.draw_no - b.draw_no)
+
+  const limitedDraws = limit > 0 ? newDraws.slice(0, limit) : newDraws
+
+  for (const row of limitedDraws) {
+    await db.prepare(
+      `INSERT OR REPLACE INTO pension720_draws
+      (draw_no, draw_date, winning_band, winning_number, bonus_number, synced_at, raw_payload)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      row.draw_no,
+      row.draw_date,
+      row.winning_band,
+      row.winning_number,
+      row.bonus_number,
+      row.synced_at,
+      row.raw_payload ?? null,
+    ).run()
+
+    const prizeCounts = await fetchPensionPrizeCounts(row.draw_no)
+    for (const prizeRow of prizeCounts) {
+      const mapped = mapPensionPrizeCount(prizeRow)
+      if (!mapped) continue
+
+      await db.prepare(
+        `INSERT OR REPLACE INTO pension720_prize_counts
+        (draw_no, rank_no, internet_count, store_count, total_count, win_amount, total_amount, raw_payload)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        mapped.draw_no,
+        mapped.rank_no,
+        mapped.internet_count,
+        mapped.store_count,
+        mapped.total_count,
+        mapped.win_amount,
+        mapped.total_amount,
+        mapped.raw_payload ?? null,
+      ).run()
+    }
+  }
+
+  return {
+    syncedCount: limitedDraws.length,
+    latestDraw,
+    nextDrawNo: latestDraw + 1,
   }
 }
 
@@ -329,6 +625,70 @@ app.post('/api/sync', async (c) => {
     })
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+app.post('/api/pension/sync', async (c) => {
+  try {
+    const requestedLimit = Number(c.req.query('limit') ?? 0)
+    const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(Math.floor(requestedLimit), 100)
+      : 0
+
+    const result = await syncPensionResults(c.env.DB, safeLimit)
+    return c.json({ success: true, ...result })
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500)
+  }
+})
+
+app.get('/api/pension/results', async (c) => {
+  try {
+    const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
+    const drawNo = c.req.query('drawNo')
+
+    if (drawNo) {
+      const row = await c.env.DB.prepare(
+        'SELECT draw_no, draw_date, winning_band, winning_number, bonus_number, synced_at FROM pension720_draws WHERE draw_no = ?'
+      ).bind(Number(drawNo)).first()
+
+      if (!row) {
+        return c.json({ error: '해당 연금복권 회차 데이터가 없습니다.' }, 404)
+      }
+
+      const { results: prizeCounts } = await c.env.DB.prepare(
+        'SELECT rank_no, internet_count, store_count, total_count, win_amount, total_amount FROM pension720_prize_counts WHERE draw_no = ? ORDER BY rank_no ASC'
+      ).bind(Number(drawNo)).all()
+
+      return c.json({ ...row, prize_counts: prizeCounts })
+    }
+
+    const { results } = await c.env.DB.prepare(
+      'SELECT draw_no, draw_date, winning_band, winning_number, bonus_number, synced_at FROM pension720_draws ORDER BY draw_no DESC LIMIT ?'
+    ).bind(limit).all()
+
+    return c.json(results)
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500)
+  }
+})
+
+app.post('/api/pension/generate', (c) => {
+  try {
+    const sets = buildPensionRecommendations()
+    return c.json({
+      sets,
+      algorithm: 'pension-balanced-v1',
+      rules: {
+        sumRange: '22-34',
+        oddCountRange: '2-4',
+        minUniqueDigits: 4,
+        noThreeConsecutive: true,
+        maxDuplicateCount: 2,
+      },
+    })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500)
   }
 })
 

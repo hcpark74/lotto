@@ -132,6 +132,8 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
 | `POST` | `/api/sync` | 최신 당첨 결과 동기화 |
+| `POST` | `/api/pension/sync` | 연금복권720+ 지난 회차/최신 회차 동기화 |
+| `GET` | `/api/pension/results` | 연금복권720+ 회차 조회 (`?limit=`, `?drawNo=`) |
 | `GET` | `/api/results` | 최근 회차 조회 (`?limit=`, `?drwNo=`) |
 | `GET` | `/api/stats/hot` | 자주 나온 번호 Top 10 조회 |
 | `POST` | `/api/generate` | 추천 번호 5세트 생성 |
@@ -144,6 +146,22 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 - `generationQuality.randomFallbackRate`
 
 이 값으로 공통 필터가 얼마나 안정적으로 통과되는지, 세트 조건 완화나 랜덤 fallback이 얼마나 자주 발생하는지 확인할 수 있습니다.
+
+연금복권 동기화 예시:
+
+```bash
+# 누락 회차 전체 저장
+curl -X POST "http://localhost:8787/api/pension/sync"
+
+# 누락 회차 중 10개만 저장
+curl -X POST "http://localhost:8787/api/pension/sync?limit=10"
+
+# 최신 연금복권 1건 조회
+curl "http://localhost:8787/api/pension/results?limit=1"
+
+# 특정 회차 상세 조회
+curl "http://localhost:8787/api/pension/results?drawNo=306"
+```
 
 ---
 

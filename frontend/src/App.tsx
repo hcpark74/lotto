@@ -17,6 +17,35 @@ type DrawResult = {
     firstWinamnt: number;
 };
 
+type PensionDrawResult = {
+    draw_no: number;
+    draw_date: string;
+    winning_band: string;
+    winning_number: string;
+    bonus_number: string;
+    synced_at: string;
+    prize_counts?: {
+        rank_no: number;
+        internet_count: number;
+        store_count: number;
+        total_count: number;
+        win_amount: number | null;
+        total_amount: number | null;
+    }[];
+};
+
+type PensionRecommendationSet = {
+    label: string;
+    number: string;
+    meta: {
+        sum: number;
+        oddCount: number;
+        uniqueDigitCount: number;
+        maxDuplicateCount: number;
+        hasThreeConsecutive: boolean;
+    };
+};
+
 type LottoSet = { numbers: number[]; label: string };
 type BallTheme = { base: string; mid: string; dark: string; text: string };
 type SyncResponse = {
@@ -413,40 +442,257 @@ function RecommendationCard({
     );
 }
 
-function PensionPage() {
+function PensionDigitBall({ value, color }: { value: string; color: string }) {
+    return (
+        <div
+            className="flex h-[clamp(50px,8.6vw,78px)] w-[clamp(50px,8.6vw,78px)] items-center justify-center rounded-full border-[4px] bg-white text-[clamp(24px,4vw,40px)] font-semibold text-slate-950"
+            style={{ borderColor: color }}
+        >
+            {value}
+        </div>
+    );
+}
+
+function PensionNumberRow({
+    label,
+    subtitle,
+    number,
+    band,
+    showBand = true,
+    prefixLabel,
+}: {
+    label: string;
+    subtitle: string;
+    number: string;
+    band?: string;
+    showBand?: boolean;
+    prefixLabel?: string;
+}) {
+    const colors = ['#d1d5db', '#ea580c', '#fb8c00', '#fbbc04', '#2d9cdb', '#a06cd5', '#b0b7c3'];
+    const digits = number.padStart(6, '0').slice(-6).split('');
+
+    return (
+        <div className="grid gap-5 border-t border-slate-100 py-6 lg:grid-cols-[1.05fr_1.55fr] lg:items-center lg:gap-12">
+            <div className="text-center lg:text-left">
+                <div className="text-[24px] font-semibold tracking-[-0.04em] text-slate-950 sm:text-[34px] lg:text-[38px]">
+                    {label} <span className="mx-1.5 text-slate-300">|</span> {subtitle}
+                </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
+                {showBand && band ? (
+                    <div className="text-center">
+                        <PensionDigitBall value={band} color={colors[0]} />
+                        <div className="mt-2 text-sm font-medium text-slate-500">조</div>
+                    </div>
+                ) : prefixLabel ? (
+                    <div className="px-1 text-base font-medium text-slate-500 sm:text-lg">{prefixLabel}</div>
+                ) : null}
+                {digits.map((digit, index) => (
+                    <PensionDigitBall
+                        key={`${label}-${index}`}
+                        value={digit}
+                        color={colors[Math.min(index + (showBand ? 1 : 0), colors.length - 1)]}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function PensionResultCard({ draw }: { draw: PensionDrawResult }) {
+    return (
+        <div className="latest-feature-card rounded-[30px] px-5 py-7 sm:px-8 sm:py-9 lg:px-12 lg:py-12">
+            <div className="latest-feature-heading">
+                <div className="result-arrow-shell result-arrow-left">
+                    <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} />
+                </div>
+                <div className="text-center">
+                    <h2 className="text-[30px] font-semibold tracking-[-0.05em] text-slate-950 sm:text-[48px] lg:text-[56px]">
+                    제 <span className="text-emerald-600">{draw.draw_no}</span>회 추첨 결과
+                    </h2>
+                    <p className="mt-3 text-base font-medium text-slate-500 sm:text-[18px]">{draw.draw_date} 추첨</p>
+                </div>
+                <div className="result-arrow-shell result-arrow-right text-slate-300">
+                    <ChevronRight className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} />
+                </div>
+            </div>
+
+            <div className="result-divider mt-8 sm:mt-10" />
+
+            <div className="mt-8">
+                <PensionNumberRow label="1등" subtitle="월 700만원 x 20년" band={draw.winning_band} number={draw.winning_number} />
+                <PensionNumberRow label="보너스" subtitle="월 100만원 x 10년" number={draw.bonus_number} showBand={false} prefixLabel="각조" />
+            </div>
+
+            <div className="mt-8 text-center text-xs text-slate-500 sm:text-sm">
+                최근 동기화 {formatDateTime(new Date(draw.synced_at))}
+            </div>
+        </div>
+    );
+}
+
+function PensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
+    return (
+        <div className="recommend-card rounded-[28px] px-4 py-5 sm:px-6 sm:py-7">
+            <div className="text-center">
+                <div className="inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                    {set.label}
+                </div>
+                <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-[28px]">
+                    연금복권 추천번호
+                </h3>
+            </div>
+
+            <div className="result-divider mt-7" />
+
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
+                <div className="px-1 text-base font-medium text-slate-500 sm:text-lg">각조</div>
+                {set.number.split('').map((digit, index) => {
+                    const colors = ['#ea580c', '#fb8c00', '#fbbc04', '#2d9cdb', '#a06cd5', '#b0b7c3'];
+                    return <PensionDigitBall key={`${set.label}-${index}`} value={digit} color={colors[index]} />;
+                })}
+            </div>
+
+            <div className="result-label-row mt-5">
+                <span className="result-label-line" />
+                <span className="result-label-text">추천번호</span>
+                <span className="result-label-line" />
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-500 sm:text-base">
+                <span>합계 {set.meta.sum}</span>
+                <span className="text-slate-300">/</span>
+                <span>홀수 {set.meta.oddCount}개</span>
+                <span className="text-slate-300">/</span>
+                <span>고유숫자 {set.meta.uniqueDigitCount}개</span>
+                <span className="text-slate-300">/</span>
+                <span>최대 중복 {set.meta.maxDuplicateCount}개</span>
+            </div>
+        </div>
+    );
+}
+
+function PensionPage({
+    latestPensionDraw,
+    pensionLoading,
+    pensionError,
+    pensionSyncLoading,
+    pensionGenerateLoading,
+    pensionSearchInput,
+    pensionRecommendation,
+    pensionSearchResult,
+    pensionSearchError,
+    onPensionSync,
+    onPensionGenerate,
+    onPensionSearchInputChange,
+    onPensionSearch,
+}: {
+    latestPensionDraw: PensionDrawResult | null;
+    pensionLoading: boolean;
+    pensionError: string;
+    pensionSyncLoading: boolean;
+    pensionGenerateLoading: boolean;
+    pensionSearchInput: string;
+    pensionRecommendation: PensionRecommendationSet | null;
+    pensionSearchResult: PensionDrawResult | null;
+    pensionSearchError: string;
+    onPensionSync: () => void;
+    onPensionGenerate: () => void;
+    onPensionSearchInputChange: (value: string) => void;
+    onPensionSearch: () => void;
+}) {
     return (
         <div className="space-y-6 lg:space-y-8">
-            <section className="panel rounded-[28px] px-5 py-6 sm:px-6 sm:py-7">
-                <div className="max-w-3xl">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">연금복권720+</p>
-                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-4xl">
-                        연금복권720+ 화면을
-                        <span className="block">별도 페이지로 분리했습니다.</span>
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-                        지금은 기본 화면 전환 구조만 먼저 연결해두었습니다. 연금복권 전용 데이터 조회와 추천 로직은
-                        다음 단계에서 이 페이지에 이어서 붙일 수 있습니다.
-                    </p>
+            <section>
+                <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
+                    <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">연금복권720+</p>
+                        <h2 className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-3xl">회차별 당첨번호</h2>
+                    </div>
+                    <div className="inline-flex min-w-[120px] items-center justify-between gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-[0_2px_8px_rgba(15,23,42,0.03)] sm:min-w-[180px] sm:px-5">
+                        <span>{latestPensionDraw ? `${latestPensionDraw.draw_no}회` : '회차 선택'}</span>
+                        <ChevronRight className="h-4 w-4 rotate-90 text-slate-400" />
+                    </div>
                 </div>
+
+                <div className="mb-3 flex justify-end">
+                    <button
+                        onClick={onPensionSync}
+                        disabled={pensionSyncLoading}
+                        className="btn-primary inline-flex h-10 items-center justify-center rounded-2xl px-4 text-sm font-semibold text-white transition disabled:opacity-60"
+                    >
+                        {pensionSyncLoading ? '동기화 중...' : '최신 결과 동기화'}
+                    </button>
+                </div>
+                {pensionLoading ? (
+                    <div className="rounded-[30px] border border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">연금복권 데이터를 불러오는 중입니다...</div>
+                ) : pensionError ? (
+                    <div className="rounded-[30px] border border-rose-200 bg-rose-50 px-4 py-8 text-sm text-rose-700">{pensionError}</div>
+                ) : latestPensionDraw ? (
+                    <PensionResultCard draw={latestPensionDraw} />
+                ) : (
+                    <div className="rounded-[30px] border border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">연금복권 데이터가 아직 없습니다. 먼저 `/api/pension/sync`를 실행해 주세요.</div>
+                )}
             </section>
 
-            <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-                <SectionCard title="현재 상태" eyebrow="페이지 안내" accent="soft">
-                    <div className="space-y-3 text-sm text-slate-600">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                            연금복권720+ 메뉴 클릭 시 이 페이지로 전환됩니다.
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                            로또6/45 화면과 분리되어 이후 독립적인 UI와 API를 붙이기 쉬운 구조입니다.
-                        </div>
-                    </div>
-                </SectionCard>
+            <section className="mt-5 lg:mt-6">
+                <SectionCard
+                    title="추천번호 생성"
+                    eyebrow="연금복권 추천"
+                    icon={<Sparkles className="h-5 w-5" />}
+                    action={
+                        <button
+                            onClick={onPensionGenerate}
+                            disabled={pensionGenerateLoading}
+                            className="btn-primary inline-flex h-10 items-center justify-center rounded-2xl px-4 text-sm font-semibold text-white transition disabled:opacity-60"
+                        >
+                            {pensionGenerateLoading ? '생성 중...' : '추천번호 생성'}
+                        </button>
+                    }
+                >
+                    <p className="mb-4 text-sm text-slate-500">
+                        숫자 6개를 독립 추출한 뒤 합계, 홀짝 균형, 고유 숫자 수, 연속수, 중복 제한을 통과한 조합만 추천합니다.
+                    </p>
 
-                <SectionCard title="다음에 붙일 기능" eyebrow="확장 예정">
-                    <div className="space-y-2 text-sm text-slate-600">
-                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">최근 추첨 결과 조회</div>
-                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">회차 검색</div>
-                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">번호/조합 분석</div>
+                    {pensionRecommendation ? (
+                        <PensionRecommendationCard set={pensionRecommendation} />
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500">
+                            버튼을 눌러 연금복권 추천번호 1세트를 생성해 보세요.
+                        </div>
+                    )}
+                </SectionCard>
+            </section>
+
+            <section className="mt-5 lg:mt-6">
+                <SectionCard title="지난 회차 검색" eyebrow="연금복권 조회" icon={<Search className="h-5 w-5" />}>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                            type="number"
+                            min={1}
+                            value={pensionSearchInput}
+                            onChange={e => onPensionSearchInputChange(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && onPensionSearch()}
+                            placeholder="예: 306"
+                            className="h-12 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:bg-white"
+                        />
+                        <button
+                            onClick={onPensionSearch}
+                            className="btn-primary inline-flex h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition sm:min-w-[120px]"
+                        >
+                            회차 조회
+                        </button>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
+                        {pensionSearchError ? (
+                            <p className="text-sm font-medium text-rose-600">{pensionSearchError}</p>
+                        ) : pensionSearchResult ? (
+                            <PensionResultCard draw={pensionSearchResult} />
+                        ) : (
+                            <p className="text-sm text-slate-500">조회할 연금복권 회차를 입력하면 지난 회차 추첨 결과를 확인할 수 있습니다.</p>
+                        )}
                     </div>
                 </SectionCard>
             </section>
@@ -461,6 +707,15 @@ function App() {
 
     const [results, setResults] = useState<DrawResult[]>([]);
     const [resultsLoading, setResultsLoading] = useState(false);
+    const [latestPensionDraw, setLatestPensionDraw] = useState<PensionDrawResult | null>(null);
+    const [pensionLoading, setPensionLoading] = useState(false);
+    const [pensionError, setPensionError] = useState('');
+    const [pensionSyncLoading, setPensionSyncLoading] = useState(false);
+    const [pensionGenerateLoading, setPensionGenerateLoading] = useState(false);
+    const [pensionRecommendation, setPensionRecommendation] = useState<PensionRecommendationSet | null>(null);
+    const [pensionSearchInput, setPensionSearchInput] = useState('');
+    const [pensionSearchResult, setPensionSearchResult] = useState<PensionDrawResult | null>(null);
+    const [pensionSearchError, setPensionSearchError] = useState('');
 
     const [syncLoading, setSyncLoading] = useState(false);
     const [syncMessage, setSyncMessage] = useState('');
@@ -502,8 +757,39 @@ function App() {
         }
     };
 
+    const loadLatestPensionResult = async () => {
+        setPensionLoading(true);
+        setPensionError('');
+
+        try {
+            const res = await fetch(`${API_URL}/api/pension/results?limit=12`);
+            if (!res.ok) {
+                setPensionError('연금복권 결과를 불러오지 못했습니다.');
+                setLatestPensionDraw(null);
+                return;
+            }
+
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : data ? [data] : [];
+            const latest = list[0] ?? null;
+            if (latest?.draw_no) {
+                const detailRes = await fetch(`${API_URL}/api/pension/results?drawNo=${latest.draw_no}`);
+                const detail = detailRes.ok ? await detailRes.json() : latest;
+                setLatestPensionDraw(detail);
+            } else {
+                setLatestPensionDraw(latest);
+            }
+        } catch {
+            setPensionError('연금복권 결과 조회 중 오류가 발생했습니다.');
+            setLatestPensionDraw(null);
+        } finally {
+            setPensionLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadResults();
+        loadLatestPensionResult();
     }, []);
 
     useEffect(() => {
@@ -614,6 +900,68 @@ function App() {
             setSyncError(error instanceof Error ? error.message : '동기화 중 오류가 발생했습니다.');
         } finally {
             setSyncLoading(false);
+        }
+    };
+
+    const syncLatestPensionResults = async () => {
+        setPensionSyncLoading(true);
+        setSyncMessage('');
+        setSyncError('');
+
+        try {
+            const res = await fetch(`${API_URL}/api/pension/sync`, { method: 'POST' });
+            const data = await res.json() as { success?: boolean; syncedCount?: number; latestDraw?: number; error?: string };
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || '연금복권 동기화에 실패했습니다.');
+            }
+
+            await loadLatestPensionResult();
+            setSyncMessage(
+                data.syncedCount && data.syncedCount > 0
+                    ? `${data.syncedCount}개 연금복권 회차를 새로 가져왔습니다. 최신 ${data.latestDraw}회까지 반영됐어요.`
+                    : `연금복권은 이미 최신 상태입니다. 현재 ${data.latestDraw}회까지 반영되어 있어요.`
+            );
+        } catch (error) {
+            setSyncError(error instanceof Error ? error.message : '연금복권 동기화 중 오류가 발생했습니다.');
+        } finally {
+            setPensionSyncLoading(false);
+        }
+    };
+
+    const generatePensionNumbers = async () => {
+        setPensionGenerateLoading(true);
+        setPensionRecommendation(null);
+
+        try {
+            const res = await fetch(`${API_URL}/api/pension/generate`, { method: 'POST' });
+            if (!res.ok) throw new Error('연금복권 추천번호 생성에 실패했습니다.');
+            const data = await res.json();
+            setPensionRecommendation(Array.isArray(data.sets) ? data.sets[0] ?? null : null);
+        } catch {
+            setPensionRecommendation(null);
+        } finally {
+            setPensionGenerateLoading(false);
+        }
+    };
+
+    const searchPensionDraw = async () => {
+        const no = Number(pensionSearchInput);
+        if (!no || no < 1) return;
+
+        setPensionSearchError('');
+        setPensionSearchResult(null);
+
+        try {
+            const res = await fetch(`${API_URL}/api/pension/results?drawNo=${no}`);
+            if (!res.ok) {
+                setPensionSearchError(`${no}회차 데이터가 없습니다.`);
+                return;
+            }
+
+            setPensionSearchResult(await res.json());
+        } catch {
+            setPensionSearchError('조회 중 오류가 발생했습니다.');
         }
     };
 
@@ -847,7 +1195,25 @@ function App() {
                     </section>
                     </>
                     ) : (
-                    <PensionPage />
+                    <PensionPage
+                        latestPensionDraw={latestPensionDraw}
+                        pensionLoading={pensionLoading}
+                        pensionError={pensionError}
+                        pensionSyncLoading={pensionSyncLoading}
+                        pensionGenerateLoading={pensionGenerateLoading}
+                        pensionSearchInput={pensionSearchInput}
+                        pensionRecommendation={pensionRecommendation}
+                        pensionSearchResult={pensionSearchResult}
+                        pensionSearchError={pensionSearchError}
+                        onPensionSync={syncLatestPensionResults}
+                        onPensionGenerate={generatePensionNumbers}
+                        onPensionSearchInputChange={(value) => {
+                            setPensionSearchInput(value);
+                            setPensionSearchResult(null);
+                            setPensionSearchError('');
+                        }}
+                        onPensionSearch={searchPensionDraw}
+                    />
                     )}
                 </main>
             </div>
