@@ -6,6 +6,22 @@ type Bindings = {
   DB: D1Database
 }
 
+type DrawNumbersRow = {
+  drwNo?: number;
+  drwtNo1: number;
+  drwtNo2: number;
+  drwtNo3: number;
+  drwtNo4: number;
+  drwtNo5: number;
+  drwtNo6: number;
+  bnusNo?: number;
+}
+
+type GeneratedSet = {
+  label: string;
+  numbers: number[];
+}
+
 const app = new Hono<{ Bindings: Bindings }>()
 
 app.use('/api/*', cors())
@@ -84,6 +100,109 @@ async function fetchLottoResult(drwNo: number) {
   } catch (e) {
     return null
   }
+}
+
+const COLS = ['drwtNo1', 'drwtNo2', 'drwtNo3', 'drwtNo4', 'drwtNo5', 'drwtNo6'] as const
+
+const SET_CONFIGS: { label: string; check: (s: number[]) => boolean }[] = [
+  {
+    label: '홀짝 균형형',
+    check: (s) => s.filter(n => n % 2 === 1).length === 3,
+  },
+  {
+    label: '연속 독립형',
+    check: (s) => {
+      for (let i = 1; i < s.length; i++) if (s[i] === s[i - 1] + 1) return false
+      return true
+    },
+  },
+  {
+    label: '합계 안정형',
+    check: (s) => {
+      const sum = s.reduce((a, b) => a + b, 0)
+      return sum >= 115 && sum <= 160
+    },
+  },
+  {
+    label: '구간 분포형',
+    check: (s) => new Set(s.map(n => Math.ceil(n / 10))).size >= 4,
+  },
+  {
+    label: '끝수 균형형',
+    check: (s) => new Set(s.map(n => n % 10)).size === s.length,
+  },
+]
+
+function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
+  if (draws.length === 0) {
+    return SET_CONFIGS.map(({ label }) => {
+      const picked = new Set<number>()
+      while (picked.size < 6) picked.add(Math.floor(Math.random() * 45) + 1)
+      return { label, numbers: Array.from(picked).sort((a, b) => a - b) }
+    })
+  }
+
+  const recentN = Math.min(30, draws.length)
+  const coldN = Math.min(15, draws.length)
+  const recentDraws = draws.slice(-recentN)
+  const coldDraws = recentDraws.slice(-coldN)
+
+  const freqMap = new Map<number, number>()
+  for (const row of draws)
+    for (const col of COLS) freqMap.set(row[col], (freqMap.get(row[col]) ?? 0) + 1)
+
+  const recentMap = new Map<number, number>()
+  for (const row of recentDraws)
+    for (const col of COLS) recentMap.set(row[col], (recentMap.get(row[col]) ?? 0) + 1)
+
+  const recentSet = new Set<number>()
+  for (const row of coldDraws)
+    for (const col of COLS) recentSet.add(row[col])
+
+  const maxFreq = Math.max(...freqMap.values(), 1)
+  const maxRecent = Math.max(...recentMap.values(), 1)
+
+  const weights = Array.from({ length: 45 }, (_, i) => {
+    const num = i + 1
+    const freqScore = (freqMap.get(num) ?? 0) / maxFreq
+    const recentScore = (recentMap.get(num) ?? 0) / maxRecent
+    const isCold = !recentSet.has(num)
+    let weight = freqScore * 0.4 + recentScore * 0.6
+    if (isCold) weight *= 0.5
+    return { num, weight: Math.max(weight, 0.02) }
+  })
+
+  function weightedPick(pool: { num: number; weight: number }[]) {
+    const total = pool.reduce((s, x) => s + x.weight, 0)
+    let r = Math.random() * total
+    for (const x of pool) {
+      r -= x.weight
+      if (r <= 0) return x.num
+    }
+    return pool[pool.length - 1].num
+  }
+
+  function pickSet(check: (s: number[]) => boolean) {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const picked = new Set<number>()
+      while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))))
+      const sorted = Array.from(picked).sort((a, b) => a - b)
+      if (check(sorted)) return sorted
+    }
+
+    const picked = new Set<number>()
+    while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))))
+    return Array.from(picked).sort((a, b) => a - b)
+  }
+
+  return SET_CONFIGS.map(({ label, check }) => ({ label, numbers: pickSet(check) }))
+}
+
+function countMatches(picked: number[], draw: DrawNumbersRow) {
+  const winning = new Set(COLS.map(col => draw[col]))
+  let matches = 0
+  for (const num of picked) if (winning.has(num)) matches++
+  return matches
 }
 
 // Sync latest data
@@ -180,6 +299,73 @@ app.get('/api/stats/hot', async (c) => {
   }
 })
 
+app.get('/api/generate/backtest', async (c) => {
+  try {
+    const lookback = Math.min(Math.max(Number(c.req.query('draws') ?? 100), 20), 300)
+
+    const { results } = await c.env.DB.prepare(
+      'SELECT drwNo, drwtNo1, drwtNo2, drwtNo3, drwtNo4, drwtNo5, drwtNo6, bnusNo FROM lotto_history ORDER BY drwNo ASC'
+    ).all() as { results: DrawNumbersRow[] }
+
+    if (results.length < 40) {
+      return c.json({ error: '백테스트에 필요한 데이터가 부족합니다.' }, 400)
+    }
+
+    const startIndex = Math.max(30, results.length - lookback)
+    const targetDraws = results.slice(startIndex)
+
+    let totalSets = 0
+    let totalMatches = 0
+    let bestMatchSum = 0
+    let bonusHitCount = 0
+    const hitDistribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } as Record<number, number>
+    const bestHitDistribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } as Record<number, number>
+    let threePlusCount = 0
+    let fourPlusCount = 0
+    let fivePlusCount = 0
+
+    for (const target of targetDraws) {
+      const train = results.filter(row => (row.drwNo ?? 0) < (target.drwNo ?? 0))
+      const sets = buildGeneratedSets(train)
+      const matchCounts = sets.map(set => countMatches(set.numbers, target))
+      const bestMatch = Math.max(...matchCounts)
+
+      for (let i = 0; i < sets.length; i++) {
+        const matches = matchCounts[i]
+        totalSets++
+        totalMatches += matches
+        hitDistribution[matches]++
+        if (matches >= 3) threePlusCount++
+        if (matches >= 4) fourPlusCount++
+        if (matches >= 5) fivePlusCount++
+        if (matches === 5 && sets[i].numbers.includes(target.bnusNo ?? -1)) bonusHitCount++
+      }
+
+      bestMatchSum += bestMatch
+      bestHitDistribution[bestMatch]++
+    }
+
+    return c.json({
+      algorithm: 'v3.0',
+      evaluatedDraws: targetDraws.length,
+      setsPerDraw: SET_CONFIGS.length,
+      totalGeneratedSets: totalSets,
+      averageMatchPerSet: Number((totalMatches / totalSets).toFixed(3)),
+      averageBestMatchPerDraw: Number((bestMatchSum / targetDraws.length).toFixed(3)),
+      setHitRate: {
+        match3Plus: Number((threePlusCount / totalSets * 100).toFixed(2)),
+        match4Plus: Number((fourPlusCount / totalSets * 100).toFixed(2)),
+        match5Plus: Number((fivePlusCount / totalSets * 100).toFixed(2)),
+        match5PlusBonus: Number((bonusHitCount / totalSets * 100).toFixed(2)),
+      },
+      hitDistribution,
+      bestHitDistribution,
+    })
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500)
+  }
+})
+
 // Generate numbers
 app.post('/api/generate', async (c) => {
   try {
@@ -188,12 +374,7 @@ app.post('/api/generate', async (c) => {
 
     // 데이터 없으면 순수 랜덤 5세트
     if (total === 0) {
-      const LABELS = ['홀짝 균형형', '연속 독립형', '합계 안정형', '구간 분포형', '끝수 균형형'];
-      const sets = LABELS.map(label => {
-        const s = new Set<number>();
-        while (s.size < 6) s.add(Math.floor(Math.random() * 45) + 1);
-        return { numbers: Array.from(s).sort((a, b) => a - b), label };
-      });
+      const sets = buildGeneratedSets([])
       return c.json({ sets, algorithm: 'v3.0 (랜덤 - 데이터 없음)' });
     }
 
@@ -202,112 +383,7 @@ app.post('/api/generate', async (c) => {
       'SELECT drwtNo1,drwtNo2,drwtNo3,drwtNo4,drwtNo5,drwtNo6 FROM lotto_history'
     ).all() as { results: { drwtNo1:number;drwtNo2:number;drwtNo3:number;drwtNo4:number;drwtNo5:number;drwtNo6:number }[] };
 
-    const recentN = Math.min(30, total);
-    const coldN = Math.min(15, total);
-
-    const { results: recentDraws } = await c.env.DB.prepare(
-      'SELECT drwtNo1,drwtNo2,drwtNo3,drwtNo4,drwtNo5,drwtNo6 FROM lotto_history ORDER BY drwNo DESC LIMIT ?'
-    ).bind(recentN).all() as { results: { drwtNo1:number;drwtNo2:number;drwtNo3:number;drwtNo4:number;drwtNo5:number;drwtNo6:number }[] };
-
-    const COLS = ['drwtNo1','drwtNo2','drwtNo3','drwtNo4','drwtNo5','drwtNo6'] as const;
-
-    const freqMap = new Map<number, number>();
-    for (const row of allDraws)
-      for (const col of COLS) freqMap.set(row[col], (freqMap.get(row[col]) ?? 0) + 1);
-
-    const recentMap = new Map<number, number>();
-    const recentSet = new Set<number>();
-    for (const row of recentDraws)
-      for (const col of COLS) { recentMap.set(row[col], (recentMap.get(row[col]) ?? 0) + 1); }
-
-    // 콜드 판별: 최근 15회 미출현
-    for (const row of recentDraws.slice(0, coldN))
-      for (const col of COLS) recentSet.add(row[col]);
-
-    const maxFreq = Math.max(...freqMap.values(), 1);
-    const maxRecent = Math.max(...recentMap.values(), 1);
-
-    // 가중치 계산: 전체빈도 40% + 최근30회 60%, 콜드번호 50% 페널티
-    const weights = Array.from({ length: 45 }, (_, i) => {
-      const num = i + 1;
-      const freqScore = (freqMap.get(num) ?? 0) / maxFreq;
-      const recentScore = (recentMap.get(num) ?? 0) / maxRecent;
-      const isCold = !recentSet.has(num);
-      let w = freqScore * 0.4 + recentScore * 0.6;
-      if (isCold) w *= 0.5;
-      return { num, weight: Math.max(w, 0.02) }; // 최소 가중치 보장
-    });
-
-    // 누적 가중치 기반 랜덤 선택
-    function weightedPick(pool: { num: number; weight: number }[]): number {
-      const total = pool.reduce((s, x) => s + x.weight, 0);
-      let r = Math.random() * total;
-      for (const x of pool) {
-        r -= x.weight;
-        if (r <= 0) return x.num;
-      }
-      return pool[pool.length - 1].num;
-    }
-
-    // v3.0: 특성별 5세트 생성 (모두 빈도+추세 가중치 기반)
-    const SET_CONFIGS: { label: string; check: (s: number[]) => boolean }[] = [
-      {
-        label: '홀짝 균형형',
-        check: (s) => s.filter(n => n % 2 === 1).length === 3, // 정확히 3홀 3짝
-      },
-      {
-        label: '연속 독립형',
-        check: (s) => { // 연속번호 없음
-          for (let i = 1; i < s.length; i++) if (s[i] === s[i - 1] + 1) return false;
-          return true;
-        },
-      },
-      {
-        label: '합계 안정형',
-        check: (s) => { const sum = s.reduce((a, b) => a + b, 0); return sum >= 115 && sum <= 160; },
-      },
-      {
-        label: '구간 분포형',
-        check: (s) => new Set(s.map(n => Math.ceil(n / 10))).size >= 4, // 5구간 중 4구간 이상
-      },
-      {
-        label: '끝수 균형형',
-        check: (s) => { // 끝자리 모두 다름
-          const tails = s.map(n => n % 10);
-          return new Set(tails).size === s.length;
-        },
-      },
-      {
-        label: '✨ 종합 균형형',
-        check: (s) => { // 5개 조건 모두 충족
-          const oddOk = s.filter(n => n % 2 === 1).length === 3;
-          let noConsec = true;
-          for (let i = 1; i < s.length; i++) if (s[i] === s[i - 1] + 1) { noConsec = false; break; }
-          const sum = s.reduce((a, b) => a + b, 0);
-          const sumOk = sum >= 115 && sum <= 160;
-          const zoneOk = new Set(s.map(n => Math.ceil(n / 10))).size >= 4;
-          const tailOk = new Set(s.map(n => n % 10)).size === s.length;
-          return oddOk && noConsec && sumOk && zoneOk && tailOk;
-        },
-      },
-    ];
-
-    function pickSet(check: (s: number[]) => boolean): number[] {
-      for (let attempt = 0; attempt < 100; attempt++) {
-        const picked = new Set<number>();
-        while (picked.size < 6) {
-          picked.add(weightedPick(weights.filter(x => !picked.has(x.num))));
-        }
-        const sorted = Array.from(picked).sort((a, b) => a - b);
-        if (check(sorted)) return sorted;
-      }
-      // 조건 미충족 시 마지막 결과 반환
-      const picked = new Set<number>();
-      while (picked.size < 6) picked.add(weightedPick(weights.filter(x => !picked.has(x.num))));
-      return Array.from(picked).sort((a, b) => a - b);
-    }
-
-    const sets = SET_CONFIGS.map(({ label, check }) => ({ label, numbers: pickSet(check) }));
+    const sets = buildGeneratedSets(allDraws)
 
     return c.json({ sets, algorithm: 'v3.0' });
   } catch (error: any) {
