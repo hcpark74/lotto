@@ -156,6 +156,10 @@ async function fetchLottoResult(drwNo: number) {
     if (!item) return null
 
     const date = String(item.ltRflYmd)
+    if (!/^\d{8}$/.test(date)) {
+      console.warn(`Invalid date format for draw ${drwNo}: ${date}`)
+      return null
+    }
 
     return {
       drwNo: item.ltEpsd,
@@ -435,9 +439,10 @@ const SET_CONFIGS: { label: string; check: (s: number[]) => boolean }[] = [
   },
 ]
 
-const RECENT_DRAW_COUNT = 30
+const RECENT_DRAW_COUNT = 50
 const COLD_DRAW_COUNT = 15
-const MAX_PICK_ATTEMPTS = 200
+const AGE_BONUS_WINDOW = 10
+const MAX_PICK_ATTEMPTS = 300
 
 function buildFallbackSet(label: string): GeneratedSet {
   const picked = new Set<number>()
@@ -483,23 +488,31 @@ function buildSetMeta(numbers: number[], passedRules: string[]) {
   }
 }
 
+function getZoneCount(numbers: number[]) {
+  return new Set(numbers.map(n => Math.ceil(n / 9))).size
+}
+
 function passesCommonRules(numbers: number[]) {
   const sum = getSum(numbers)
   const oddCount = getOddCount(numbers)
   const maxConsecutiveRun = getConsecutiveRun(numbers)
+  const zoneCount = getZoneCount(numbers)
 
-  return sum >= 100
-    && sum <= 175
+  return sum >= 110
+    && sum <= 170
     && oddCount >= 2
     && oddCount <= 4
     && maxConsecutiveRun < 3
+    && zoneCount >= 3
 }
 
 function buildWeights(draws: DrawNumbersRow[]) {
   const recentN = Math.min(RECENT_DRAW_COUNT, draws.length)
   const coldN = Math.min(COLD_DRAW_COUNT, draws.length)
+  const ageN = Math.min(AGE_BONUS_WINDOW, draws.length)
   const recentDraws = draws.slice(-recentN)
   const coldDraws = recentDraws.slice(-coldN)
+  const ageDraws = recentDraws.slice(-ageN)
 
   const freqMap = new Map<number, number>()
   for (const row of draws)
@@ -509,9 +522,14 @@ function buildWeights(draws: DrawNumbersRow[]) {
   for (const row of recentDraws)
     for (const col of COLS) recentMap.set(row[col], (recentMap.get(row[col]) ?? 0) + 1)
 
-  const recentSet = new Set<number>()
+  // 최근 AGE_BONUS_WINDOW 회차에서 등장한 번호 (과열 패널티용)
+  const ageSet = new Set<number>()
+  for (const row of ageDraws)
+    for (const col of COLS) ageSet.add(row[col])
+
+  const coldSet = new Set<number>()
   for (const row of coldDraws)
-    for (const col of COLS) recentSet.add(row[col])
+    for (const col of COLS) coldSet.add(row[col])
 
   const maxFreq = Math.max(...freqMap.values(), 1)
   const maxRecent = Math.max(...recentMap.values(), 1)
@@ -520,9 +538,11 @@ function buildWeights(draws: DrawNumbersRow[]) {
     const num = i + 1
     const freqScore = (freqMap.get(num) ?? 0) / maxFreq
     const recentScore = (recentMap.get(num) ?? 0) / maxRecent
-    const isCold = !recentSet.has(num)
-    let weight = freqScore * 0.4 + recentScore * 0.6
+    const isCold = !coldSet.has(num)
+    const isOverheat = ageSet.has(num) && (recentMap.get(num) ?? 0) >= 3
+    let weight = freqScore * 0.35 + recentScore * 0.65
     if (isCold) weight *= 0.5
+    if (isOverheat) weight *= 0.7
     return { num, weight: Math.max(weight, 0.02) }
   })
 }
