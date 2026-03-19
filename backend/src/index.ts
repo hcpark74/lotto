@@ -157,9 +157,13 @@ async function fetchLottoResult(drwNo: number) {
 
     const date = String(item.ltRflYmd)
     if (!/^\d{8}$/.test(date)) {
-      console.warn(`Invalid date format for draw ${drwNo}: ${date}`)
+      console.warn(`Invalid date format for draw ${item.ltEpsd}: ${date}`)
       return null
     }
+
+    return {
+      drwNo: item.ltEpsd,
+      drwNoDate: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`,
 
     return {
       drwNo: item.ltEpsd,
@@ -179,16 +183,19 @@ async function fetchLottoResult(drwNo: number) {
 }
 
 async function getLatestPensionDrawNo() {
-  const draws = await fetchPensionDrawList()
-  const latest = draws[0]
-  const latestDrawNo = Number(latest?.psltEpsd)
-
-  if (!Number.isFinite(latestDrawNo) || latestDrawNo <= 0) {
-    throw new Error('연금복권 최신 회차 번호를 찾을 수 없습니다.')
-  }
-
-  return latestDrawNo
-}
+   const draws = await fetchPensionDrawList()
+   let maxDrawNo = 0
+   for (const draw of draws) {
+     const drawNo = Number(draw.psltEpsd)
+     if (Number.isFinite(drawNo) && drawNo > maxDrawNo) {
+       maxDrawNo = drawNo
+     }
+   }
+   if (maxDrawNo <= 0) {
+     throw new Error('연금복권 최신 회차 번호를 찾을 수 없습니다.')
+   }
+   return maxDrawNo
+ }
 
 async function fetchPensionDrawList(): Promise<Pension720ListItem[]> {
   const response = await fetch('https://www.dhlottery.co.kr/pt720/selectPstPt720WnList.do', {
@@ -649,18 +656,19 @@ app.post('/api/sync', async (c) => {
 })
 
 app.post('/api/pension/sync', async (c) => {
-  try {
-    const requestedLimit = Number(c.req.query('limit') ?? 0)
-    const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
-      ? Math.min(Math.floor(requestedLimit), 100)
-      : 0
+   try {
+     const requestedLimit = Number(c.req.query('limit') ?? 0)
+     const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
+       ? Math.min(Math.floor(requestedLimit), 100)
+       : 0
 
-    const result = await syncPensionResults(c.env.DB, safeLimit)
-    return c.json({ success: true, ...result })
-  } catch (error: any) {
-    return c.json({ success: false, error: error.message }, 500)
-  }
-})
+     const result = await syncPensionResults(c.env.DB, safeLimit)
+     return c.json({ success: true, ...result })
+   } catch (error: any) {
+     console.error('Error in /api/pension/sync:', error)
+     return c.json({ success: false, error: error.message }, 500)
+   }
+ })
 
 app.get('/api/pension/results', async (c) => {
   try {
