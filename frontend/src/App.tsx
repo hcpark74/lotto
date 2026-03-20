@@ -46,7 +46,46 @@ type PensionRecommendationSet = {
     };
 };
 
-type LottoSet = { numbers: number[]; label: string };
+type LottoSet = {
+    numbers: number[];
+    label: string;
+    meta?: {
+        ruleId?: string;
+        ruleWeight?: number;
+    };
+};
+type LottoRuleWeight = {
+    ruleId: string;
+    label: string;
+    weight: number;
+    score: number;
+    passRate: number;
+    recentMatchRate: number;
+};
+type LottoRulePerformance = {
+    ruleId: string;
+    label: string;
+    generatedCount: number;
+    averageMatches: number;
+    commonRulePassRate: number;
+    relaxedFallbackRate: number;
+    randomFallbackRate: number;
+};
+type LottoBacktestDiagnostics = {
+    algorithm: string;
+    evaluatedDraws: number;
+    averageMatchPerSet: number;
+    averageBestMatchPerDraw: number;
+    generationQuality: {
+        commonRulePassRate: number;
+        relaxedFallbackRate: number;
+        randomFallbackRate: number;
+    };
+    ruleDiagnostics: {
+        currentWeights: LottoRuleWeight[];
+        performance: LottoRulePerformance[];
+    };
+};
 type BallTheme = { base: string; mid: string; dark: string; text: string };
 type SyncResponse = {
     success: boolean;
@@ -66,6 +105,13 @@ const PAGE_SIZE = 5;
 const FALLBACK_LABELS = ['홀짝 균형형', '연속 독립형', '합계 안정형', '구간 분포형', '끝수 균형형'];
 const LAST_SYNC_STORAGE_KEY = 'lotto-last-synced-at';
 const LAST_SYNC_DRAW_STORAGE_KEY = 'lotto-last-synced-draw';
+const LOTTO_RULE_LABELS: Record<string, string> = {
+    'odd-balance': '홀짝 균형형',
+    'no-consecutive-pair': '연속 독립형',
+    'stable-sum': '합계 안정형',
+    'zone-distribution': '구간 분포형',
+    'tail-balance': '끝수 균형형',
+};
 
 function getBallTheme(num: number): BallTheme {
     if (num <= 10) return { base: '#fdd835', mid: '#f6c21a', dark: '#d59b00', text: '#5b4300' };
@@ -404,6 +450,7 @@ function RecommendationCard({
     const sum = set.numbers.reduce((total, num) => total + num, 0);
     const oddCount = set.numbers.filter(num => num % 2 === 1).length;
     const spread = Math.max(...set.numbers) - Math.min(...set.numbers);
+    const ruleName = set.meta?.ruleId ? (LOTTO_RULE_LABELS[set.meta.ruleId] ?? set.meta.ruleId) : null;
 
     return (
         <div className="recommend-card rounded-[28px] px-4 py-5 sm:px-6 sm:py-7">
@@ -414,6 +461,20 @@ function RecommendationCard({
                 <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-[28px]">
                     {set.label}
                 </h3>
+                {(set.meta?.ruleWeight || ruleName) && (
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 sm:text-sm">
+                        {set.meta?.ruleWeight ? (
+                            <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 font-semibold text-slate-700">
+                                weight {set.meta.ruleWeight.toFixed(3)}
+                            </span>
+                        ) : null}
+                        {ruleName ? (
+                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
+                                {ruleName}
+                            </span>
+                        ) : null}
+                    </div>
+                )}
             </div>
 
             <div className="result-divider mt-7" />
@@ -437,6 +498,76 @@ function RecommendationCard({
                 <span>홀수 {oddCount}개</span>
                 <span className="text-slate-300">/</span>
                 <span>최대 간격 {spread}</span>
+            </div>
+        </div>
+    );
+}
+
+function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: number }) {
+    return (
+        <div className="rounded-[24px] border border-slate-200/80 bg-white/75 px-4 py-4 sm:px-5">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">우선순위 {index + 1}</div>
+                    <div className="mt-2 text-base font-semibold text-slate-950">{item.label}</div>
+                </div>
+                <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    가중치 {item.weight.toFixed(3)}
+                </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+                <div>
+                    <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                        <span>규칙 점수</span>
+                        <span>{(item.score * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100">
+                        <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.max(item.score * 100, 6)}%` }} />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 sm:text-sm">
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div>공통+세트 통과</div>
+                        <div className="mt-1 font-semibold text-slate-900">{(item.passRate * 100).toFixed(1)}%</div>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div>세트 규칙 일치</div>
+                        <div className="mt-1 font-semibold text-slate-900">{(item.recentMatchRate * 100).toFixed(1)}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
+    return (
+        <div className="rounded-[24px] border border-slate-200/80 bg-white/75 px-4 py-4 sm:px-5">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-base font-semibold text-slate-950">{item.label}</div>
+                    <div className="mt-1 text-xs text-slate-500">생성 {item.generatedCount}회</div>
+                </div>
+                <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                    평균 일치 {item.averageMatches.toFixed(3)}
+                </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-slate-500 sm:text-sm">
+                <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div>공통 규칙</div>
+                    <div className="mt-1 font-semibold text-slate-900">{item.commonRulePassRate.toFixed(1)}%</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div>완화 폴백</div>
+                    <div className="mt-1 font-semibold text-slate-900">{item.relaxedFallbackRate.toFixed(1)}%</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div>랜덤 폴백</div>
+                    <div className="mt-1 font-semibold text-slate-900">{item.randomFallbackRate.toFixed(1)}%</div>
+                </div>
             </div>
         </div>
     );
@@ -703,6 +834,9 @@ function PensionPage({
 function App() {
     const [activePage, setActivePage] = useState<PageKey>(() => getPageFromPath(window.location.pathname));
     const [sets, setSets] = useState<LottoSet[]>([]);
+    const [ruleWeights, setRuleWeights] = useState<LottoRuleWeight[]>([]);
+    const [backtestDiagnostics, setBacktestDiagnostics] = useState<LottoBacktestDiagnostics | null>(null);
+    const [backtestLoading, setBacktestLoading] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const [results, setResults] = useState<DrawResult[]>([]);
@@ -790,6 +924,7 @@ function App() {
     useEffect(() => {
         loadResults();
         loadLatestPensionResult();
+        loadBacktestDiagnostics();
     }, []);
 
     useEffect(() => {
@@ -851,12 +986,14 @@ function App() {
     const generateNumbers = async () => {
         setLoading(true);
         setSets([]);
+        setRuleWeights([]);
 
         try {
             const res = await fetch(`${API_URL}/api/generate`, { method: 'POST' });
             if (!res.ok) throw new Error(`API ${res.status}`);
             const data = await res.json();
             setSets(data.sets);
+            setRuleWeights(Array.isArray(data.ruleWeights) ? data.ruleWeights : []);
         } catch {
             const fallback = FALLBACK_LABELS.map(label => {
                 const s = new Set<number>();
@@ -864,8 +1001,23 @@ function App() {
                 return { label, numbers: Array.from(s).sort((a, b) => a - b) };
             });
             setSets(fallback);
+            setRuleWeights([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadBacktestDiagnostics = async () => {
+        setBacktestLoading(true);
+
+        try {
+            const res = await fetch(`${API_URL}/api/generate/backtest?draws=120`);
+            if (!res.ok) throw new Error('백테스트 진단을 불러오지 못했습니다.');
+            setBacktestDiagnostics(await res.json());
+        } catch {
+            setBacktestDiagnostics(null);
+        } finally {
+            setBacktestLoading(false);
         }
     };
 
@@ -1051,8 +1203,26 @@ function App() {
                             </div>
 
                             <p className="mb-3 text-sm text-slate-500">
-                                전체 빈도와 최근 30회 빈도를 가중치로 반영하고, 합계/홀짝/연속수 조건을 통과한 조합만 추천합니다.
+                                전체 이력과 최근 출현 흐름을 함께 반영하고, 최근 당첨 패턴에 맞는 규칙을 더 먼저 시도합니다.
                             </p>
+
+                            {ruleWeights.length > 0 && (
+                                <div className="mb-4 rounded-[24px] border border-emerald-100 bg-emerald-50/60 p-4 sm:p-5">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">규칙 가중치 분석</p>
+                                            <h3 className="mt-1 text-lg font-semibold text-slate-950">최근 24회 기준 추천 규칙 우선순위</h3>
+                                        </div>
+                                        <p className="text-xs text-slate-500 sm:text-sm">점수가 높은 규칙을 먼저 적용해 추천 세트를 만듭니다.</p>
+                                    </div>
+
+                                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                        {ruleWeights.map((item, index) => (
+                                            <RuleWeightCard key={item.ruleId} item={item} index={index} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {sets.length > 0 ? (
                                 <div className="space-y-3">
@@ -1065,6 +1235,80 @@ function App() {
                                     <p className="text-sm font-medium text-slate-500">
                                         {loading ? '추천 로직을 실행하고 있습니다.' : '상단 버튼을 눌러 새로운 추천 번호를 받아보세요.'}
                                     </p>
+                                </div>
+                            )}
+                        </SectionCard>
+                    </section>
+
+                    <section className="mt-5 lg:mt-6">
+                        <SectionCard
+                            title="백테스트 규칙 진단"
+                            eyebrow="알고리즘 진단"
+                            icon={<Info className="h-5 w-5" />}
+                            action={
+                                <button
+                                    onClick={loadBacktestDiagnostics}
+                                    disabled={backtestLoading}
+                                    className="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition disabled:opacity-60"
+                                >
+                                    {backtestLoading ? '분석 중...' : '진단 새로고침'}
+                                </button>
+                            }
+                        >
+                            {backtestDiagnostics ? (
+                                <>
+                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                            <div className="text-xs text-slate-500">평가 회차</div>
+                                            <div className="mt-1 text-xl font-semibold text-slate-950">{backtestDiagnostics.evaluatedDraws}</div>
+                                        </div>
+                                        <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                            <div className="text-xs text-slate-500">세트 평균 일치</div>
+                                            <div className="mt-1 text-xl font-semibold text-slate-950">{backtestDiagnostics.averageMatchPerSet.toFixed(3)}</div>
+                                        </div>
+                                        <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                            <div className="text-xs text-slate-500">회차 최고 평균</div>
+                                            <div className="mt-1 text-xl font-semibold text-slate-950">{backtestDiagnostics.averageBestMatchPerDraw.toFixed(3)}</div>
+                                        </div>
+                                        <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                            <div className="text-xs text-slate-500">공통 규칙 통과율</div>
+                                            <div className="mt-1 text-xl font-semibold text-slate-950">{backtestDiagnostics.generationQuality.commonRulePassRate.toFixed(1)}%</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 rounded-[24px] border border-sky-100 bg-sky-50/50 p-4 sm:p-5">
+                                        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700">백테스트 가중치</p>
+                                                <h3 className="mt-1 text-lg font-semibold text-slate-950">현재 규칙 가중치</h3>
+                                            </div>
+                                            <p className="text-xs text-slate-500 sm:text-sm">최근 데이터로 계산한 현재 우선순위입니다.</p>
+                                        </div>
+                                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                            {backtestDiagnostics.ruleDiagnostics.currentWeights.map((item, index) => (
+                                                <RuleWeightCard key={`backtest-${item.ruleId}`} item={item} index={index} />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 rounded-[24px] border border-slate-200/80 bg-white/70 p-4 sm:p-5">
+                                        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">규칙 성과 분석</p>
+                                                <h3 className="mt-1 text-lg font-semibold text-slate-950">규칙별 백테스트 성과</h3>
+                                            </div>
+                                            <p className="text-xs text-slate-500 sm:text-sm">규칙별 생성 결과와 폴백 비율입니다.</p>
+                                        </div>
+                                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                            {backtestDiagnostics.ruleDiagnostics.performance.map((item) => (
+                                                <RulePerformanceCard key={item.ruleId} item={item} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-10 text-center text-sm text-slate-500">
+                                    {backtestLoading ? '백테스트 진단을 계산하고 있습니다.' : '백테스트 진단 데이터를 불러오지 못했습니다.'}
                                 </div>
                             )}
                         </SectionCard>
