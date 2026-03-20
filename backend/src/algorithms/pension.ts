@@ -1,6 +1,12 @@
 import type { PensionRecommendationSet } from '../types/pension'
 
-export const PENSION_ALGORITHM_VERSION = 'pension-balanced-v1'
+type PensionSetConfig = {
+  id: string
+  label: string
+  check: (digits: number[]) => boolean
+}
+
+export const PENSION_ALGORITHM_VERSION = 'pension-multi-set-v2'
 
 export const PENSION_RULES = {
   sumRange: '22-34',
@@ -8,7 +14,36 @@ export const PENSION_RULES = {
   minUniqueDigits: 4,
   noThreeConsecutive: true,
   maxDuplicateCount: 2,
+  setProfiles: ['균형형', '홀수 집중형', '고유수 확장형', '저합계 안정형'],
 }
+
+const MAX_PENSION_ATTEMPTS = 300
+
+const PENSION_SET_CONFIGS: PensionSetConfig[] = [
+  {
+    id: 'balanced-core',
+    label: '균형형 추천',
+    check: (digits) => getOddDigitCount(digits) === 3,
+  },
+  {
+    id: 'odd-focus',
+    label: '홀수 집중형 추천',
+    check: (digits) => getOddDigitCount(digits) === 4,
+  },
+  {
+    id: 'unique-focus',
+    label: '고유수 확장형 추천',
+    check: (digits) => getUniqueDigitCount(digits) >= 5,
+  },
+  {
+    id: 'low-sum-stable',
+    label: '저합계 안정형 추천',
+    check: (digits) => {
+      const sum = getDigitSum(digits)
+      return sum >= 22 && sum <= 28
+    },
+  },
+]
 
 function getDigitSum(digits: number[]) {
   return digits.reduce((sum, digit) => sum + digit, 0)
@@ -37,48 +72,64 @@ function getMaxDuplicateCount(digits: number[]) {
   return Math.max(...counts.values(), 1)
 }
 
-export function buildPensionRecommendation(label: string): PensionRecommendationSet {
-  for (let attempt = 0; attempt < 300; attempt++) {
-    const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
-    const sum = getDigitSum(digits)
-    const oddCount = getOddDigitCount(digits)
-    const uniqueDigitCount = getUniqueDigitCount(digits)
-    const hasThreeConsecutive = hasThreeConsecutiveDigits(digits)
-    const maxDuplicateCount = getMaxDuplicateCount(digits)
+function passesCommonPensionRules(digits: number[]) {
+  const sum = getDigitSum(digits)
+  const oddCount = getOddDigitCount(digits)
+  const uniqueDigitCount = getUniqueDigitCount(digits)
+  const hasThreeConsecutive = hasThreeConsecutiveDigits(digits)
+  const maxDuplicateCount = getMaxDuplicateCount(digits)
 
-    if (sum < 22 || sum > 34) continue
-    if (oddCount < 2 || oddCount > 4) continue
-    if (uniqueDigitCount < 4) continue
-    if (hasThreeConsecutive) continue
-    if (maxDuplicateCount >= 3) continue
+  return sum >= 22
+    && sum <= 34
+    && oddCount >= 2
+    && oddCount <= 4
+    && uniqueDigitCount >= 4
+    && !hasThreeConsecutive
+    && maxDuplicateCount < 3
+}
+
+function buildPensionMeta(digits: number[]) {
+  return {
+    sum: getDigitSum(digits),
+    oddCount: getOddDigitCount(digits),
+    uniqueDigitCount: getUniqueDigitCount(digits),
+    maxDuplicateCount: getMaxDuplicateCount(digits),
+    hasThreeConsecutive: hasThreeConsecutiveDigits(digits),
+  }
+}
+
+export function buildPensionRecommendation(config: PensionSetConfig): PensionRecommendationSet {
+  for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
+    const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+    if (!passesCommonPensionRules(digits)) continue
+    if (!config.check(digits)) continue
 
     return {
-      label,
+      label: config.label,
       number: digits.join(''),
-      meta: {
-        sum,
-        oddCount,
-        uniqueDigitCount,
-        maxDuplicateCount,
-        hasThreeConsecutive,
-      },
+      meta: buildPensionMeta(digits),
+    }
+  }
+
+  for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
+    const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+    if (!passesCommonPensionRules(digits)) continue
+
+    return {
+      label: config.label,
+      number: digits.join(''),
+      meta: buildPensionMeta(digits),
     }
   }
 
   const fallbackDigits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
   return {
-    label,
+    label: config.label,
     number: fallbackDigits.join(''),
-    meta: {
-      sum: getDigitSum(fallbackDigits),
-      oddCount: getOddDigitCount(fallbackDigits),
-      uniqueDigitCount: getUniqueDigitCount(fallbackDigits),
-      maxDuplicateCount: getMaxDuplicateCount(fallbackDigits),
-      hasThreeConsecutive: hasThreeConsecutiveDigits(fallbackDigits),
-    },
+    meta: buildPensionMeta(fallbackDigits),
   }
 }
 
 export function buildPensionRecommendations() {
-  return [buildPensionRecommendation('정교 추천 1세트')]
+  return PENSION_SET_CONFIGS.map((config) => buildPensionRecommendation(config))
 }

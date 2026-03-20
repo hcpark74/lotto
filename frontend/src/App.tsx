@@ -711,7 +711,7 @@ function PensionPage({
     pensionSyncLoading,
     pensionGenerateLoading,
     pensionSearchInput,
-    pensionRecommendation,
+    pensionRecommendations,
     pensionSearchResult,
     pensionSearchError,
     onPensionSync,
@@ -725,7 +725,7 @@ function PensionPage({
     pensionSyncLoading: boolean;
     pensionGenerateLoading: boolean;
     pensionSearchInput: string;
-    pensionRecommendation: PensionRecommendationSet | null;
+    pensionRecommendations: PensionRecommendationSet[];
     pensionSearchResult: PensionDrawResult | null;
     pensionSearchError: string;
     onPensionSync: () => void;
@@ -783,14 +783,18 @@ function PensionPage({
                     }
                 >
                     <p className="mb-4 text-sm text-slate-500">
-                        숫자 6개를 독립 추출한 뒤 합계, 홀짝 균형, 고유 숫자 수, 연속수, 중복 제한을 통과한 조합만 추천합니다.
+                        숫자 6개를 독립 추출한 뒤 공통 규칙을 통과시키고, 추천 성향별 규칙 세트로 여러 조합을 나눠 제안합니다.
                     </p>
 
-                    {pensionRecommendation ? (
-                        <PensionRecommendationCard set={pensionRecommendation} />
+                    {pensionRecommendations.length > 0 ? (
+                        <div className="grid gap-3 lg:grid-cols-2">
+                            {pensionRecommendations.map((set) => (
+                                <PensionRecommendationCard key={`${set.label}-${set.number}`} set={set} />
+                            ))}
+                        </div>
                     ) : (
                         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500">
-                            버튼을 눌러 연금복권 추천번호 1세트를 생성해 보세요.
+                            버튼을 눌러 연금복권 추천번호 세트를 생성해 보세요.
                         </div>
                     )}
                 </SectionCard>
@@ -846,7 +850,7 @@ function App() {
     const [pensionError, setPensionError] = useState('');
     const [pensionSyncLoading, setPensionSyncLoading] = useState(false);
     const [pensionGenerateLoading, setPensionGenerateLoading] = useState(false);
-    const [pensionRecommendation, setPensionRecommendation] = useState<PensionRecommendationSet | null>(null);
+    const [pensionRecommendations, setPensionRecommendations] = useState<PensionRecommendationSet[]>([]);
     const [pensionSearchInput, setPensionSearchInput] = useState('');
     const [pensionSearchResult, setPensionSearchResult] = useState<PensionDrawResult | null>(null);
     const [pensionSearchError, setPensionSearchError] = useState('');
@@ -1083,15 +1087,15 @@ function App() {
 
     const generatePensionNumbers = async () => {
         setPensionGenerateLoading(true);
-        setPensionRecommendation(null);
+        setPensionRecommendations([]);
 
         try {
             const res = await fetch(`${API_URL}/api/pension/generate`, { method: 'POST' });
             if (!res.ok) throw new Error('연금복권 추천번호 생성에 실패했습니다.');
             const data = await res.json();
-            setPensionRecommendation(Array.isArray(data.sets) ? data.sets[0] ?? null : null);
+            setPensionRecommendations(Array.isArray(data.sets) ? data.sets : []);
         } catch {
-            setPensionRecommendation(null);
+            setPensionRecommendations([]);
         } finally {
             setPensionGenerateLoading(false);
         }
@@ -1446,7 +1450,7 @@ function App() {
                         pensionSyncLoading={pensionSyncLoading}
                         pensionGenerateLoading={pensionGenerateLoading}
                         pensionSearchInput={pensionSearchInput}
-                        pensionRecommendation={pensionRecommendation}
+                        pensionRecommendations={pensionRecommendations}
                         pensionSearchResult={pensionSearchResult}
                         pensionSearchError={pensionSearchError}
                         onPensionSync={syncLatestPensionResults}
