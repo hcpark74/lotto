@@ -1,6 +1,7 @@
 export { getLatestStoredPensionDrawNo, upsertPensionDraw, upsertPensionPrizeCount } from './history'
 export {
+  getRecentPensionResultsQuery,
   getPensionPrizeCountsByDrawNoQuery,
   getPensionResultByDrawNoQuery,
-  getRecentPensionResultsQuery,
+  getRecentPensionWinningNumbersQuery,
 } from './results'

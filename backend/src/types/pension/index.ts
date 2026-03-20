@@ -6,6 +6,7 @@ export type {
   Pension720PrizeInfoItem,
   Pension720ResultDetail,
   Pension720ResultQueryRow,
+  PensionWinningNumberRow,
   PensionRecommendationSet,
 } from './models'
 export type { Pension720SyncSummary, PensionGenerateSummary } from './summaries'

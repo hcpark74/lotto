@@ -69,6 +69,10 @@ export type Pension720ResultQueryRow = {
   synced_at: string
 }
 
+export type PensionWinningNumberRow = {
+  winning_number: string
+}
+
 export type Pension720ResultDetail = Pension720ResultQueryRow & {
   prize_counts: Pension720PrizeCountQueryRow[]
 }

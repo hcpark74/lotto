@@ -41,8 +41,8 @@ export function createPensionRoutes() {
       return c.json(await getRecentPensionResults(c.env.DB, limit))
     }))
 
-  app.post('/generate', withRouteErrorHandling((c) => {
-      return c.json(generatePensionSets())
+  app.post('/generate', withRouteErrorHandling(async (c) => {
+      return c.json(await generatePensionSets(c.env.DB))
     }))
 
   return app

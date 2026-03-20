@@ -6,7 +6,7 @@ type PensionSetConfig = {
   check: (digits: number[]) => boolean
 }
 
-export const PENSION_ALGORITHM_VERSION = 'pension-multi-set-v2'
+export const PENSION_ALGORITHM_VERSION = 'pension-multi-set-v2.1'
 
 export const PENSION_RULES = {
   sumRange: '22-34',
@@ -15,9 +15,11 @@ export const PENSION_RULES = {
   noThreeConsecutive: true,
   maxDuplicateCount: 2,
   setProfiles: ['균형형', '홀수 집중형', '고유수 확장형', '저합계 안정형'],
+  fallback: ['세트 규칙', '공통 규칙 완화 폴백', '통계 기반 폴백', '랜덤 폴백'],
 }
 
 const MAX_PENSION_ATTEMPTS = 300
+const PENSION_HISTORY_LOOKBACK = 60
 
 const PENSION_SET_CONFIGS: PensionSetConfig[] = [
   {
@@ -98,7 +100,53 @@ function buildPensionMeta(digits: number[]) {
   }
 }
 
-export function buildPensionRecommendation(config: PensionSetConfig): PensionRecommendationSet {
+function weightedDigitPick(pool: number[]) {
+  const total = pool.reduce((sum, weight) => sum + weight, 0)
+  let random = Math.random() * total
+
+  for (let digit = 0; digit < pool.length; digit++) {
+    random -= pool[digit]
+    if (random <= 0) return digit
+  }
+
+  return pool.length - 1
+}
+
+function buildHistoricalDigitWeights(historyNumbers: string[]) {
+  const positionWeights = Array.from({ length: 6 }, () => Array.from({ length: 10 }, () => 1))
+
+  for (const raw of historyNumbers.slice(0, PENSION_HISTORY_LOOKBACK)) {
+    const digits = raw.padStart(6, '0').slice(-6).split('').map(Number)
+    if (digits.some((digit) => Number.isNaN(digit))) continue
+
+    digits.forEach((digit, index) => {
+      positionWeights[index][digit] += 1
+    })
+  }
+
+  return positionWeights
+}
+
+function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: string[]): PensionRecommendationSet | null {
+  if (historyNumbers.length === 0) return null
+
+  const positionWeights = buildHistoricalDigitWeights(historyNumbers)
+
+  for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
+    const digits = positionWeights.map((weights) => weightedDigitPick(weights))
+    if (!passesCommonPensionRules(digits)) continue
+
+    return {
+      label: config.label,
+      number: digits.join(''),
+      meta: buildPensionMeta(digits),
+    }
+  }
+
+  return null
+}
+
+export function buildPensionRecommendation(config: PensionSetConfig, historyNumbers: string[] = []): PensionRecommendationSet {
   for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
     const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
     if (!passesCommonPensionRules(digits)) continue
@@ -122,6 +170,9 @@ export function buildPensionRecommendation(config: PensionSetConfig): PensionRec
     }
   }
 
+  const statisticalFallback = buildStatisticalFallback(config, historyNumbers)
+  if (statisticalFallback) return statisticalFallback
+
   const fallbackDigits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
   return {
     label: config.label,
@@ -130,6 +181,6 @@ export function buildPensionRecommendation(config: PensionSetConfig): PensionRec
   }
 }
 
-export function buildPensionRecommendations() {
-  return PENSION_SET_CONFIGS.map((config) => buildPensionRecommendation(config))
+export function buildPensionRecommendations(historyNumbers: string[] = []) {
+  return PENSION_SET_CONFIGS.map((config) => buildPensionRecommendation(config, historyNumbers))
 }
