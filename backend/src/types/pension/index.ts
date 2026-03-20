@@ -1,6 +1,7 @@
 export type {
   Pension720DrawRecord,
   Pension720ListItem,
+  PensionBacktestRow,
   Pension720PrizeCountQueryRow,
   Pension720PrizeCountRecord,
   Pension720PrizeInfoItem,

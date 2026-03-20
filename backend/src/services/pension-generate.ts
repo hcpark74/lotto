@@ -1,4 +1,5 @@
 import {
+  buildPensionRuleWeights,
   buildPensionRecommendations,
   PENSION_ALGORITHM_VERSION,
   PENSION_RULES,
@@ -14,5 +15,6 @@ export async function generatePensionSets(db: D1Database): Promise<PensionGenera
     sets: buildPensionRecommendations(historyNumbers),
     algorithm: PENSION_ALGORITHM_VERSION,
     rules: PENSION_RULES,
+    ruleWeights: buildPensionRuleWeights(historyNumbers),
   }
 }

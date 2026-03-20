@@ -1,5 +1,5 @@
 import type { Pension720PrizeCountQueryRow, Pension720ResultQueryRow } from '../../types/pension'
-import type { PensionWinningNumberRow } from '../../types/pension/models'
+import type { PensionBacktestRow, PensionWinningNumberRow } from '../../types/pension/models'
 
 export async function getPensionResultByDrawNoQuery(db: D1Database, drawNo: number) {
   return db.prepare(
@@ -27,6 +27,14 @@ export async function getRecentPensionWinningNumbersQuery(db: D1Database, limit:
   const { results } = await db.prepare(
     'SELECT winning_number FROM pension720_draws ORDER BY draw_no DESC LIMIT ?'
   ).bind(limit).all<PensionWinningNumberRow>()
+
+  return results
+}
+
+export async function getAllPensionBacktestRowsQuery(db: D1Database) {
+  const { results } = await db.prepare(
+    'SELECT draw_no, winning_number FROM pension720_draws ORDER BY draw_no ASC'
+  ).all<PensionBacktestRow>()
 
   return results
 }

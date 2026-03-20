@@ -43,6 +43,8 @@ export type PensionRecommendationSet = {
   label: string
   number: string
   meta: {
+    ruleId?: string
+    ruleWeight?: number
     sum: number
     oddCount: number
     uniqueDigitCount: number
@@ -70,6 +72,11 @@ export type Pension720ResultQueryRow = {
 }
 
 export type PensionWinningNumberRow = {
+  winning_number: string
+}
+
+export type PensionBacktestRow = {
+  draw_no: number
   winning_number: string
 }
 

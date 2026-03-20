@@ -148,7 +148,7 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 - 2차: 공통 규칙만 만족하는 완화 폴백
 - 3차: 완전 랜덤 폴백 (`fallback-random`)
 
-### 연금복권 (`pension-multi-set-v2.1`)
+### 연금복권 (`pension-multi-set-v2.2`)
 
 - 0~9 숫자 6자리를 생성합니다.
 - 조건:
@@ -158,6 +158,7 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
   - `3연속` 오름차순/내림차순 금지
   - 동일 숫자 최대 `2개`
 - 공통 규칙을 통과한 뒤 아래 성향별 규칙 세트로 나눠 추천합니다.
+- 최근 당첨 패턴을 기준으로 어떤 성향 세트가 더 자주 맞는지 계산해 추천 세트 우선순위를 동적으로 조정합니다.
 - 성향별 규칙을 못 맞추면 공통 규칙만 맞춘 완화 폴백을 다시 시도합니다.
 - 최근 연금복권 당첨번호를 기준으로 자리별 숫자 빈도를 반영한 통계 기반 폴백을 추가로 시도합니다.
 - 최대 `300`번 시도 후 실패하면 완전 랜덤 6자리 폴백을 반환합니다.
@@ -166,6 +167,11 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
   - `홀수 집중형 추천`: 홀수 4개
   - `고유수 확장형 추천`: 고유 숫자 5개 이상
   - `저합계 안정형 추천`: 합계 22~28
+
+- 규칙 가중치 동적 조정:
+  - 최근 `24`회 당첨번호를 기준으로 각 세트 규칙의 적합도를 계산합니다.
+  - `공통 규칙 + 세트 규칙` 동시 만족 비율과 `세트 규칙` 자체 만족 비율을 합쳐 점수를 만듭니다.
+  - 점수가 높은 추천 성향부터 먼저 생성합니다.
 
 ### 미적용 / 다음 단계
 
@@ -199,7 +205,8 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 |--------|------|------|
 | `POST` | `/api/sync` | 최신 당첨 결과 동기화 |
 | `POST` | `/api/pension/sync` | 연금복권720+ 지난 회차/최신 회차 동기화 |
-| `POST` | `/api/pension/generate` | 연금복권720+ 추천번호 1세트 생성 |
+| `POST` | `/api/pension/generate` | 연금복권720+ 추천번호 세트 생성 |
+| `GET` | `/api/pension/generate/backtest` | 연금복권 추천 로직 백테스트 |
 | `GET` | `/api/pension/results` | 연금복권720+ 회차 조회 (`?limit=`, `?drawNo=`) |
 | `GET` | `/api/results` | 최근 회차 조회 (`?limit=`, `?drwNo=`) |
 | `GET` | `/api/stats/hot` | 자주 나온 번호 Top 10 조회 |

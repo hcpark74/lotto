@@ -3,10 +3,20 @@ import type { PensionRecommendationSet } from '../types/pension'
 type PensionSetConfig = {
   id: string
   label: string
+  baseWeight: number
   check: (digits: number[]) => boolean
 }
 
-export const PENSION_ALGORITHM_VERSION = 'pension-multi-set-v2.1'
+export type PensionRuleWeightDiagnostic = {
+  ruleId: string
+  label: string
+  weight: number
+  score: number
+  passRate: number
+  recentMatchRate: number
+}
+
+export const PENSION_ALGORITHM_VERSION = 'pension-multi-set-v2.2'
 
 export const PENSION_RULES = {
   sumRange: '22-34',
@@ -20,26 +30,31 @@ export const PENSION_RULES = {
 
 const MAX_PENSION_ATTEMPTS = 300
 const PENSION_HISTORY_LOOKBACK = 60
+const PENSION_RULE_LOOKBACK = 24
 
 const PENSION_SET_CONFIGS: PensionSetConfig[] = [
   {
     id: 'balanced-core',
     label: '균형형 추천',
+    baseWeight: 1,
     check: (digits) => getOddDigitCount(digits) === 3,
   },
   {
     id: 'odd-focus',
     label: '홀수 집중형 추천',
+    baseWeight: 1,
     check: (digits) => getOddDigitCount(digits) === 4,
   },
   {
     id: 'unique-focus',
     label: '고유수 확장형 추천',
+    baseWeight: 1,
     check: (digits) => getUniqueDigitCount(digits) >= 5,
   },
   {
     id: 'low-sum-stable',
     label: '저합계 안정형 추천',
+    baseWeight: 1,
     check: (digits) => {
       const sum = getDigitSum(digits)
       return sum >= 22 && sum <= 28
@@ -74,6 +89,10 @@ function getMaxDuplicateCount(digits: number[]) {
   return Math.max(...counts.values(), 1)
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
 function passesCommonPensionRules(digits: number[]) {
   const sum = getDigitSum(digits)
   const oddCount = getOddDigitCount(digits)
@@ -98,6 +117,52 @@ function buildPensionMeta(digits: number[]) {
     maxDuplicateCount: getMaxDuplicateCount(digits),
     hasThreeConsecutive: hasThreeConsecutiveDigits(digits),
   }
+}
+
+function parseHistoryDigits(historyNumbers: string[]) {
+  return historyNumbers
+    .slice(0, PENSION_RULE_LOOKBACK)
+    .map((raw) => raw.padStart(6, '0').slice(-6).split('').map(Number))
+    .filter((digits) => digits.length === 6 && digits.every((digit) => Number.isFinite(digit)))
+}
+
+export function buildPensionRuleWeights(historyNumbers: string[]): PensionRuleWeightDiagnostic[] {
+  const historyDigits = parseHistoryDigits(historyNumbers)
+
+  if (historyDigits.length === 0) {
+    return PENSION_SET_CONFIGS.map((config) => ({
+      ruleId: config.id,
+      label: config.label,
+      weight: config.baseWeight,
+      score: 0.5,
+      passRate: 0.5,
+      recentMatchRate: 0.5,
+    }))
+  }
+
+  return PENSION_SET_CONFIGS.map((config) => {
+    let passCount = 0
+    let matchCount = 0
+
+    for (const digits of historyDigits) {
+      if (passesCommonPensionRules(digits) && config.check(digits)) passCount += 1
+      if (config.check(digits)) matchCount += 1
+    }
+
+    const passRate = passCount / historyDigits.length
+    const recentMatchRate = matchCount / historyDigits.length
+    const score = clamp(passRate * 0.65 + recentMatchRate * 0.35, 0.05, 1)
+    const weight = Number((config.baseWeight * (0.75 + score)).toFixed(3))
+
+    return {
+      ruleId: config.id,
+      label: config.label,
+      weight,
+      score: Number(score.toFixed(3)),
+      passRate: Number(passRate.toFixed(3)),
+      recentMatchRate: Number(recentMatchRate.toFixed(3)),
+    }
+  }).sort((a, b) => b.weight - a.weight || a.label.localeCompare(b.label, 'ko'))
 }
 
 function weightedDigitPick(pool: number[]) {
@@ -127,7 +192,7 @@ function buildHistoricalDigitWeights(historyNumbers: string[]) {
   return positionWeights
 }
 
-function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: string[]): PensionRecommendationSet | null {
+function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: string[], ruleWeight?: number): PensionRecommendationSet | null {
   if (historyNumbers.length === 0) return null
 
   const positionWeights = buildHistoricalDigitWeights(historyNumbers)
@@ -139,14 +204,18 @@ function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: stri
     return {
       label: config.label,
       number: digits.join(''),
-      meta: buildPensionMeta(digits),
+      meta: {
+        ...buildPensionMeta(digits),
+        ruleId: config.id,
+        ruleWeight,
+      },
     }
   }
 
   return null
 }
 
-export function buildPensionRecommendation(config: PensionSetConfig, historyNumbers: string[] = []): PensionRecommendationSet {
+export function buildPensionRecommendation(config: PensionSetConfig, historyNumbers: string[] = [], ruleWeight?: number): PensionRecommendationSet {
   for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
     const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
     if (!passesCommonPensionRules(digits)) continue
@@ -155,7 +224,11 @@ export function buildPensionRecommendation(config: PensionSetConfig, historyNumb
     return {
       label: config.label,
       number: digits.join(''),
-      meta: buildPensionMeta(digits),
+      meta: {
+        ...buildPensionMeta(digits),
+        ruleId: config.id,
+        ruleWeight,
+      },
     }
   }
 
@@ -166,21 +239,35 @@ export function buildPensionRecommendation(config: PensionSetConfig, historyNumb
     return {
       label: config.label,
       number: digits.join(''),
-      meta: buildPensionMeta(digits),
+      meta: {
+        ...buildPensionMeta(digits),
+        ruleId: config.id,
+        ruleWeight,
+      },
     }
   }
 
-  const statisticalFallback = buildStatisticalFallback(config, historyNumbers)
+  const statisticalFallback = buildStatisticalFallback(config, historyNumbers, ruleWeight)
   if (statisticalFallback) return statisticalFallback
 
   const fallbackDigits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
   return {
     label: config.label,
     number: fallbackDigits.join(''),
-    meta: buildPensionMeta(fallbackDigits),
+    meta: {
+      ...buildPensionMeta(fallbackDigits),
+      ruleId: config.id,
+      ruleWeight,
+    },
   }
 }
 
 export function buildPensionRecommendations(historyNumbers: string[] = []) {
-  return PENSION_SET_CONFIGS.map((config) => buildPensionRecommendation(config, historyNumbers))
+  const ruleWeights = buildPensionRuleWeights(historyNumbers)
+  const weightMap = new Map(ruleWeights.map((entry) => [entry.ruleId, entry.weight]))
+
+  return PENSION_SET_CONFIGS
+    .slice()
+    .sort((a, b) => (weightMap.get(b.id) ?? b.baseWeight) - (weightMap.get(a.id) ?? a.baseWeight))
+    .map((config) => buildPensionRecommendation(config, historyNumbers, weightMap.get(config.id) ?? config.baseWeight))
 }

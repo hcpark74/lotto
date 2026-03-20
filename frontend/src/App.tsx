@@ -38,11 +38,41 @@ type PensionRecommendationSet = {
     label: string;
     number: string;
     meta: {
+        ruleId?: string;
+        ruleWeight?: number;
         sum: number;
         oddCount: number;
         uniqueDigitCount: number;
         maxDuplicateCount: number;
         hasThreeConsecutive: boolean;
+    };
+};
+type PensionRuleWeight = {
+    ruleId: string;
+    label: string;
+    weight: number;
+    score: number;
+    passRate: number;
+    recentMatchRate: number;
+};
+type PensionRulePerformance = {
+    ruleId: string;
+    label: string;
+    generatedCount: number;
+    averageExactMatches: number;
+    exactMatch3PlusRate: number;
+    exactMatch4PlusRate: number;
+};
+type PensionBacktestDiagnostics = {
+    algorithm: string;
+    evaluatedDraws: number;
+    setsPerDraw: number;
+    totalGeneratedSets: number;
+    averageExactMatchPerSet: number;
+    averageBestExactMatchPerDraw: number;
+    ruleDiagnostics: {
+        currentWeights: PensionRuleWeight[];
+        performance: PensionRulePerformance[];
     };
 };
 
@@ -111,6 +141,12 @@ const LOTTO_RULE_LABELS: Record<string, string> = {
     'stable-sum': '합계 안정형',
     'zone-distribution': '구간 분포형',
     'tail-balance': '끝수 균형형',
+};
+const PENSION_RULE_LABELS: Record<string, string> = {
+    'balanced-core': '균형형 추천',
+    'odd-focus': '홀수 집중형 추천',
+    'unique-focus': '고유수 확장형 추천',
+    'low-sum-stable': '저합계 안정형 추천',
 };
 
 function getBallTheme(num: number): BallTheme {
@@ -573,6 +609,33 @@ function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
     );
 }
 
+function PensionRulePerformanceCard({ item }: { item: PensionRulePerformance }) {
+    return (
+        <div className="rounded-[24px] border border-slate-200/80 bg-white/75 px-4 py-4 sm:px-5">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-base font-semibold text-slate-950">{PENSION_RULE_LABELS[item.ruleId] ?? item.label}</div>
+                    <div className="mt-1 text-xs text-slate-500">생성 {item.generatedCount}회</div>
+                </div>
+                <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                    평균 정확 일치 {item.averageExactMatches.toFixed(3)}
+                </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:text-sm">
+                <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div>3자리 이상 일치</div>
+                    <div className="mt-1 font-semibold text-slate-900">{item.exactMatch3PlusRate.toFixed(1)}%</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div>4자리 이상 일치</div>
+                    <div className="mt-1 font-semibold text-slate-900">{item.exactMatch4PlusRate.toFixed(1)}%</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function PensionDigitBall({ value, color }: { value: string; color: string }) {
     return (
         <div
@@ -664,6 +727,8 @@ function PensionResultCard({ draw }: { draw: PensionDrawResult }) {
 }
 
 function PensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
+    const ruleName = set.meta.ruleId ? (PENSION_RULE_LABELS[set.meta.ruleId] ?? set.meta.ruleId) : null;
+
     return (
         <div className="recommend-card rounded-[28px] px-4 py-5 sm:px-6 sm:py-7">
             <div className="text-center">
@@ -673,6 +738,20 @@ function PensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
                 <h3 className="mt-4 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-[28px]">
                     연금복권 추천번호
                 </h3>
+                {(set.meta.ruleWeight || ruleName) && (
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 sm:text-sm">
+                        {set.meta.ruleWeight ? (
+                            <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 font-semibold text-slate-700">
+                                가중치 {set.meta.ruleWeight.toFixed(3)}
+                            </span>
+                        ) : null}
+                        {ruleName ? (
+                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
+                                {ruleName}
+                            </span>
+                        ) : null}
+                    </div>
+                )}
             </div>
 
             <div className="result-divider mt-7" />
@@ -712,10 +791,14 @@ function PensionPage({
     pensionGenerateLoading,
     pensionSearchInput,
     pensionRecommendations,
+    pensionRuleWeights,
+    pensionBacktestDiagnostics,
+    pensionBacktestLoading,
     pensionSearchResult,
     pensionSearchError,
     onPensionSync,
     onPensionGenerate,
+    onPensionBacktestRefresh,
     onPensionSearchInputChange,
     onPensionSearch,
 }: {
@@ -726,10 +809,14 @@ function PensionPage({
     pensionGenerateLoading: boolean;
     pensionSearchInput: string;
     pensionRecommendations: PensionRecommendationSet[];
+    pensionRuleWeights: PensionRuleWeight[];
+    pensionBacktestDiagnostics: PensionBacktestDiagnostics | null;
+    pensionBacktestLoading: boolean;
     pensionSearchResult: PensionDrawResult | null;
     pensionSearchError: string;
     onPensionSync: () => void;
     onPensionGenerate: () => void;
+    onPensionBacktestRefresh: () => void;
     onPensionSearchInputChange: (value: string) => void;
     onPensionSearch: () => void;
 }) {
@@ -786,6 +873,24 @@ function PensionPage({
                         숫자 6개를 독립 추출한 뒤 공통 규칙을 통과시키고, 추천 성향별 규칙 세트로 여러 조합을 나눠 제안합니다.
                     </p>
 
+                    {pensionRuleWeights.length > 0 && (
+                        <div className="mb-4 rounded-[24px] border border-emerald-100 bg-emerald-50/60 p-4 sm:p-5">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">추천 성향 분석</p>
+                                    <h3 className="mt-1 text-lg font-semibold text-slate-950">최근 24회 기준 추천 성향 우선순위</h3>
+                                </div>
+                                <p className="text-xs text-slate-500 sm:text-sm">점수가 높은 추천 성향을 먼저 적용합니다.</p>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                {pensionRuleWeights.map((item, index) => (
+                                    <RuleWeightCard key={`pension-${item.ruleId}`} item={{ ...item, label: PENSION_RULE_LABELS[item.ruleId] ?? item.label }} index={index} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {pensionRecommendations.length > 0 ? (
                         <div className="grid gap-3 lg:grid-cols-2">
                             {pensionRecommendations.map((set) => (
@@ -801,7 +906,7 @@ function PensionPage({
             </section>
 
             <section className="mt-5 lg:mt-6">
-                <SectionCard title="지난 회차 검색" eyebrow="연금복권 조회" icon={<Search className="h-5 w-5" />}>
+                <SectionCard title="지난 회차 검색" eyebrow="연금복권 조회" icon={<Search className="h-5 w-5" />}> 
                     <div className="flex flex-col gap-3 sm:flex-row">
                         <input
                             type="number"
@@ -831,6 +936,80 @@ function PensionPage({
                     </div>
                 </SectionCard>
             </section>
+
+            <section className="mt-5 lg:mt-6">
+                <SectionCard
+                    title="백테스트 성향 진단"
+                    eyebrow="알고리즘 진단"
+                    icon={<Info className="h-5 w-5" />}
+                    action={
+                        <button
+                            onClick={onPensionBacktestRefresh}
+                            disabled={pensionBacktestLoading}
+                            className="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition disabled:opacity-60"
+                        >
+                            {pensionBacktestLoading ? '분석 중...' : '진단 새로고침'}
+                        </button>
+                    }
+                >
+                    {pensionBacktestDiagnostics ? (
+                        <>
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                    <div className="text-xs text-slate-500">평가 회차</div>
+                                    <div className="mt-1 text-xl font-semibold text-slate-950">{pensionBacktestDiagnostics.evaluatedDraws}</div>
+                                </div>
+                                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                    <div className="text-xs text-slate-500">세트 수</div>
+                                    <div className="mt-1 text-xl font-semibold text-slate-950">{pensionBacktestDiagnostics.totalGeneratedSets}</div>
+                                </div>
+                                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                    <div className="text-xs text-slate-500">세트 평균 정확 일치</div>
+                                    <div className="mt-1 text-xl font-semibold text-slate-950">{pensionBacktestDiagnostics.averageExactMatchPerSet.toFixed(3)}</div>
+                                </div>
+                                <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
+                                    <div className="text-xs text-slate-500">회차 최고 평균 정확 일치</div>
+                                    <div className="mt-1 text-xl font-semibold text-slate-950">{pensionBacktestDiagnostics.averageBestExactMatchPerDraw.toFixed(3)}</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 rounded-[24px] border border-sky-100 bg-sky-50/50 p-4 sm:p-5">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700">백테스트 성향 가중치</p>
+                                        <h3 className="mt-1 text-lg font-semibold text-slate-950">현재 추천 성향 우선순위</h3>
+                                    </div>
+                                    <p className="text-xs text-slate-500 sm:text-sm">최근 데이터로 계산한 현재 우선순위입니다.</p>
+                                </div>
+                                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                    {pensionBacktestDiagnostics.ruleDiagnostics.currentWeights.map((item, index) => (
+                                        <RuleWeightCard key={`pension-backtest-${item.ruleId}`} item={{ ...item, label: PENSION_RULE_LABELS[item.ruleId] ?? item.label }} index={index} />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-5 rounded-[24px] border border-slate-200/80 bg-white/70 p-4 sm:p-5">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">성향 성과 분석</p>
+                                        <h3 className="mt-1 text-lg font-semibold text-slate-950">추천 성향별 백테스트 성과</h3>
+                                    </div>
+                                    <p className="text-xs text-slate-500 sm:text-sm">추천 성향별 정확 일치 성과를 비교합니다.</p>
+                                </div>
+                                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                    {pensionBacktestDiagnostics.ruleDiagnostics.performance.map((item) => (
+                                        <PensionRulePerformanceCard key={`pension-perf-${item.ruleId}`} item={item} />
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-10 text-center text-sm text-slate-500">
+                            {pensionBacktestLoading ? '연금복권 백테스트 진단을 계산하고 있습니다.' : '연금복권 백테스트 진단 데이터를 불러오지 못했습니다.'}
+                        </div>
+                    )}
+                </SectionCard>
+            </section>
         </div>
     );
 }
@@ -851,6 +1030,9 @@ function App() {
     const [pensionSyncLoading, setPensionSyncLoading] = useState(false);
     const [pensionGenerateLoading, setPensionGenerateLoading] = useState(false);
     const [pensionRecommendations, setPensionRecommendations] = useState<PensionRecommendationSet[]>([]);
+    const [pensionRuleWeights, setPensionRuleWeights] = useState<PensionRuleWeight[]>([]);
+    const [pensionBacktestDiagnostics, setPensionBacktestDiagnostics] = useState<PensionBacktestDiagnostics | null>(null);
+    const [pensionBacktestLoading, setPensionBacktestLoading] = useState(false);
     const [pensionSearchInput, setPensionSearchInput] = useState('');
     const [pensionSearchResult, setPensionSearchResult] = useState<PensionDrawResult | null>(null);
     const [pensionSearchError, setPensionSearchError] = useState('');
@@ -925,10 +1107,25 @@ function App() {
         }
     };
 
+    const loadPensionBacktestDiagnostics = async () => {
+        setPensionBacktestLoading(true);
+
+        try {
+            const res = await fetch(`${API_URL}/api/pension/generate/backtest?draws=120`);
+            if (!res.ok) throw new Error('연금복권 백테스트 진단을 불러오지 못했습니다.');
+            setPensionBacktestDiagnostics(await res.json());
+        } catch {
+            setPensionBacktestDiagnostics(null);
+        } finally {
+            setPensionBacktestLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadResults();
         loadLatestPensionResult();
         loadBacktestDiagnostics();
+        loadPensionBacktestDiagnostics();
     }, []);
 
     useEffect(() => {
@@ -1088,14 +1285,17 @@ function App() {
     const generatePensionNumbers = async () => {
         setPensionGenerateLoading(true);
         setPensionRecommendations([]);
+        setPensionRuleWeights([]);
 
         try {
             const res = await fetch(`${API_URL}/api/pension/generate`, { method: 'POST' });
             if (!res.ok) throw new Error('연금복권 추천번호 생성에 실패했습니다.');
             const data = await res.json();
             setPensionRecommendations(Array.isArray(data.sets) ? data.sets : []);
+            setPensionRuleWeights(Array.isArray(data.ruleWeights) ? data.ruleWeights : []);
         } catch {
             setPensionRecommendations([]);
+            setPensionRuleWeights([]);
         } finally {
             setPensionGenerateLoading(false);
         }
@@ -1451,10 +1651,14 @@ function App() {
                         pensionGenerateLoading={pensionGenerateLoading}
                         pensionSearchInput={pensionSearchInput}
                         pensionRecommendations={pensionRecommendations}
+                        pensionRuleWeights={pensionRuleWeights}
+                        pensionBacktestDiagnostics={pensionBacktestDiagnostics}
+                        pensionBacktestLoading={pensionBacktestLoading}
                         pensionSearchResult={pensionSearchResult}
                         pensionSearchError={pensionSearchError}
                         onPensionSync={syncLatestPensionResults}
                         onPensionGenerate={generatePensionNumbers}
+                        onPensionBacktestRefresh={loadPensionBacktestDiagnostics}
                         onPensionSearchInputChange={(value) => {
                             setPensionSearchInput(value);
                             setPensionSearchResult(null);

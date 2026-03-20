@@ -3,6 +3,7 @@ import {
   generatePensionSets,
   getPensionResultByDrawNo,
   getRecentPensionResults,
+  runPensionBacktestFromDb,
   syncPensionResults,
 } from '../services/pension'
 import type { Bindings } from '../types/app'
@@ -43,6 +44,13 @@ export function createPensionRoutes() {
 
   app.post('/generate', withRouteErrorHandling(async (c) => {
       return c.json(await generatePensionSets(c.env.DB))
+    }))
+
+  app.get('/generate/backtest', withRouteErrorHandling(async (c) => {
+      const lookback = Math.min(Math.max(Number(c.req.query('draws') ?? 100), 20), 240)
+      return c.json(await runPensionBacktestFromDb(c.env.DB, lookback))
+    }, {
+      errorStatus: (_error, message) => message === '연금복권 백테스트에 필요한 데이터가 부족합니다.' ? 400 : 500,
     }))
 
   return app
