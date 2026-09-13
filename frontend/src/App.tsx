@@ -97,15 +97,35 @@ type LottoRulePerformance = {
     label: string;
     generatedCount: number;
     averageMatches: number;
+    zScore: number;
+    ci95: [number, number];
     commonRulePassRate: number;
     relaxedFallbackRate: number;
     randomFallbackRate: number;
+};
+type LottoBacktestBaseline = {
+    theoretical: {
+        expectedMatchPerSet: number;
+        matchStdPerSet: number;
+    };
+    randomControl: {
+        totalSets: number;
+        averageMatchPerSet: number;
+        zScore: number;
+        ci95: [number, number];
+    };
+    overall: {
+        zScore: number;
+        ci95: [number, number];
+        significant: boolean;
+    };
 };
 type LottoBacktestDiagnostics = {
     algorithm: string;
     evaluatedDraws: number;
     averageMatchPerSet: number;
     averageBestMatchPerDraw: number;
+    baseline: LottoBacktestBaseline;
     generationQuality: {
         commonRulePassRate: number;
         relaxedFallbackRate: number;
@@ -578,6 +598,21 @@ function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: number 
     );
 }
 
+// |z| >= 1.96 이면 5% 유의수준에서 랜덤(0.8)과 다르다. 그 외는 노이즈 범위.
+function ZScoreBadge({ zScore }: { zScore: number }) {
+    const significant = Math.abs(zScore) >= 1.96;
+    const tone = !significant
+        ? 'bg-slate-100 text-slate-600'
+        : zScore > 0
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-rose-50 text-rose-700';
+    return (
+        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}>
+            z {zScore > 0 ? '+' : ''}{zScore.toFixed(2)} · {significant ? '유의' : '랜덤 범위'}
+        </span>
+    );
+}
+
 function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
     return (
         <div className="rounded-[24px] border border-slate-200/80 bg-white/75 px-4 py-4 sm:px-5">
@@ -586,8 +621,12 @@ function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
                     <div className="text-base font-semibold text-slate-950">{item.label}</div>
                     <div className="mt-1 text-xs text-slate-500">생성 {item.generatedCount}회</div>
                 </div>
-                <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-                    평균 일치 {item.averageMatches.toFixed(3)}
+                <div className="flex flex-col items-end gap-1">
+                    <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                        평균 일치 {item.averageMatches.toFixed(3)}
+                    </div>
+                    <ZScoreBadge zScore={item.zScore} />
+                    <div className="text-[11px] text-slate-500">95% CI {item.ci95[0].toFixed(3)} ~ {item.ci95[1].toFixed(3)}</div>
                 </div>
             </div>
 
@@ -1540,6 +1579,7 @@ function App() {
                                         <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
                                             <div className="text-xs text-slate-500">세트 평균 일치</div>
                                             <div className="mt-1 text-xl font-semibold text-slate-950">{backtestDiagnostics.averageMatchPerSet.toFixed(3)}</div>
+                                            <div className="mt-1 text-[11px] text-slate-500">랜덤 기대 {backtestDiagnostics.baseline.theoretical.expectedMatchPerSet.toFixed(3)}</div>
                                         </div>
                                         <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
                                             <div className="text-xs text-slate-500">회차 최고 평균</div>
@@ -1548,6 +1588,36 @@ function App() {
                                         <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
                                             <div className="text-xs text-slate-500">공통 규칙 통과율</div>
                                             <div className="mt-1 text-xl font-semibold text-slate-950">{backtestDiagnostics.generationQuality.commonRulePassRate.toFixed(1)}%</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 rounded-[24px] border border-slate-200/80 bg-white/70 p-4 sm:p-5">
+                                        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">랜덤 대비 유의성</p>
+                                                <h3 className="mt-1 text-lg font-semibold text-slate-950">기준선 0.800 비교</h3>
+                                            </div>
+                                            <p className="text-xs text-slate-500 sm:text-sm">6/45 초기하분포 기대값 0.8, 표준편차 {backtestDiagnostics.baseline.theoretical.matchStdPerSet.toFixed(3)}. |z| ≥ 1.96 이면 유의.</p>
+                                        </div>
+                                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="text-sm font-semibold text-slate-900">추천 알고리즘 전체</div>
+                                                    <ZScoreBadge zScore={backtestDiagnostics.baseline.overall.zScore} />
+                                                </div>
+                                                <div className="mt-2 text-xs text-slate-500">
+                                                    평균 {backtestDiagnostics.averageMatchPerSet.toFixed(3)} · 95% CI {backtestDiagnostics.baseline.overall.ci95[0].toFixed(3)} ~ {backtestDiagnostics.baseline.overall.ci95[1].toFixed(3)}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="text-sm font-semibold text-slate-900">순수 랜덤 대조군</div>
+                                                    <ZScoreBadge zScore={backtestDiagnostics.baseline.randomControl.zScore} />
+                                                </div>
+                                                <div className="mt-2 text-xs text-slate-500">
+                                                    평균 {backtestDiagnostics.baseline.randomControl.averageMatchPerSet.toFixed(3)} · 95% CI {backtestDiagnostics.baseline.randomControl.ci95[0].toFixed(3)} ~ {backtestDiagnostics.baseline.randomControl.ci95[1].toFixed(3)} · {backtestDiagnostics.baseline.randomControl.totalSets}세트
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

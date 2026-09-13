@@ -213,13 +213,22 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 | `POST` | `/api/generate` | 추천 번호 5세트 생성 |
 | `GET` | `/api/generate/backtest` | 추천 로직 백테스트 |
 
-`/api/generate/backtest` 응답에는 아래 품질 지표가 포함됩니다.
+`/api/generate/backtest` 응답에는 아래 지표가 포함됩니다.
 
-- `generationQuality.commonRulePassRate`
-- `generationQuality.relaxedFallbackRate`
-- `generationQuality.randomFallbackRate`
+- `generationQuality.commonRulePassRate` / `relaxedFallbackRate` / `randomFallbackRate`
+  — 공통 필터 통과율, 세트 조건 완화·랜덤 fallback 발생 비율
+- `baseline.theoretical` — 6/45 초기하분포 이론값. 세트당 기대 일치 수 `0.8`, 표준편차 `0.784`,
+  일치 수별 확률과 기대 분포
+- `baseline.randomControl` — 같은 회차에 순수 랜덤 세트를 같은 수만큼 채점한 대조군
+- `baseline.overall` — 추천 알고리즘 전체의 `zScore`, `ci95`, `significant`
+  (`|z| ≥ 1.96` 이면 5% 유의수준에서 랜덤과 다름). 같은 회차의 세트 5개는 같은 가중치를
+  공유해 상관되므로, 회차별 합계(n = 평가 회차)의 경험 분산으로 표준오차를 계산한다.
+  대조군도 같은 방식으로 계산해 두 z를 같은 기준에 둔다.
+- `ruleDiagnostics.performance[].zScore` / `ci95` — 세트 규칙별 지표. 규칙당 회차마다 1세트라
+  `z = (평균 − 0.8) / (0.784/√n)` 을 그대로 쓴다.
 
-이 값으로 공통 필터가 얼마나 안정적으로 통과되는지, 세트 조건 완화나 랜덤 fallback이 얼마나 자주 발생하는지 확인할 수 있습니다.
+어떤 전략이든 `|z| < 1.96` 이면 랜덤과 구분되지 않는 것으로 본다. 백테스트는 실행할 때마다
+세트를 새로 생성하므로 단일 실행의 유의 결과는 재실행으로 확인해야 한다.
 
 연금복권 동기화 예시:
 

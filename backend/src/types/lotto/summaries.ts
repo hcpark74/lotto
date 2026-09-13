@@ -14,6 +14,26 @@ export type LottoBacktestSummary = {
   totalGeneratedSets: number
   averageMatchPerSet: number
   averageBestMatchPerDraw: number
+  baseline: {
+    theoretical: {
+      expectedMatchPerSet: number
+      matchStdPerSet: number
+      matchProbabilities: Record<number, number>
+      expectedHitDistribution: Record<number, number>
+    }
+    randomControl: {
+      totalSets: number
+      averageMatchPerSet: number
+      hitDistribution: Record<number, number>
+      zScore: number
+      ci95: [number, number]
+    }
+    overall: {
+      zScore: number
+      ci95: [number, number]
+      significant: boolean
+    }
+  }
   generationQuality: {
     commonRulePassRate: number
     relaxedFallbackRate: number
@@ -41,6 +61,8 @@ export type LottoBacktestSummary = {
       label: string
       generatedCount: number
       averageMatches: number
+      zScore: number
+      ci95: [number, number]
       commonRulePassRate: number
       relaxedFallbackRate: number
       randomFallbackRate: number

@@ -1,4 +1,5 @@
 import type { DrawNumbersRow, GeneratedSet } from '../types/lotto'
+import { buildRandomNumbers } from './lotto-baseline'
 
 type SetConfig = {
   id: string
@@ -72,9 +73,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function buildFallbackSet(label: string, ruleId?: string, ruleWeight?: number): GeneratedSet {
-  const picked = new Set<number>()
-  while (picked.size < 6) picked.add(Math.floor(Math.random() * 45) + 1)
-  const numbers = Array.from(picked).sort((a, b) => a - b)
+  const numbers = buildRandomNumbers()
   return {
     label,
     numbers,
@@ -161,7 +160,7 @@ function getZoneCount(numbers: number[]) {
   return new Set(numbers.map(n => Math.ceil(n / 9))).size
 }
 
-function passesCommonRules(numbers: number[]) {
+export function passesCommonRules(numbers: number[]) {
   const sum = getSum(numbers)
   const oddCount = getOddCount(numbers)
   const maxConsecutiveRun = getConsecutiveRun(numbers)

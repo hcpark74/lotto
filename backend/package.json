@@ -9,7 +9,9 @@
     "init-db": "wrangler d1 execute lotto_db --local --file=./schema.sql",
     "init-db:remote": "wrangler d1 execute lotto_db --remote --file=./schema.sql",
     "seed": "node scripts/seed.js",
-    "seed:apply": "wrangler d1 execute lotto_db --remote --file=./seed.sql"
+    "seed:apply": "wrangler d1 execute lotto_db --remote --file=./seed.sql",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "typescript": "^5.9.3",
+    "vitest": "^5.0.0",
     "wrangler": "^4.60.0"
   }
 }
