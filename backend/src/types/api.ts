@@ -196,25 +196,65 @@ export type PensionGenerateResponse = {
   ruleWeights?: RuleWeight[]
 }
 
+// 점수 = 1등 번호와 끝자리부터 연속으로 일치한 자리 수 (0~6). 연금복권720+ 등위 기준과 같다.
+// 3+ = 5등 이상, 4+ = 4등 이상
 export type PensionRulePerformance = {
   ruleId: string
   label: string
   generatedCount: number
-  averageExactMatches: number
-  exactMatch3PlusRate: number
-  exactMatch4PlusRate: number
+  averageMatches: number
+  zScore: number
+  ci95: ConfidenceInterval95
+  match3PlusRate: number
+  match4PlusRate: number
+}
+
+// 등위별 적중 세트 수. 추천 번호는 조를 고르지 않으므로 6자리 일치는 rank2 에 센다
+// (조까지 맞으면 1등). bonus 는 보너스 번호와 6자리가 모두 일치한 세트 수.
+export type PensionRankHits = {
+  rank2: number
+  rank3: number
+  rank4: number
+  rank5: number
+  rank6: number
+  rank7: number
+  bonus: number
 }
 
 // GET /api/pension/generate/backtest?draws=
+// hitDistribution 등의 키는 끝자리 연속 일치 수 (0~6)
 export type PensionBacktestResponse = {
   algorithm: string
   evaluatedDraws: number
   setsPerDraw: number
   totalGeneratedSets: number
-  averageExactMatchPerSet: number
-  averageBestExactMatchPerDraw: number
-  exactMatchDistribution: Record<number, number>
-  bestExactMatchDistribution: Record<number, number>
+  averageMatchPerSet: number
+  averageBestMatchPerDraw: number
+  baseline: {
+    theoretical: {
+      // 무작위 기대값 0.1111, 표준편차 0.3514
+      expectedMatchPerSet: number
+      matchStdPerSet: number
+      // P(정확히 끝 k자리) = 0.9·0.1^k (k<6), P(6) = 10^-6
+      matchProbabilities: Record<number, number>
+      expectedHitDistribution: Record<number, number>
+    }
+    randomControl: {
+      totalSets: number
+      averageMatchPerSet: number
+      hitDistribution: Record<number, number>
+      zScore: number
+      ci95: ConfidenceInterval95
+    }
+    overall: {
+      zScore: number
+      ci95: ConfidenceInterval95
+      significant: boolean
+    }
+  }
+  hitDistribution: Record<number, number>
+  bestHitDistribution: Record<number, number>
+  rankHits: PensionRankHits
   ruleDiagnostics: {
     currentWeights: RuleWeight[]
     performance: PensionRulePerformance[]

@@ -54,6 +54,7 @@ export type PensionWinningNumberRow = {
 export type PensionBacktestRow = {
   draw_no: number
   winning_number: string
+  bonus_number?: string
 }
 
 export type Pension720ResultDetail = PensionDrawDetail

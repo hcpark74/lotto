@@ -3,7 +3,21 @@ import {
   buildPensionRuleWeights,
   PENSION_ALGORITHM_VERSION,
 } from '../algorithms/pension'
+import {
+  buildRandomPensionNumber,
+  countTrailingMatches,
+  PENSION_DIGIT_COUNT,
+  PENSION_NULL_MODEL,
+  PENSION_TRAILING_MATCH_PROBABILITIES,
+  trailingMatchesToRank,
+} from '../algorithms/pension-baseline'
+import {
+  buildExpectedDistribution,
+  summarizeSignificance,
+  summarizeSignificanceByDraw,
+} from '../algorithms/significance'
 import { getAllPensionBacktestRowsQuery, getPensionDataVersionQuery } from '../queries/pension'
+import type { PensionRankHits } from '../types/api'
 import type { PensionBacktestRow } from '../types/pension/models'
 import type { PensionBacktestSummary } from '../types/pension/summaries'
 import { createSeededRandom, type RandomSource } from '../utils/random'
@@ -13,17 +27,15 @@ const MIN_PENSION_BACKTEST_DRAWS = 30
 const MIN_PENSION_TRAINING_DRAWS = 20
 // 같은 데이터면 같은 결과가 나오도록 백테스트는 기본으로 시드를 고정한다
 export const PENSION_BACKTEST_SEED = 720
+// 연금 평균 일치 수는 0.1 안팎이라 소수 넷째 자리까지 둔다
+const DIGITS = 4
 
-function countExactDigitMatches(picked: string, winning: string) {
-  let matches = 0
-  const left = picked.padStart(6, '0').slice(-6)
-  const right = winning.padStart(6, '0').slice(-6)
+function emptyDistribution() {
+  return Object.fromEntries(Array.from({ length: PENSION_DIGIT_COUNT + 1 }, (_, k) => [k, 0])) as Record<number, number>
+}
 
-  for (let index = 0; index < 6; index += 1) {
-    if (left[index] === right[index]) matches += 1
-  }
-
-  return matches
+function rate(count: number, total: number) {
+  return Number((count / Math.max(total, 1) * 100).toFixed(2))
 }
 
 export function runPensionBacktest(
@@ -43,73 +55,129 @@ export function runPensionBacktest(
   const newestFirst = sorted.map((row) => row.winning_number).reverse()
 
   let totalSets = 0
-  let totalExactMatches = 0
-  let bestExactMatchSum = 0
-  const exactMatchDistribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } as Record<number, number>
-  const bestExactMatchDistribution = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } as Record<number, number>
+  let totalMatches = 0
+  let bestMatchSum = 0
+  const hitDistribution = emptyDistribution()
+  const bestHitDistribution = emptyDistribution()
+  const rankHits: PensionRankHits = { rank2: 0, rank3: 0, rank4: 0, rank5: 0, rank6: 0, rank7: 0, bonus: 0 }
+  // 회차별 점수 합계. 같은 회차의 세트들은 상관되어 있어 유의성 계산은 이 단위로 한다.
+  const drawTotals: number[] = []
+  // 랜덤 대조군: 회차마다 전략과 같은 수의 균등 무작위 번호를 같은 target 에 채점한다.
+  let controlSets = 0
+  const controlDrawTotals: number[] = []
+  const controlHitDistribution = emptyDistribution()
   const rulePerf = new Map<string, {
     ruleId: string
     label: string
     generatedCount: number
-    totalExactMatches: number
-    exactMatch3PlusCount: number
-    exactMatch4PlusCount: number
+    totalMatches: number
+    match3PlusCount: number
+    match4PlusCount: number
   }>()
 
   for (let targetIndex = startIndex; targetIndex < sorted.length; targetIndex++) {
     const target = sorted[targetIndex]
     const historyNumbers = newestFirst.slice(sorted.length - targetIndex)
     const sets = buildPensionRecommendations(historyNumbers, random)
-    const matchCounts = sets.map((set) => countExactDigitMatches(set.number, target.winning_number))
-    const bestMatch = Math.max(...matchCounts)
+    const matchCounts = sets.map((set) => countTrailingMatches(set.number, target.winning_number))
 
     for (let index = 0; index < sets.length; index += 1) {
       const set = sets[index]
       const matches = matchCounts[index]
-      const ruleId = (set.meta as { ruleId?: string } | undefined)?.ruleId ?? 'unknown'
+      const ruleId = set.meta.ruleId ?? 'unknown'
       const perf = rulePerf.get(ruleId) ?? {
         ruleId,
         label: set.label,
         generatedCount: 0,
-        totalExactMatches: 0,
-        exactMatch3PlusCount: 0,
-        exactMatch4PlusCount: 0,
+        totalMatches: 0,
+        match3PlusCount: 0,
+        match4PlusCount: 0,
       }
 
       perf.generatedCount += 1
-      perf.totalExactMatches += matches
-      if (matches >= 3) perf.exactMatch3PlusCount += 1
-      if (matches >= 4) perf.exactMatch4PlusCount += 1
+      perf.totalMatches += matches
+      if (matches >= 3) perf.match3PlusCount += 1
+      if (matches >= 4) perf.match4PlusCount += 1
       rulePerf.set(ruleId, perf)
 
       totalSets += 1
-      totalExactMatches += matches
-      exactMatchDistribution[matches] += 1
+      totalMatches += matches
+      hitDistribution[matches] += 1
+
+      const rank = trailingMatchesToRank(matches)
+      if (rank !== null) rankHits[`rank${rank}` as keyof PensionRankHits] += 1
+      if (target.bonus_number && countTrailingMatches(set.number, target.bonus_number) === PENSION_DIGIT_COUNT) {
+        rankHits.bonus += 1
+      }
     }
 
-    bestExactMatchSum += bestMatch
-    bestExactMatchDistribution[bestMatch] += 1
+    const bestMatch = Math.max(...matchCounts)
+    bestMatchSum += bestMatch
+    bestHitDistribution[bestMatch] += 1
+    drawTotals.push(matchCounts.reduce((a, b) => a + b, 0))
+
+    let controlDrawTotal = 0
+    for (let index = 0; index < sets.length; index += 1) {
+      const matches = countTrailingMatches(buildRandomPensionNumber(random), target.winning_number)
+      controlSets += 1
+      controlDrawTotal += matches
+      controlHitDistribution[matches] += 1
+    }
+    controlDrawTotals.push(controlDrawTotal)
   }
+
+  // 세트 수는 규칙 수로 고정이지만, 혹시 달라져도 평균이 맞도록 실제 값으로 계산한다
+  const setsPerDraw = totalSets / targetRows.length
+  const overall = summarizeSignificanceByDraw(drawTotals, setsPerDraw, PENSION_NULL_MODEL, DIGITS)
+  const control = summarizeSignificanceByDraw(controlDrawTotals, setsPerDraw, PENSION_NULL_MODEL, DIGITS)
 
   return {
     algorithm: PENSION_ALGORITHM_VERSION,
     evaluatedDraws: targetRows.length,
-    setsPerDraw: targetRows.length === 0 ? 0 : totalSets / targetRows.length,
+    setsPerDraw,
     totalGeneratedSets: totalSets,
-    averageExactMatchPerSet: Number((totalExactMatches / totalSets).toFixed(3)),
-    averageBestExactMatchPerDraw: Number((bestExactMatchSum / targetRows.length).toFixed(3)),
-    exactMatchDistribution,
-    bestExactMatchDistribution,
+    averageMatchPerSet: Number((totalMatches / totalSets).toFixed(DIGITS)),
+    averageBestMatchPerDraw: Number((bestMatchSum / targetRows.length).toFixed(DIGITS)),
+    baseline: {
+      theoretical: {
+        expectedMatchPerSet: Number(PENSION_NULL_MODEL.expected.toFixed(DIGITS)),
+        matchStdPerSet: Number(PENSION_NULL_MODEL.std.toFixed(DIGITS)),
+        matchProbabilities: PENSION_TRAILING_MATCH_PROBABILITIES,
+        expectedHitDistribution: buildExpectedDistribution(PENSION_TRAILING_MATCH_PROBABILITIES, totalSets),
+      },
+      randomControl: {
+        totalSets: controlSets,
+        averageMatchPerSet: control.mean,
+        hitDistribution: controlHitDistribution,
+        zScore: control.zScore,
+        ci95: control.ci95,
+      },
+      overall: {
+        zScore: overall.zScore,
+        ci95: overall.ci95,
+        // |z| ≥ 1.96 이면 5% 유의수준에서 랜덤과 다르다고 본다
+        significant: Math.abs(overall.zScore) >= 1.96,
+      },
+    },
+    hitDistribution,
+    bestHitDistribution,
+    rankHits,
     ruleDiagnostics: {
       currentWeights: buildPensionRuleWeights(newestFirst.slice(sorted.length - startIndex)),
-      performance: Array.from(rulePerf.values()).map((entry) => ({
-        ruleId: entry.ruleId,
-        label: entry.label,
-        generatedCount: entry.generatedCount,
-        averageExactMatches: Number((entry.totalExactMatches / Math.max(entry.generatedCount, 1)).toFixed(3)),
-        exactMatch3PlusRate: Number((entry.exactMatch3PlusCount / Math.max(entry.generatedCount, 1) * 100).toFixed(2)),
-        exactMatch4PlusRate: Number((entry.exactMatch4PlusCount / Math.max(entry.generatedCount, 1) * 100).toFixed(2)),
-      })),
+      performance: Array.from(rulePerf.values()).map((entry) => {
+        // 규칙당 회차마다 1세트라 세트 간 독립으로 본다
+        const significance = summarizeSignificance(entry.totalMatches, entry.generatedCount, PENSION_NULL_MODEL, DIGITS)
+        return {
+          ruleId: entry.ruleId,
+          label: entry.label,
+          generatedCount: entry.generatedCount,
+          averageMatches: significance.mean,
+          zScore: significance.zScore,
+          ci95: significance.ci95,
+          match3PlusRate: rate(entry.match3PlusCount, entry.generatedCount),
+          match4PlusRate: rate(entry.match4PlusCount, entry.generatedCount),
+        }
+      }),
     },
   }
 }

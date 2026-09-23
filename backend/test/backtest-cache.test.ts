@@ -26,17 +26,17 @@ describe('withBacktestCache', () => {
 
     await expect(withBacktestCache(db, options, compute)).resolves.toEqual({ cached: true })
     expect(compute).not.toHaveBeenCalled()
-    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c2:v3.2:1215:1215:300')
+    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c3:v3.2:1215:1215:300')
   })
 
   it('없으면 계산해서 저장한다. 같은 데이터 버전의 다른 lookback 은 지우지 않도록 prefix 를 넘긴다', async () => {
     await expect(withBacktestCache(db, options, async () => ({ value: 1 }))).resolves.toEqual({ value: 1 })
-    expect(replaceCache).toHaveBeenCalledWith(db, 'lotto', 'lotto:c2:v3.2:1215:1215:', 'lotto:c2:v3.2:1215:1215:300', '{"value":1}')
+    expect(replaceCache).toHaveBeenCalledWith(db, 'lotto', 'lotto:c3:v3.2:1215:1215:', 'lotto:c3:v3.2:1215:1215:300', '{"value":1}')
   })
 
   it('회차가 바뀌면 키가 바뀐다', async () => {
     await withBacktestCache(db, { ...options, dataVersion: { latest: 1216, count: 1216 } }, async () => ({}))
-    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c2:v3.2:1216:1216:300')
+    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c3:v3.2:1216:1216:300')
   })
 
   it('캐시 조회·저장이 실패해도 계산 결과를 돌려준다', async () => {

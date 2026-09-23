@@ -2,6 +2,12 @@
 // 전략 성과를 해석하려면 "순수 랜덤이면 얼마가 나오는가"가 항상 옆에 있어야 한다.
 
 import type { RandomSource } from '../utils/random'
+import {
+  buildExpectedDistribution,
+  summarizeSignificance as summarizeSignificanceWith,
+  summarizeSignificanceByDraw as summarizeSignificanceByDrawWith,
+  type SignificanceSummary,
+} from './significance'
 
 export const LOTTO_POOL_SIZE = 45
 export const LOTTO_PICK_COUNT = 6
@@ -42,67 +48,21 @@ export function buildRandomNumbers(random: RandomSource = Math.random) {
   return Array.from(picked).sort((a, b) => a - b)
 }
 
-export type SignificanceSummary = {
-  sampleSize: number
-  mean: number
-  expected: number
-  zScore: number
-  ci95: [number, number]
-}
+export type { SignificanceSummary } from './significance'
+
+const LOTTO_NULL_MODEL = { expected: LOTTO_EXPECTED_MATCHES, std: LOTTO_MATCH_STD }
 
 // 귀무가설(순수 랜덤) 하에서 세트별 일치 수는 i.i.d. 초기하분포이므로
 // 표본 평균의 표준오차는 0.784/√n 이다.
 export function summarizeSignificance(totalMatches: number, sampleSize: number): SignificanceSummary {
-  if (sampleSize === 0) {
-    return { sampleSize: 0, mean: 0, expected: LOTTO_EXPECTED_MATCHES, zScore: 0, ci95: [0, 0] }
-  }
-
-  const mean = totalMatches / sampleSize
-  const standardError = LOTTO_MATCH_STD / Math.sqrt(sampleSize)
-  const zScore = (mean - LOTTO_EXPECTED_MATCHES) / standardError
-  const halfWidth = 1.96 * standardError
-
-  return {
-    sampleSize,
-    mean: Number(mean.toFixed(3)),
-    expected: Number(LOTTO_EXPECTED_MATCHES.toFixed(3)),
-    zScore: Number(zScore.toFixed(2)),
-    ci95: [Number((mean - halfWidth).toFixed(3)), Number((mean + halfWidth).toFixed(3))],
-  }
+  return summarizeSignificanceWith(totalMatches, sampleSize, LOTTO_NULL_MODEL)
 }
 
-// 한 회차에 여러 세트를 채점하면 세트들이 같은 가중치·같은 target을 공유해 양의 상관을 가진다.
-// 이때 세트 수를 n으로 쓰면 표준오차가 과소 추정되므로, 회차별 합계(독립 관측)의 경험 분산으로 계산한다.
+// 회차별 합계의 경험 분산으로 계산한다 (algorithms/significance.ts 참고)
 export function summarizeSignificanceByDraw(drawTotals: number[], setsPerDraw: number): SignificanceSummary {
-  const drawCount = drawTotals.length
-  const sampleSize = drawCount * setsPerDraw
-  if (drawCount === 0 || setsPerDraw === 0) {
-    return { sampleSize: 0, mean: 0, expected: LOTTO_EXPECTED_MATCHES, zScore: 0, ci95: [0, 0] }
-  }
-
-  const totalMatches = drawTotals.reduce((a, b) => a + b, 0)
-  const mean = totalMatches / sampleSize
-  const drawMean = totalMatches / drawCount
-  const drawVariance = drawCount > 1
-    ? drawTotals.reduce((acc, value) => acc + (value - drawMean) ** 2, 0) / (drawCount - 1)
-    : 0
-  // 회차가 1개뿐이거나 분산이 0이면 세트 간 독립을 가정한 이론 분산으로 대체한다.
-  const drawStd = drawVariance > 0 ? Math.sqrt(drawVariance) : LOTTO_MATCH_STD * Math.sqrt(setsPerDraw)
-  const standardError = drawStd / (setsPerDraw * Math.sqrt(drawCount))
-  const zScore = (mean - LOTTO_EXPECTED_MATCHES) / standardError
-  const halfWidth = 1.96 * standardError
-
-  return {
-    sampleSize,
-    mean: Number(mean.toFixed(3)),
-    expected: Number(LOTTO_EXPECTED_MATCHES.toFixed(3)),
-    zScore: Number(zScore.toFixed(2)),
-    ci95: [Number((mean - halfWidth).toFixed(3)), Number((mean + halfWidth).toFixed(3))],
-  }
+  return summarizeSignificanceByDrawWith(drawTotals, setsPerDraw, LOTTO_NULL_MODEL)
 }
 
 export function buildExpectedHitDistribution(sampleSize: number) {
-  return Object.fromEntries(
-    Object.entries(LOTTO_MATCH_PROBABILITIES).map(([k, p]) => [k, Number((p * sampleSize).toFixed(2))]),
-  ) as Record<number, number>
+  return buildExpectedDistribution(LOTTO_MATCH_PROBABILITIES, sampleSize)
 }

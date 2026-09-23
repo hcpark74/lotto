@@ -39,7 +39,7 @@ export async function getPensionDataVersionQuery(db: D1Database) {
 
 export async function getAllPensionBacktestRowsQuery(db: D1Database) {
   const { results } = await db.prepare(
-    'SELECT draw_no, winning_number FROM pension720_draws ORDER BY draw_no ASC'
+    'SELECT draw_no, winning_number, bonus_number FROM pension720_draws ORDER BY draw_no ASC'
   ).all<PensionBacktestRow>()
 
   return results
