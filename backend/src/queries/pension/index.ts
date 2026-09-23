@@ -1,6 +1,9 @@
 export {
+  clearPensionPrizeSyncAttempts,
+  ensurePensionPrizeSyncAttemptsTable,
   getPensionDrawNosWithIncompletePrizeCounts,
   getStoredPensionDrawNos,
+  recordPensionPrizeSyncFailure,
   upsertPensionDraw,
   upsertPensionPrizeCount,
 } from './history'

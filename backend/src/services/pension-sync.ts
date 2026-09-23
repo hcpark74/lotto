@@ -1,7 +1,10 @@
 import { fetchPensionDrawList, fetchPensionPrizeCounts, findLatestPensionDrawNo } from '../clients/pension'
 import {
+  clearPensionPrizeSyncAttempts,
+  ensurePensionPrizeSyncAttemptsTable,
   getPensionDrawNosWithIncompletePrizeCounts,
   getStoredPensionDrawNos,
+  recordPensionPrizeSyncFailure,
   upsertPensionDraw,
   upsertPensionPrizeCount,
 } from '../queries/pension'
@@ -58,41 +61,50 @@ function mapPensionPrizeCount(row: Pension720PrizeInfoItem): Pension720PrizeCoun
   }
 }
 
-// 1~7등 + 보너스
+// rank_no 1~7 = 1~7등, 8 = 보너스. 이 8개 등위가 서로 다르게 모두 있어야 완결로 본다.
 const PENSION_PRIZE_RANK_COUNT = 8
-// 당첨 통계가 덜 채워진 기존 회차를 sync 한 번에 다시 받을 개수 (최신순 + 무작위)
-const PRIZE_RETRY_NEWEST = 2
-const PRIZE_RETRY_RANDOM = 3
+// 당첨 통계가 덜 채워진 기존 회차를 sync 한 번에 다시 받을 개수 (가장 오래전에 시도한 회차부터)
+const PRIZE_RETRY_LIMIT = 5
+// 이만큼 실패한 회차는 재시도에서 뺀다. cron 이 매일이므로 약 2주.
+const MAX_PRIZE_SYNC_ATTEMPTS = 14
 
-// 당첨 통계를 받아 저장하고 저장된 행 수를 돌려준다. 실패하면 0 을 돌려 다음 sync 에서 재시도되게 한다.
+// 받은 행 중 서로 다른 유효 등위(1~8) 수. 중복 행이나 알 수 없는 등위는 완결 판정에 세지 않는다.
+export function countDistinctPrizeRanks(rows: Pension720PrizeCountRecord[]) {
+  return new Set(rows.map((row) => row.rank_no).filter((rank) => rank >= 1 && rank <= PENSION_PRIZE_RANK_COUNT)).size
+}
+
+// 당첨 통계를 받아 저장하고 완결 여부를 돌려준다. 불완전하면 시도 횟수를 기록해 다음 sync 에서 순서대로 재시도한다.
 async function syncPensionPrizeCounts(db: D1Database, drawNo: number) {
-  let prizeCounts: Pension720PrizeInfoItem[]
+  let rows: Pension720PrizeCountRecord[] = []
 
   try {
-    prizeCounts = await fetchPensionPrizeCounts(drawNo)
+    const prizeCounts: Pension720PrizeInfoItem[] = await fetchPensionPrizeCounts(drawNo)
+    rows = prizeCounts.map(mapPensionPrizeCount).filter((row): row is Pension720PrizeCountRecord => row !== null)
   } catch (error) {
     console.warn(`연금복권 ${drawNo}회 당첨 통계 조회 실패:`, error)
-    return 0
   }
 
-  let savedCount = 0
-  for (const prizeRow of prizeCounts) {
-    const mapped = mapPensionPrizeCount(prizeRow)
-    if (!mapped) continue
+  for (const row of rows) await upsertPensionPrizeCount(db, row)
 
-    await upsertPensionPrizeCount(db, mapped)
-    savedCount += 1
+  if (countDistinctPrizeRanks(rows) >= PENSION_PRIZE_RANK_COUNT) {
+    await clearPensionPrizeSyncAttempts(db, drawNo)
+    return true
   }
 
-  return savedCount
+  const attempts = await recordPensionPrizeSyncFailure(db, drawNo)
+  if (attempts >= MAX_PRIZE_SYNC_ATTEMPTS) {
+    console.error(`연금복권 ${drawNo}회 당첨 통계가 ${attempts}번 시도에도 불완전해 재시도를 멈춥니다.`)
+  }
+  return false
 }
 
 export async function syncPensionResults(db: D1Database, limit = 0): Promise<Pension720SyncSummary> {
   const list = await fetchPensionDrawList()
   const latestDraw = findLatestPensionDrawNo(list)
+  await ensurePensionPrizeSyncAttemptsTable(db)
   const storedDrawNos = new Set(await getStoredPensionDrawNos(db))
   // 이전 sync 에서 통계를 다 못 받은 회차. 새 회차 저장 전에 조회해야 이번 회차와 섞이지 않는다.
-  const incompletePrizeDrawNos = await getPensionDrawNosWithIncompletePrizeCounts(db, PENSION_PRIZE_RANK_COUNT, PRIZE_RETRY_NEWEST, PRIZE_RETRY_RANDOM)
+  const incompletePrizeDrawNos = await getPensionDrawNosWithIncompletePrizeCounts(db, PENSION_PRIZE_RANK_COUNT, MAX_PRIZE_SYNC_ATTEMPTS, PRIZE_RETRY_LIMIT)
   // 목록 API 는 전체 회차를 돌려주므로, 최대 회차 이후만이 아니라 중간에 빠진 회차도 채운다
   const newDraws = list
     .map(mapPensionDraw)
@@ -104,14 +116,14 @@ export async function syncPensionResults(db: D1Database, limit = 0): Promise<Pen
   const pendingPrizeDrawNos: number[] = []
 
   for (const drawNo of incompletePrizeDrawNos) {
-    if (await syncPensionPrizeCounts(db, drawNo) < PENSION_PRIZE_RANK_COUNT) pendingPrizeDrawNos.push(drawNo)
+    if (!(await syncPensionPrizeCounts(db, drawNo))) pendingPrizeDrawNos.push(drawNo)
   }
 
   for (const row of limitedDraws) {
     await upsertPensionDraw(db, row)
     storedDrawNos.add(row.draw_no)
 
-    if (await syncPensionPrizeCounts(db, row.draw_no) < PENSION_PRIZE_RANK_COUNT) pendingPrizeDrawNos.push(row.draw_no)
+    if (!(await syncPensionPrizeCounts(db, row.draw_no))) pendingPrizeDrawNos.push(row.draw_no)
   }
 
   const lastSyncedDraw = Math.max(0, ...storedDrawNos)
