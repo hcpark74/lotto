@@ -13,8 +13,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'  # vitest 5 는 Node 22.12+ 필요
       - run: npm ci
@@ -33,10 +33,10 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'  # vite 7: ^20.19 || >=22.12, 워크스페이스 npm ci 가 설치하는 vitest 5: >=22.12
       - run: npm ci
       - run: npm run deploy
         env:
