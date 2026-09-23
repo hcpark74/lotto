@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { describeDrawLookupError, fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto } from '../api';
+import { fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto } from '../api';
 import { BACKTEST_DRAWS } from '../constants';
-import { parseDrawNo } from '../format';
 import type { DrawResult, LottoRuleWeight, LottoSet } from '../types';
 import { useBacktest } from './useBacktest';
+import { useDrawSearch } from './useDrawSearch';
 
 export function useLotto() {
     const [results, setResults] = useState<DrawResult[]>([]);
@@ -16,9 +16,7 @@ export function useLotto() {
 
     const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchLottoBacktest(BACKTEST_DRAWS));
 
-    const [searchInput, setSearchInput] = useState('');
-    const [searchResult, setSearchResult] = useState<DrawResult | null>(null);
-    const [searchError, setSearchError] = useState('');
+    const { searchInput, searchResult, searchError, changeSearchInput, search } = useDrawSearch(fetchLottoResult);
 
     const loadResults = async () => {
         setResultsLoading(true);
@@ -50,26 +48,6 @@ export function useLotto() {
             setGenerateError('추천 번호 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
         } finally {
             setGenerating(false);
-        }
-    };
-
-    const changeSearchInput = (value: string) => {
-        setSearchInput(value);
-        setSearchResult(null);
-        setSearchError('');
-    };
-
-    const search = async () => {
-        const no = parseDrawNo(searchInput);
-        if (no === null) return;
-
-        setSearchError('');
-        setSearchResult(null);
-
-        try {
-            setSearchResult(await fetchLottoResult(no));
-        } catch (error) {
-            setSearchError(describeDrawLookupError(error, no));
         }
     };
 
