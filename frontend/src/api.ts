@@ -1,13 +1,17 @@
 import type {
     DrawResult,
     LottoBacktestDiagnostics,
+    LottoGenerateResponse,
     LottoRuleWeight,
     LottoSet,
+    LottoSyncResponse,
     PensionBacktestDiagnostics,
     PensionDrawResult,
+    PensionGenerateResponse,
     PensionRecommendationSet,
     PensionRuleWeight,
-    SyncResponse,
+    PensionSyncResponse,
+    SyncErrorResponse,
 } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8787';
@@ -39,14 +43,14 @@ export const fetchLottoResult = (drwNo: number) =>
     request<DrawResult>(`/api/results?drwNo=${drwNo}`);
 
 export const generateLotto = () =>
-    request<{ sets?: LottoSet[]; ruleWeights?: LottoRuleWeight[] }>('/api/generate', { method: 'POST' })
+    request<LottoGenerateResponse>('/api/generate', { method: 'POST' })
         .then(data => ({ sets: toArray<LottoSet>(data?.sets), ruleWeights: toArray<LottoRuleWeight>(data?.ruleWeights) }));
 
 export const fetchLottoBacktest = (draws: number) =>
     request<LottoBacktestDiagnostics>(`/api/generate/backtest?draws=${draws}`);
 
 export const syncLotto = () =>
-    request<Partial<SyncResponse> & { error?: string }>('/api/sync', { method: 'POST' });
+    request<LottoSyncResponse | SyncErrorResponse>('/api/sync', { method: 'POST' });
 
 // ── 연금복권 ──
 
@@ -59,11 +63,11 @@ export const fetchPensionResult = (drawNo: number) =>
     request<PensionDrawResult>(`/api/pension/results?drawNo=${drawNo}`);
 
 export const generatePension = () =>
-    request<{ sets?: PensionRecommendationSet[]; ruleWeights?: PensionRuleWeight[] }>('/api/pension/generate', { method: 'POST' })
+    request<PensionGenerateResponse>('/api/pension/generate', { method: 'POST' })
         .then(data => ({ sets: toArray<PensionRecommendationSet>(data?.sets), ruleWeights: toArray<PensionRuleWeight>(data?.ruleWeights) }));
 
 export const fetchPensionBacktest = (draws: number) =>
     request<PensionBacktestDiagnostics>(`/api/pension/generate/backtest?draws=${draws}`);
 
 export const syncPension = () =>
-    request<Partial<SyncResponse> & { error?: string }>('/api/pension/sync', { method: 'POST' });
+    request<PensionSyncResponse | SyncErrorResponse>('/api/pension/sync', { method: 'POST' });
