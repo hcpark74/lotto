@@ -60,8 +60,9 @@ function mapPensionPrizeCount(row: Pension720PrizeInfoItem): Pension720PrizeCoun
 
 // 1~7등 + 보너스
 const PENSION_PRIZE_RANK_COUNT = 8
-// 당첨 통계가 덜 채워진 기존 회차를 한 번에 몇 개까지 다시 받을지
-const MAX_PRIZE_COUNT_RETRIES = 5
+// 당첨 통계가 덜 채워진 기존 회차를 sync 한 번에 다시 받을 개수 (최신순 + 무작위)
+const PRIZE_RETRY_NEWEST = 2
+const PRIZE_RETRY_RANDOM = 3
 
 // 당첨 통계를 받아 저장하고 저장된 행 수를 돌려준다. 실패하면 0 을 돌려 다음 sync 에서 재시도되게 한다.
 async function syncPensionPrizeCounts(db: D1Database, drawNo: number) {
@@ -91,7 +92,7 @@ export async function syncPensionResults(db: D1Database, limit = 0): Promise<Pen
   const latestDraw = findLatestPensionDrawNo(list)
   const storedDrawNos = new Set(await getStoredPensionDrawNos(db))
   // 이전 sync 에서 통계를 다 못 받은 회차. 새 회차 저장 전에 조회해야 이번 회차와 섞이지 않는다.
-  const incompletePrizeDrawNos = await getPensionDrawNosWithIncompletePrizeCounts(db, PENSION_PRIZE_RANK_COUNT, MAX_PRIZE_COUNT_RETRIES)
+  const incompletePrizeDrawNos = await getPensionDrawNosWithIncompletePrizeCounts(db, PENSION_PRIZE_RANK_COUNT, PRIZE_RETRY_NEWEST, PRIZE_RETRY_RANDOM)
   // 목록 API 는 전체 회차를 돌려주므로, 최대 회차 이후만이 아니라 중간에 빠진 회차도 채운다
   const newDraws = list
     .map(mapPensionDraw)

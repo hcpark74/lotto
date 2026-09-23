@@ -1,10 +1,9 @@
-import type { GeneratedSet, LottoResultRecord } from './models'
+import type { GeneratedSet } from './models'
 
 export type LottoSyncSummary = {
   syncedCount: number
   latestDraw: number
   nextDrwNo: number
-  debug: LottoResultRecord | null
 }
 
 export type LottoBacktestSummary = {

@@ -1,9 +1,4 @@
-const LOTTO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  Referer: 'https://www.dhlottery.co.kr/lt645/result',
-  Accept: 'application/json',
-  'X-Requested-With': 'XMLHttpRequest',
-}
+import { LOTTO_HEADERS } from '../dhlottery'
 
 export async function getLatestDrawNo() {
   const response = await fetch('https://www.dhlottery.co.kr/lt645/result', {

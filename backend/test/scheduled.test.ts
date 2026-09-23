@@ -24,7 +24,7 @@ describe('scheduled', () => {
   beforeEach(() => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    lottoSync.mockReset().mockResolvedValue({ syncedCount: 1, nextDrwNo: 2, latestDraw: 1, debug: null })
+    lottoSync.mockReset().mockResolvedValue({ syncedCount: 1, nextDrwNo: 2, latestDraw: 1 })
     pensionSync.mockReset().mockResolvedValue({ syncedCount: 1, latestDraw: 1, nextDrawNo: 2, pendingPrizeDrawNos: [] })
   })
 

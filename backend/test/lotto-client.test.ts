@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isValidLottoRecord, parseFirstPrizeAmount } from '../src/clients/lotto/results'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fetchLottoResult, isValidLottoRecord, parseFirstPrizeAmount } from '../src/clients/lotto/results'
 import type { LottoResultRecord } from '../src/types/lotto'
 
 const valid: LottoResultRecord = {
@@ -47,5 +47,53 @@ describe('parseFirstPrizeAmount', () => {
     [-1, null],
   ])('%s → %s', (input, expected) => {
     expect(parseFirstPrizeAmount(input)).toBe(expected)
+  })
+})
+
+describe('fetchLottoResult', () => {
+  const item = {
+    ltEpsd: 1, ltRflYmd: '20021207',
+    tm1WnNo: 10, tm2WnNo: 23, tm3WnNo: 29, tm4WnNo: 33, tm5WnNo: 37, tm6WnNo: 40,
+    bnsWnNo: 16, rnk1WnAmt: 0,
+  }
+
+  function stubFetch(impl: () => Promise<Response>) {
+    vi.stubGlobal('fetch', vi.fn(impl))
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('정상 응답이면 레코드', async () => {
+    stubFetch(async () => Response.json({ data: { list: [item] } }))
+    await expect(fetchLottoResult(1)).resolves.toMatchObject({ drwNo: 1, drwNoDate: '2002-12-07', drwtNo1: 10, firstWinamnt: 0 })
+  })
+
+  it('아직 발표 전(목록에 없음)이면 null', async () => {
+    stubFetch(async () => Response.json({ data: { list: [] } }))
+    await expect(fetchLottoResult(1)).resolves.toBeNull()
+  })
+
+  it('검증 실패면 null', async () => {
+    stubFetch(async () => Response.json({ data: { list: [{ ...item, tm6WnNo: 46 }] } }))
+    await expect(fetchLottoResult(1)).resolves.toBeNull()
+  })
+
+  it('HTTP 오류는 throw', async () => {
+    stubFetch(async () => new Response('busy', { status: 503 }))
+    await expect(fetchLottoResult(1)).rejects.toThrow('로또 1회 조회 실패 (503)')
+  })
+
+  it('JSON 이 아닌 응답은 throw', async () => {
+    stubFetch(async () => new Response('<html>점검 중</html>', { status: 200 }))
+    await expect(fetchLottoResult(1)).rejects.toThrow('JSON 이 아닌 응답')
+  })
+
+  it('네트워크 오류는 throw', async () => {
+    stubFetch(async () => { throw new TypeError('fetch failed') })
+    await expect(fetchLottoResult(1)).rejects.toThrow('로또 1회 조회 실패 (네트워크: fetch failed)')
   })
 })

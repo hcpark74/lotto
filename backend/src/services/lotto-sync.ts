@@ -1,17 +1,15 @@
 import { fetchLottoResult, getLatestDrawNo } from '../clients/lotto'
 import { getLatestStoredLottoDrawNo, insertLottoResult } from '../queries/lotto'
-import type { LottoResultRecord, LottoSyncSummary } from '../types/lotto'
+import type { LottoSyncSummary } from '../types/lotto'
 
 export async function syncLatestLottoResults(db: D1Database, maxSyncPerRequest = 10): Promise<LottoSyncSummary> {
   const latestDraw = await getLatestDrawNo()
   let currentDrwNo = await getLatestStoredLottoDrawNo(db) + 1
   let syncedCount = 0
-  let lastResult: LottoResultRecord | null = null
 
   while (currentDrwNo <= latestDraw && syncedCount < maxSyncPerRequest) {
+    // 요청 실패는 throw 되어 라우트가 500 으로 알린다. null 은 아직 발표 전이거나 검증 실패라 여기서 멈춘다.
     const result = await fetchLottoResult(currentDrwNo)
-    lastResult = result
-
     if (!result) break
 
     await insertLottoResult(db, result)
@@ -24,6 +22,5 @@ export async function syncLatestLottoResults(db: D1Database, maxSyncPerRequest =
     syncedCount,
     nextDrwNo: currentDrwNo,
     latestDraw,
-    debug: lastResult,
   }
 }

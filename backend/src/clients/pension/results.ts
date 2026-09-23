@@ -1,11 +1,5 @@
 import type { Pension720PrizeInfoItem } from '../../types/pension'
-
-const PENSION_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  Referer: 'https://www.dhlottery.co.kr/pt720/result',
-  Accept: 'application/json',
-  'X-Requested-With': 'XMLHttpRequest',
-}
+import { PENSION_HEADERS } from '../dhlottery'
 
 export async function fetchPensionPrizeCounts(drawNo: number): Promise<Pension720PrizeInfoItem[]> {
   const response = await fetch(`https://www.dhlottery.co.kr/pt720/selectPstPt720WnInfo.do?srchPsltEpsd=${drawNo}`, {
