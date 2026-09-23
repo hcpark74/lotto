@@ -1,4 +1,3 @@
-import { PENSION_RULE_LABELS } from '../constants';
 import type { LottoRulePerformance, LottoRuleWeight, PensionRulePerformance } from '../types';
 
 export function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: number }) {
@@ -92,7 +91,7 @@ export function PensionRulePerformanceCard({ item }: { item: PensionRulePerforma
         <div className="border-2 border-ink bg-card px-4 py-4 sm:px-5">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <div className="text-base font-semibold text-ink">{PENSION_RULE_LABELS[item.ruleId] ?? item.label}</div>
+                    <div className="text-base font-semibold text-ink">{item.label}</div>
                     <div className="mt-1 text-xs text-ink-soft">생성 {item.generatedCount}회</div>
                 </div>
                 <div className="chip chip-sky">

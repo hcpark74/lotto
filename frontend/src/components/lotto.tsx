@@ -1,6 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Ball, BonusBadge } from './Ball';
-import { LOTTO_RULE_LABELS } from '../constants';
 import { formatMoneyKRW } from '../format';
 import type { DrawResult, LottoSet } from '../types';
 
@@ -197,7 +196,8 @@ export function RecommendationCard({
     const sum = set.numbers.reduce((total, num) => total + num, 0);
     const oddCount = set.numbers.filter(num => num % 2 === 1).length;
     const spread = Math.max(...set.numbers) - Math.min(...set.numbers);
-    const ruleName = set.meta?.ruleId ? (LOTTO_RULE_LABELS[set.meta.ruleId] ?? set.meta.ruleId) : null;
+    // 규칙 기반 세트의 label 은 백엔드 규칙 이름 그대로다
+    const ruleName = set.meta?.ruleId ? set.label : null;
 
     return (
         <div className={`recommend-card px-4 py-5 sm:px-6 sm:py-7 ${index === 0 ? 'is-featured' : ''}`}>

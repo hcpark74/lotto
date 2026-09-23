@@ -3,7 +3,6 @@ import { ChevronRight, Info, Search, Sparkles } from 'lucide-react';
 import { PensionRulePerformanceCard, RuleWeightCard } from '../components/diagnostics';
 import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
-import { PENSION_RULE_LABELS } from '../constants';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
 import type { TabKey } from '../routing';
@@ -147,7 +146,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
 
                             <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                 {pensionRuleWeights.map((item, index) => (
-                                    <RuleWeightCard key={`pension-${item.ruleId}`} item={{ ...item, label: PENSION_RULE_LABELS[item.ruleId] ?? item.label }} index={index} />
+                                    <RuleWeightCard key={`pension-${item.ruleId}`} item={item} index={index} />
                                 ))}
                             </div>
                         </div>
@@ -223,7 +222,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                 </div>
                                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                     {pensionBacktestDiagnostics.ruleDiagnostics.currentWeights.map((item, index) => (
-                                        <RuleWeightCard key={`pension-backtest-${item.ruleId}`} item={{ ...item, label: PENSION_RULE_LABELS[item.ruleId] ?? item.label }} index={index} />
+                                        <RuleWeightCard key={`pension-backtest-${item.ruleId}`} item={item} index={index} />
                                     ))}
                                 </div>
                             </div>

@@ -1,4 +1,4 @@
-export function formatMoneyKRW(amount: number) {
+export function formatMoneyKRW(amount: number | null) {
     if (!amount) return '-';
     const eok = amount / 100000000;
     return `${eok.toFixed(eok >= 100 ? 0 : 1).replace(/\.0$/, '')}억 원`;

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { PENSION_DIGIT_COLORS, PENSION_DIGIT_COLORS_WITH_BAND, PENSION_RULE_LABELS } from '../constants';
+import { PENSION_DIGIT_COLORS, PENSION_DIGIT_COLORS_WITH_BAND } from '../constants';
 import { formatDateTime } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet } from '../types';
 
@@ -94,7 +94,7 @@ export function PensionResultCard({ draw }: { draw: PensionDrawResult }) {
 }
 
 export function PensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
-    const ruleName = set.meta.ruleId ? (PENSION_RULE_LABELS[set.meta.ruleId] ?? set.meta.ruleId) : null;
+    const ruleName = set.meta.ruleId ? set.label : null;
 
     return (
         <div className="recommend-card px-4 py-5 sm:px-6 sm:py-7">
@@ -151,7 +151,7 @@ export function PensionRecommendationCard({ set }: { set: PensionRecommendationS
 }
 
 export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
-    const ruleName = set.meta.ruleId ? (PENSION_RULE_LABELS[set.meta.ruleId] ?? set.meta.ruleId) : null;
+    const ruleName = set.meta.ruleId ? set.label : null;
 
     return (
         <div className="recommend-card is-featured px-5 py-6 sm:px-7 sm:py-7">
