@@ -8,4 +8,7 @@ database_name = "lotto_db"
 database_id = "d879aa99-d304-4001-b3d9-67ab6605de57"
 
 [triggers]
-crons = ["30 21 * * 6"] # Saturday 21:30 UTC = Sunday 06:30 KST
+crons = [
+  "30 21 * * 6", # 로또: Saturday 21:30 UTC = Sunday 06:30 KST (추첨 토요일 저녁)
+  "30 21 * * 4", # 연금: Thursday 21:30 UTC = Friday 06:30 KST (추첨 목요일 저녁)
+]
