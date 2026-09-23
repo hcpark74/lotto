@@ -44,9 +44,10 @@ export function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: 
     );
 }
 
-// |z| >= 1.96 이면 5% 유의수준에서 무작위 기준선과 다르다. 그 외는 노이즈 범위.
-export function ZScoreBadge({ zScore }: { zScore: number }) {
-    const significant = Math.abs(zScore) >= 1.96;
+// 검정이 하나면 |z| >= 1.96 (양측 5%). 규칙 여러 개를 동시에 볼 때는 threshold 에 Bonferroni 값을 넘긴다.
+// significant 를 넘기면 그 판정을 그대로 쓴다 (백엔드가 계산한 값).
+export function ZScoreBadge({ zScore, threshold = 1.96, significant: given }: { zScore: number; threshold?: number; significant?: boolean }) {
+    const significant = given ?? Math.abs(zScore) >= threshold;
     const tone = !significant ? '' : zScore > 0 ? 'chip-mint' : 'chip-coral';
     const mark = !significant ? '＝' : zScore > 0 ? '▲' : '▼';
     return (
@@ -56,7 +57,7 @@ export function ZScoreBadge({ zScore }: { zScore: number }) {
     );
 }
 
-export function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
+export function RulePerformanceCard({ item, threshold }: { item: LottoRulePerformance; threshold: number }) {
     return (
         <div className="border-2 border-ink bg-card px-4 py-4 sm:px-5">
             <div className="flex items-start justify-between gap-3">
@@ -68,7 +69,7 @@ export function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
                     <div className="chip chip-sky">
                         평균 일치 {item.averageMatches.toFixed(3)}
                     </div>
-                    <ZScoreBadge zScore={item.zScore} />
+                    <ZScoreBadge zScore={item.zScore} threshold={threshold} />
                     <div className="text-[11px] text-ink-soft">95% CI {formatCi(item.ci95, 3)}</div>
                 </div>
             </div>
@@ -91,7 +92,7 @@ export function RulePerformanceCard({ item }: { item: LottoRulePerformance }) {
     );
 }
 
-export function PensionRulePerformanceCard({ item }: { item: PensionRulePerformance }) {
+export function PensionRulePerformanceCard({ item, threshold }: { item: PensionRulePerformance; threshold: number }) {
     return (
         <div className="border-2 border-ink bg-card px-4 py-4 sm:px-5">
             <div className="flex items-start justify-between gap-3">
@@ -103,7 +104,7 @@ export function PensionRulePerformanceCard({ item }: { item: PensionRulePerforma
                     <div className="chip chip-sky">
                         평균 일치 {item.averageMatches.toFixed(4)}
                     </div>
-                    <ZScoreBadge zScore={item.zScore} />
+                    <ZScoreBadge zScore={item.zScore} threshold={threshold} />
                     <div className="text-[11px] text-ink-soft">95% CI {formatCi(item.ci95, 4)}</div>
                 </div>
             </div>
@@ -127,7 +128,7 @@ type Significance = {
     baseline: {
         theoretical: { expectedMatchPerSet: number; matchStdPerSet: number };
         randomControl: { totalSets: number; averageMatchPerSet: number; zScore: number; ci95: ConfidenceInterval95 };
-        overall: { zScore: number; ci95: ConfidenceInterval95 };
+        overall: { zScore: number; ci95: ConfidenceInterval95; significant: boolean };
     };
 };
 
@@ -148,7 +149,7 @@ export function SignificancePanel({ data, description, digits }: { data: Signifi
                 <div className="stat-tile px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-semibold text-ink">추천 알고리즘 전체</div>
-                        <ZScoreBadge zScore={overall.zScore} />
+                        <ZScoreBadge zScore={overall.zScore} significant={overall.significant} />
                     </div>
                     <div className="mt-2 text-xs text-ink-soft">
                         평균 {data.averageMatchPerSet.toFixed(digits)} · 95% CI {formatCi(overall.ci95, digits)}
@@ -204,5 +205,15 @@ export function PensionRankHitsPanel({ rankHits, expected, totalSets }: { rankHi
                 ))}
             </div>
         </div>
+    );
+}
+
+// 규칙별 z 는 여러 개를 동시에 검정하므로 우연히 하나쯤 |z| ≥ 1.96 이 나오기 쉽다.
+export function MultipleComparisonNote({ count, threshold }: { count: number; threshold: number }) {
+    return (
+        <p className="mt-3 text-xs text-ink-soft sm:text-sm">
+            규칙 {count}개를 동시에 비교하므로 |z| ≥ {threshold.toFixed(2)} 일 때만 유의로 표시합니다.
+            로또·연금 추첨은 독립·균등이라, 유의 표시가 나와도 우연일 가능성을 먼저 의심해야 합니다.
+        </p>
     );
 }

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Info, Search, Sparkles, Waves } from 'lucide-react';
 import { Ball, BonusBadge } from '../components/Ball';
-import { RulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
+import { MultipleComparisonNote, RulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
 import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
 import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
+import { bonferroniZ } from '../stats';
 
 const PAGE_SIZE = 5;
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
@@ -253,6 +254,10 @@ function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
         ensureBacktest();
     }, []);
 
+    // 규칙별 z 는 규칙 수만큼 동시에 검정하므로 Bonferroni 기준을 쓴다
+    const ruleCount = backtestDiagnostics?.ruleDiagnostics.performance.length ?? 0;
+    const ruleZThreshold = bonferroniZ(ruleCount);
+
     return (
         <section>
             <SectionCard
@@ -316,9 +321,10 @@ function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
                                 </div>
                                 <p className="text-xs text-ink-soft sm:text-sm">규칙별 생성 결과와 폴백 비율입니다.</p>
                             </div>
+                            <MultipleComparisonNote count={ruleCount} threshold={ruleZThreshold} />
                             <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                 {backtestDiagnostics.ruleDiagnostics.performance.map((item) => (
-                                    <RulePerformanceCard key={item.ruleId} item={item} />
+                                    <RulePerformanceCard key={item.ruleId} item={item} threshold={ruleZThreshold} />
                                 ))}
                             </div>
                         </div>

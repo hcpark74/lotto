@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { ChevronRight, Info, Search, Sparkles } from 'lucide-react';
-import { PensionRankHitsPanel, PensionRulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
+import { MultipleComparisonNote, PensionRankHitsPanel, PensionRulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
 import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
 import type { TabKey } from '../routing';
+import { bonferroniZ } from '../stats';
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
     idle: '연금복권 백테스트 진단을 준비하고 있습니다.',
@@ -39,6 +40,10 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
     useEffect(() => {
         if (tab === 'backtest') ensureBacktest();
     }, [tab]);
+
+    // 규칙별 z 는 규칙 수만큼 동시에 검정하므로 Bonferroni 기준을 쓴다
+    const pensionRuleCount = pensionBacktestDiagnostics?.ruleDiagnostics.performance.length ?? 0;
+    const pensionRuleZThreshold = bonferroniZ(pensionRuleCount);
 
     const featuredRecommendation = pensionRecommendations[0] ?? null;
 
@@ -238,9 +243,10 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                     </div>
                                     <p className="text-xs text-ink-soft sm:text-sm">추천 성향별 끝자리 연속 일치 성과를 비교합니다.</p>
                                 </div>
+                                <MultipleComparisonNote count={pensionRuleCount} threshold={pensionRuleZThreshold} />
                                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                     {pensionBacktestDiagnostics.ruleDiagnostics.performance.map((item) => (
-                                        <PensionRulePerformanceCard key={`pension-perf-${item.ruleId}`} item={item} />
+                                        <PensionRulePerformanceCard key={`pension-perf-${item.ruleId}`} item={item} threshold={pensionRuleZThreshold} />
                                     ))}
                                 </div>
                             </div>
