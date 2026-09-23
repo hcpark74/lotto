@@ -8,7 +8,8 @@ import {
   summarizeSignificance,
   summarizeSignificanceByDraw,
 } from '../algorithms/lotto-baseline'
-import { getAllLottoBacktestRowsQuery } from '../queries/lotto'
+import { getAllLottoBacktestRowsQuery, getLottoDataVersionQuery } from '../queries/lotto'
+import { withBacktestCache } from './backtest-cache'
 import type { DrawNumbersRow, LottoBacktestSummary } from '../types/lotto'
 
 const MIN_BACKTEST_DRAWS = 40
@@ -165,5 +166,10 @@ export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): L
 }
 
 export async function runLottoBacktestFromDb(db: D1Database, lookback: number) {
-  return runLottoBacktest(await getAllLottoBacktestRowsQuery(db), lookback)
+  return withBacktestCache(db, {
+    kind: 'lotto',
+    algorithm: LOTTO_ALGORITHM_VERSION,
+    dataVersion: await getLottoDataVersionQuery(db),
+    lookback,
+  }, async () => runLottoBacktest(await getAllLottoBacktestRowsQuery(db), lookback))
 }

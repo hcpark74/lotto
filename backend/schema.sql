@@ -32,3 +32,11 @@ CREATE TABLE IF NOT EXISTS pension720_prize_counts (
   raw_payload TEXT,
   PRIMARY KEY (draw_no, rank_no)
 );
+
+-- 백테스트 응답 캐시. cache_key 에 최신 회차·행 수가 들어가므로 새 회차가 들어오면 자연히 새 키가 된다.
+CREATE TABLE IF NOT EXISTS backtest_cache (
+  cache_key TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

@@ -3,9 +3,10 @@ import {
   buildPensionRuleWeights,
   PENSION_ALGORITHM_VERSION,
 } from '../algorithms/pension'
-import { getAllPensionBacktestRowsQuery } from '../queries/pension/results'
+import { getAllPensionBacktestRowsQuery, getPensionDataVersionQuery } from '../queries/pension'
 import type { PensionBacktestRow } from '../types/pension/models'
 import type { PensionBacktestSummary } from '../types/pension/summaries'
+import { withBacktestCache } from './backtest-cache'
 
 const MIN_PENSION_BACKTEST_DRAWS = 30
 const MIN_PENSION_TRAINING_DRAWS = 20
@@ -107,5 +108,10 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
 }
 
 export async function runPensionBacktestFromDb(db: D1Database, lookback: number) {
-  return runPensionBacktest(await getAllPensionBacktestRowsQuery(db), lookback)
+  return withBacktestCache(db, {
+    kind: 'pension',
+    algorithm: PENSION_ALGORITHM_VERSION,
+    dataVersion: await getPensionDataVersionQuery(db),
+    lookback,
+  }, async () => runPensionBacktest(await getAllPensionBacktestRowsQuery(db), lookback))
 }

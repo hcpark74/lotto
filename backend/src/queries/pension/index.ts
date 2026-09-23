@@ -8,6 +8,7 @@ export {
   getAllPensionBacktestRowsQuery,
   getRecentPensionResultsQuery,
   getPensionPrizeCountsByDrawNoQuery,
+  getPensionDataVersionQuery,
   getPensionResultByDrawNoQuery,
   getRecentPensionWinningNumbersQuery,
 } from './results'

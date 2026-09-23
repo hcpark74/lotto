@@ -31,6 +31,12 @@ export async function getRecentPensionWinningNumbersQuery(db: D1Database, limit:
   return results
 }
 
+// 백테스트 캐시 키용. 새 회차가 들어오거나 빠진 회차가 채워지면 값이 바뀐다.
+export async function getPensionDataVersionQuery(db: D1Database) {
+  const row = await db.prepare('SELECT MAX(draw_no) AS latest, COUNT(*) AS count FROM pension720_draws').first<{ latest: number | null; count: number }>()
+  return { latest: row?.latest ?? 0, count: row?.count ?? 0 }
+}
+
 export async function getAllPensionBacktestRowsQuery(db: D1Database) {
   const { results } = await db.prepare(
     'SELECT draw_no, winning_number FROM pension720_draws ORDER BY draw_no ASC'
