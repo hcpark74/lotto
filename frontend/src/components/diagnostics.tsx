@@ -158,10 +158,14 @@ export function SignificancePanel({ data, description, digits }: { data: Signifi
                 <div className="stat-tile px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-semibold text-ink">순수 랜덤 대조군</div>
-                        <ZScoreBadge zScore={randomControl.zScore} />
+                        {/* 대조군은 정의상 무작위라 유의 판정은 의미가 없다. z 만 보여준다. */}
+                        <span className="chip">z {randomControl.zScore > 0 ? '+' : ''}{randomControl.zScore.toFixed(2)}</span>
                     </div>
                     <div className="mt-2 text-xs text-ink-soft">
                         평균 {randomControl.averageMatchPerSet.toFixed(digits)} · 95% CI {formatCi(randomControl.ci95, digits)} · {randomControl.totalSets}세트
+                    </div>
+                    <div className="mt-1 text-[11px] text-ink-soft">
+                        같은 조건의 순수 랜덤 세트입니다. 대조군의 z 가 흔들리는 폭이 곧 우연 변동의 크기입니다.
                     </div>
                 </div>
             </div>
