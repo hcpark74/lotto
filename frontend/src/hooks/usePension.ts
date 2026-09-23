@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError, fetchPensionBacktest, fetchPensionResult, fetchPensionResults, generatePension } from '../api';
+import { BACKTEST_DRAWS } from '../constants';
 import { parseDrawNo } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet, PensionRuleWeight } from '../types';
 import { useBacktest } from './useBacktest';
@@ -14,7 +15,7 @@ export function usePension() {
     const [generateLoading, setGenerateLoading] = useState(false);
     const [generateError, setGenerateError] = useState('');
 
-    const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchPensionBacktest(120));
+    const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchPensionBacktest(BACKTEST_DRAWS));
 
     const [searchInput, setSearchInput] = useState('');
     const [searchResult, setSearchResult] = useState<PensionDrawResult | null>(null);

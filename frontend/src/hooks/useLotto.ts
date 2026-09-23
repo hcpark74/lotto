@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError, fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto } from '../api';
+import { BACKTEST_DRAWS } from '../constants';
 import { parseDrawNo } from '../format';
 import type { DrawResult, LottoRuleWeight, LottoSet } from '../types';
 import { useBacktest } from './useBacktest';
@@ -13,7 +14,7 @@ export function useLotto() {
     const [generating, setGenerating] = useState(false);
     const [generateError, setGenerateError] = useState('');
 
-    const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchLottoBacktest(120));
+    const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchLottoBacktest(BACKTEST_DRAWS));
 
     const [searchInput, setSearchInput] = useState('');
     const [searchResult, setSearchResult] = useState<DrawResult | null>(null);
