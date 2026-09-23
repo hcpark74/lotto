@@ -4,14 +4,11 @@ import type {
     LottoGenerateResponse,
     LottoRuleWeight,
     LottoSet,
-    LottoSyncResponse,
     PensionBacktestDiagnostics,
     PensionDrawResult,
     PensionGenerateResponse,
     PensionRecommendationSet,
     PensionRuleWeight,
-    PensionSyncResponse,
-    SyncErrorResponse,
 } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8787';
@@ -49,9 +46,6 @@ export const generateLotto = () =>
 export const fetchLottoBacktest = (draws: number) =>
     request<LottoBacktestDiagnostics>(`/api/generate/backtest?draws=${draws}`);
 
-export const syncLotto = () =>
-    request<LottoSyncResponse | SyncErrorResponse>('/api/sync', { method: 'POST' });
-
 // ── 연금복권 ──
 
 // 목록 응답이 단건 객체로 올 때도 배열로 맞춘다
@@ -68,6 +62,3 @@ export const generatePension = () =>
 
 export const fetchPensionBacktest = (draws: number) =>
     request<PensionBacktestDiagnostics>(`/api/pension/generate/backtest?draws=${draws}`);
-
-export const syncPension = () =>
-    request<PensionSyncResponse | SyncErrorResponse>('/api/pension/sync', { method: 'POST' });

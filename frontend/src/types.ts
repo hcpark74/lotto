@@ -13,12 +13,9 @@ import type {
 export type {
     LottoGenerateResponse,
     LottoRulePerformance,
-    LottoSyncResponse,
     PensionGenerateResponse,
     PensionRecommendationSet,
     PensionRulePerformance,
-    PensionSyncResponse,
-    SyncErrorResponse,
 } from '../../backend/src/types/api';
 
 export type DrawResult = LottoDrawResult;

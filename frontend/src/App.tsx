@@ -1,7 +1,6 @@
 import { Info } from 'lucide-react';
 import { useLotto } from './hooks/useLotto';
 import { usePension } from './hooks/usePension';
-import { useToast } from './hooks/useToast';
 import { LottoPage } from './pages/LottoPage';
 import { PensionPage } from './pages/PensionPage';
 import { TABS, useRoute, type PageKey, type TabKey } from './routing';
@@ -10,9 +9,8 @@ function App() {
     const { route, navigate } = useRoute();
     const activePage = route.page;
     const activeTab = route.tab;
-    const { message: toastMessage, error: toastError, toast } = useToast();
-    const lotto = useLotto(toast);
-    const pension = usePension(toast);
+    const lotto = useLotto();
+    const pension = usePension();
 
     // 복권 전환 시 탭은 결과로 초기화
     const navigateToPage = (page: PageKey) => navigate({ page, tab: 'results' });
@@ -21,13 +19,6 @@ function App() {
     return (
         <div className="min-h-screen text-ink">
             <div className="app-shell relative overflow-hidden">
-                {(toastMessage || toastError) && (
-                    <div className="pointer-events-none fixed right-4 top-4 z-50 w-[min(92vw,420px)]">
-                        <div className={`border-2 border-ink px-4 py-3 text-sm font-bold shadow-brutal ${toastError ? 'bg-coral' : 'bg-mint'}`}>
-                            {toastError || toastMessage}
-                        </div>
-                    </div>
-                )}
 
                 <header className="relative border-b-2 border-ink bg-card">
                     <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-2.5 sm:px-6 sm:py-3 lg:px-8">

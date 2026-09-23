@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ApiError, fetchPensionBacktest, fetchPensionResult, fetchPensionResults, generatePension, syncPension } from '../api';
+import { ApiError, fetchPensionBacktest, fetchPensionResult, fetchPensionResults, generatePension } from '../api';
 import { parseDrawNo } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet, PensionRuleWeight } from '../types';
 import { useBacktest } from './useBacktest';
-import type { Toast } from './useToast';
 
-export function usePension(toast: Toast) {
+export function usePension() {
     const [latestDraw, setLatestDraw] = useState<PensionDrawResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -16,8 +15,6 @@ export function usePension(toast: Toast) {
     const [generateError, setGenerateError] = useState('');
 
     const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchPensionBacktest(120));
-
-    const [syncLoading, setSyncLoading] = useState(false);
 
     const [searchInput, setSearchInput] = useState('');
     const [searchResult, setSearchResult] = useState<PensionDrawResult | null>(null);
@@ -64,29 +61,6 @@ export function usePension(toast: Toast) {
         }
     };
 
-    const sync = async () => {
-        setSyncLoading(true);
-        toast.clear();
-
-        try {
-            const data = await syncPension();
-            if (!data?.success) throw new ApiError(200, data?.error ?? '');
-
-            await loadLatest();
-            toast.success(
-                data.syncedCount && data.syncedCount > 0
-                    ? `${data.syncedCount}개 연금복권 회차를 새로 가져왔습니다. 최신 ${data.latestDraw}회까지 반영됐어요.`
-                    : `연금복권은 이미 최신 상태입니다. 현재 ${data.latestDraw}회까지 반영되어 있어요.`
-            );
-        } catch (err) {
-            toast.error(err instanceof ApiError
-                ? err.message || '연금복권 동기화에 실패했습니다.'
-                : '연금복권 동기화 중 오류가 발생했습니다.');
-        } finally {
-            setSyncLoading(false);
-        }
-    };
-
     const changeSearchInput = (value: string) => {
         setSearchInput(value);
         setSearchResult(null);
@@ -111,7 +85,6 @@ export function usePension(toast: Toast) {
         latestDraw, loading, error,
         recommendations, ruleWeights, generateLoading, generateError, generate,
         backtest, backtestStatus, loadBacktest, ensureBacktest,
-        syncLoading, sync,
         searchInput, searchResult, searchError, changeSearchInput, search,
     };
 }

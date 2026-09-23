@@ -19,7 +19,6 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
         latestDraw: latestPensionDraw,
         loading: pensionLoading,
         error: pensionError,
-        syncLoading: pensionSyncLoading,
         generateLoading: pensionGenerateLoading,
         generateError: pensionGenerateError,
         searchInput: pensionSearchInput,
@@ -29,7 +28,6 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
         backtestStatus: pensionBacktestStatus,
         searchResult: pensionSearchResult,
         searchError: pensionSearchError,
-        sync: onPensionSync,
         generate: onPensionGenerate,
         loadBacktest: onPensionBacktestRefresh,
         ensureBacktest,
@@ -60,15 +58,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                     </div>
                 </div>
 
-                <div className="mb-3 flex justify-end">
-                    <button
-                        onClick={onPensionSync}
-                        disabled={pensionSyncLoading}
-                        className="btn-primary inline-flex h-10 items-center justify-center px-4 text-sm font-semibold transition"
-                    >
-                        {pensionSyncLoading ? '동기화 중...' : '최신 결과 동기화'}
-                    </button>
-                </div>
+                <p className="mb-3 text-right text-xs font-medium text-ink-soft sm:text-sm">당첨 결과는 매주 자동으로 갱신됩니다.</p>
                 {pensionLoading ? (
                     <div className="panel px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
                 ) : pensionError ? (
@@ -76,7 +66,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                 ) : latestPensionDraw ? (
                     <PensionResultCard draw={latestPensionDraw} />
                 ) : (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">연금복권 데이터가 아직 없습니다. 먼저 `/api/pension/sync`를 실행해 주세요.</div>
+                    <div className="panel px-4 py-8 text-sm text-ink-soft">아직 연금복권 당첨 결과가 없습니다. 당첨 결과는 매주 자동으로 갱신됩니다.</div>
                 )}
             </section>
 

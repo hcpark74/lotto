@@ -4,7 +4,7 @@ import { Ball, BonusBadge } from '../components/Ball';
 import { RulePerformanceCard, RuleWeightCard, ZScoreBadge } from '../components/diagnostics';
 import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
-import { formatDateTime, formatMoneyKRW } from '../format';
+import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
@@ -27,14 +27,10 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
     const {
         results,
         resultsLoading,
-        syncLoading,
-        lastSyncedAt,
-        lastSyncedDraw,
         searchInput,
         searchResult,
         searchError,
         changeSearchInput,
-        sync: syncLatestResults,
         search: searchDraw,
     } = lotto;
     const [page, setPage] = useState(0);
@@ -57,15 +53,11 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
                         draw={latestDraw}
                         chipLabel={`최신 ${latestDraw.drwNo}회`}
                         variant="latest"
-                        onPrimaryAction={syncLatestResults}
-                        onSecondaryAction={scrollToLookupSection}
-                        primaryActionLabel={syncLoading ? '동기화 중...' : '최신 결과 동기화'}
-                        secondaryActionLabel="회차 상세 보기"
-                        primaryDisabled={syncLoading}
-                        statusText={`마지막 동기화 ${lastSyncedAt ? formatDateTime(lastSyncedAt) : '아직 실행 전'} · 최신 반영 ${lastSyncedDraw ? `${lastSyncedDraw}회` : '정보 없음'}`}
+                        onDetailAction={scrollToLookupSection}
+                        statusText="당첨 결과는 매주 자동으로 갱신됩니다."
                     />
                 ) : (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">데이터가 없습니다. 먼저 `/api/sync`를 실행해 주세요.</div>
+                    <div className="panel px-4 py-8 text-sm text-ink-soft">아직 당첨 결과가 없습니다. 당첨 결과는 매주 자동으로 갱신됩니다.</div>
                 )}
             </section>
 

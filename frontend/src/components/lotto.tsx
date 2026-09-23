@@ -7,21 +7,13 @@ export function DrawResultCard({
     draw,
     chipLabel,
     variant = 'default',
-    onPrimaryAction,
-    onSecondaryAction,
-    primaryActionLabel,
-    secondaryActionLabel,
-    primaryDisabled = false,
+    onDetailAction,
     statusText,
 }: {
     draw: DrawResult;
     chipLabel: string;
     variant?: 'default' | 'latest';
-    onPrimaryAction?: () => void;
-    onSecondaryAction?: () => void;
-    primaryActionLabel?: string;
-    secondaryActionLabel?: string;
-    primaryDisabled?: boolean;
+    onDetailAction?: () => void;
     statusText?: string;
 }) {
     const numbers = [draw.drwtNo1, draw.drwtNo2, draw.drwtNo3, draw.drwtNo4, draw.drwtNo5, draw.drwtNo6];
@@ -80,23 +72,17 @@ export function DrawResultCard({
                     </p>
                 </div>
 
-                <div className="mt-10 grid grid-cols-2 gap-3 sm:mt-12 sm:gap-4">
-                    <button
-                        type="button"
-                        onClick={onSecondaryAction}
-                        className="latest-feature-secondary inline-flex min-h-14 items-center justify-center px-3 text-[15px] font-semibold tracking-[-0.02em] transition sm:px-5 sm:text-lg"
-                    >
-                        {secondaryActionLabel ?? '회차 상세 보기'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onPrimaryAction}
-                        disabled={primaryDisabled}
-                        className="latest-feature-primary inline-flex min-h-14 items-center justify-center px-3 text-[15px] font-semibold tracking-[-0.02em] transition sm:px-5 sm:text-lg"
-                    >
-                        {primaryActionLabel ?? '최신 결과 동기화'}
-                    </button>
-                </div>
+                {onDetailAction && (
+                    <div className="mt-10 sm:mt-12">
+                        <button
+                            type="button"
+                            onClick={onDetailAction}
+                            className="latest-feature-primary inline-flex min-h-14 w-full items-center justify-center px-3 text-[15px] font-semibold tracking-[-0.02em] transition sm:px-5 sm:text-lg"
+                        >
+                            회차 상세 보기
+                        </button>
+                    </div>
+                )}
 
                 <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-soft sm:mt-8 sm:text-base">
                     <span>보너스 {draw.bnusNo}</span>
