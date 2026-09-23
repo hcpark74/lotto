@@ -11,11 +11,18 @@ import {
 import { getAllLottoBacktestRowsQuery, getLottoDataVersionQuery } from '../queries/lotto'
 import { withBacktestCache } from './backtest-cache'
 import type { DrawNumbersRow, LottoBacktestSummary } from '../types/lotto'
+import { createSeededRandom, type RandomSource } from '../utils/random'
 
 const MIN_BACKTEST_DRAWS = 40
 const MIN_TRAINING_DRAWS = 30
+// 같은 데이터면 같은 결과가 나오도록 백테스트는 기본으로 시드를 고정한다
+export const LOTTO_BACKTEST_SEED = 645
 
-export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): LottoBacktestSummary {
+export function runLottoBacktest(
+  results: DrawNumbersRow[],
+  lookback: number,
+  random: RandomSource = createSeededRandom(LOTTO_BACKTEST_SEED),
+): LottoBacktestSummary {
   if (results.length < MIN_BACKTEST_DRAWS) {
     throw new Error('백테스트에 필요한 데이터가 부족합니다.')
   }
@@ -55,7 +62,7 @@ export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): L
 
   for (let targetIndex = startIndex; targetIndex < sorted.length; targetIndex++) {
     const target = sorted[targetIndex]
-    const sets = buildGeneratedSets(sorted.slice(0, targetIndex))
+    const sets = buildGeneratedSets(sorted.slice(0, targetIndex), random)
     const matchCounts = sets.map(set => countMatches(set.numbers, target))
     const bestMatch = Math.max(...matchCounts)
 
@@ -92,7 +99,7 @@ export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): L
 
     let controlDrawTotal = 0
     for (let i = 0; i < sets.length; i++) {
-      const matches = countMatches(buildRandomNumbers(), target)
+      const matches = countMatches(buildRandomNumbers(random), target)
       controlSets += 1
       controlDrawTotal += matches
       controlHitDistribution[matches] += 1

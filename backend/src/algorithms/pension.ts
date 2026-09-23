@@ -1,4 +1,5 @@
 import type { PensionRecommendationSet } from '../types/pension'
+import type { RandomSource } from '../utils/random'
 
 type PensionSetConfig = {
   id: string
@@ -165,13 +166,13 @@ export function buildPensionRuleWeights(historyNumbers: string[]): PensionRuleWe
   }).sort((a, b) => b.weight - a.weight || a.label.localeCompare(b.label, 'ko'))
 }
 
-function weightedDigitPick(pool: number[]) {
+function weightedDigitPick(pool: number[], random: RandomSource) {
   const total = pool.reduce((sum, weight) => sum + weight, 0)
-  let random = Math.random() * total
+  let remaining = random() * total
 
   for (let digit = 0; digit < pool.length; digit++) {
-    random -= pool[digit]
-    if (random <= 0) return digit
+    remaining -= pool[digit]
+    if (remaining <= 0) return digit
   }
 
   return pool.length - 1
@@ -192,13 +193,13 @@ function buildHistoricalDigitWeights(historyNumbers: string[]) {
   return positionWeights
 }
 
-function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: string[], ruleWeight?: number): PensionRecommendationSet | null {
+function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: string[], random: RandomSource, ruleWeight?: number): PensionRecommendationSet | null {
   if (historyNumbers.length === 0) return null
 
   const positionWeights = buildHistoricalDigitWeights(historyNumbers)
 
   for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
-    const digits = positionWeights.map((weights) => weightedDigitPick(weights))
+    const digits = positionWeights.map((weights) => weightedDigitPick(weights, random))
     if (!passesCommonPensionRules(digits)) continue
 
     return {
@@ -215,9 +216,14 @@ function buildStatisticalFallback(config: PensionSetConfig, historyNumbers: stri
   return null
 }
 
-export function buildPensionRecommendation(config: PensionSetConfig, historyNumbers: string[] = [], ruleWeight?: number): PensionRecommendationSet {
+export function buildPensionRecommendation(
+  config: PensionSetConfig,
+  historyNumbers: string[] = [],
+  ruleWeight?: number,
+  random: RandomSource = Math.random,
+): PensionRecommendationSet {
   for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
-    const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+    const digits = Array.from({ length: 6 }, () => Math.floor(random() * 10))
     if (!passesCommonPensionRules(digits)) continue
     if (!config.check(digits)) continue
 
@@ -233,7 +239,7 @@ export function buildPensionRecommendation(config: PensionSetConfig, historyNumb
   }
 
   for (let attempt = 0; attempt < MAX_PENSION_ATTEMPTS; attempt++) {
-    const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+    const digits = Array.from({ length: 6 }, () => Math.floor(random() * 10))
     if (!passesCommonPensionRules(digits)) continue
 
     return {
@@ -247,10 +253,10 @@ export function buildPensionRecommendation(config: PensionSetConfig, historyNumb
     }
   }
 
-  const statisticalFallback = buildStatisticalFallback(config, historyNumbers, ruleWeight)
+  const statisticalFallback = buildStatisticalFallback(config, historyNumbers, random, ruleWeight)
   if (statisticalFallback) return statisticalFallback
 
-  const fallbackDigits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10))
+  const fallbackDigits = Array.from({ length: 6 }, () => Math.floor(random() * 10))
   return {
     label: config.label,
     number: fallbackDigits.join(''),
@@ -262,12 +268,12 @@ export function buildPensionRecommendation(config: PensionSetConfig, historyNumb
   }
 }
 
-export function buildPensionRecommendations(historyNumbers: string[] = []) {
+export function buildPensionRecommendations(historyNumbers: string[] = [], random: RandomSource = Math.random) {
   const ruleWeights = buildPensionRuleWeights(historyNumbers)
   const weightMap = new Map(ruleWeights.map((entry) => [entry.ruleId, entry.weight]))
 
   return PENSION_SET_CONFIGS
     .slice()
     .sort((a, b) => (weightMap.get(b.id) ?? b.baseWeight) - (weightMap.get(a.id) ?? a.baseWeight))
-    .map((config) => buildPensionRecommendation(config, historyNumbers, weightMap.get(config.id) ?? config.baseWeight))
+    .map((config) => buildPensionRecommendation(config, historyNumbers, weightMap.get(config.id) ?? config.baseWeight, random))
 }

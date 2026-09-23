@@ -1,7 +1,7 @@
 import { getBacktestCacheQuery, replaceBacktestCacheQuery } from '../queries/backtest-cache'
 
 // 캐시 형식이나 결과에 영향을 주는 코드가 바뀌었는데 알고리즘 버전은 그대로일 때 올린다
-const BACKTEST_CACHE_VERSION = 1
+const BACKTEST_CACHE_VERSION = 2
 
 type DataVersion = { latest: number; count: number }
 

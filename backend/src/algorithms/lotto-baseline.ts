@@ -1,6 +1,8 @@
 // 로또 6/45 추첨을 기준으로 한 이론 분포와 랜덤 대조군 유틸.
 // 전략 성과를 해석하려면 "순수 랜덤이면 얼마가 나오는가"가 항상 옆에 있어야 한다.
 
+import type { RandomSource } from '../utils/random'
+
 export const LOTTO_POOL_SIZE = 45
 export const LOTTO_PICK_COUNT = 6
 
@@ -34,9 +36,9 @@ export const LOTTO_MATCH_STD = Math.sqrt(
     * (LOTTO_POOL_SIZE - LOTTO_PICK_COUNT) / (LOTTO_POOL_SIZE - 1),
 )
 
-export function buildRandomNumbers() {
+export function buildRandomNumbers(random: RandomSource = Math.random) {
   const picked = new Set<number>()
-  while (picked.size < LOTTO_PICK_COUNT) picked.add(Math.floor(Math.random() * LOTTO_POOL_SIZE) + 1)
+  while (picked.size < LOTTO_PICK_COUNT) picked.add(Math.floor(random() * LOTTO_POOL_SIZE) + 1)
   return Array.from(picked).sort((a, b) => a - b)
 }
 

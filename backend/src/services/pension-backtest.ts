@@ -6,10 +6,13 @@ import {
 import { getAllPensionBacktestRowsQuery, getPensionDataVersionQuery } from '../queries/pension'
 import type { PensionBacktestRow } from '../types/pension/models'
 import type { PensionBacktestSummary } from '../types/pension/summaries'
+import { createSeededRandom, type RandomSource } from '../utils/random'
 import { withBacktestCache } from './backtest-cache'
 
 const MIN_PENSION_BACKTEST_DRAWS = 30
 const MIN_PENSION_TRAINING_DRAWS = 20
+// 같은 데이터면 같은 결과가 나오도록 백테스트는 기본으로 시드를 고정한다
+export const PENSION_BACKTEST_SEED = 720
 
 function countExactDigitMatches(picked: string, winning: string) {
   let matches = 0
@@ -23,7 +26,11 @@ function countExactDigitMatches(picked: string, winning: string) {
   return matches
 }
 
-export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number): PensionBacktestSummary {
+export function runPensionBacktest(
+  rows: PensionBacktestRow[],
+  lookback: number,
+  random: RandomSource = createSeededRandom(PENSION_BACKTEST_SEED),
+): PensionBacktestSummary {
   if (rows.length < MIN_PENSION_BACKTEST_DRAWS) {
     throw new Error('연금복권 백테스트에 필요한 데이터가 부족합니다.')
   }
@@ -52,7 +59,7 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
   for (let targetIndex = startIndex; targetIndex < sorted.length; targetIndex++) {
     const target = sorted[targetIndex]
     const historyNumbers = newestFirst.slice(sorted.length - targetIndex)
-    const sets = buildPensionRecommendations(historyNumbers)
+    const sets = buildPensionRecommendations(historyNumbers, random)
     const matchCounts = sets.map((set) => countExactDigitMatches(set.number, target.winning_number))
     const bestMatch = Math.max(...matchCounts)
 

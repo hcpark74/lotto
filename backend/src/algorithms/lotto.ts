@@ -1,4 +1,5 @@
 import type { DrawNumbersRow, GeneratedSet } from '../types/lotto'
+import type { RandomSource } from '../utils/random'
 import { buildRandomNumbers } from './lotto-baseline'
 
 type SetConfig = {
@@ -72,8 +73,8 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-function buildFallbackSet(label: string, ruleId?: string, ruleWeight?: number): GeneratedSet {
-  const numbers = buildRandomNumbers()
+function buildFallbackSet(random: RandomSource, label: string, ruleId?: string, ruleWeight?: number): GeneratedSet {
+  const numbers = buildRandomNumbers(random)
   return {
     label,
     numbers,
@@ -230,19 +231,19 @@ function buildWeights(draws: DrawNumbersRow[]) {
 
 // 비복원 가중 추출. 뽑힌 번호를 건너뛰고 total 에서 빼는 방식이라 매 추출마다 배열을 새로 만들지 않는다.
 // (백테스트에서 세트당 수백 번 호출되는 핫스팟)
-function pickWeightedNumbers(weights: { num: number; weight: number }[]) {
+function pickWeightedNumbers(weights: { num: number; weight: number }[], random: RandomSource) {
   const picked = new Set<number>()
   let total = weights.reduce((sum, entry) => sum + entry.weight, 0)
 
   while (picked.size < 6) {
-    let random = Math.random() * total
+    let remaining = random() * total
     let chosen: { num: number; weight: number } | undefined
 
     for (const entry of weights) {
       if (picked.has(entry.num)) continue
       chosen = entry
-      random -= entry.weight
-      if (random <= 0) break
+      remaining -= entry.weight
+      if (remaining <= 0) break
     }
 
     picked.add(chosen!.num)
@@ -252,9 +253,9 @@ function pickWeightedNumbers(weights: { num: number; weight: number }[]) {
   return Array.from(picked).sort((a, b) => a - b)
 }
 
-function pickSet(config: SetConfig, weights: { num: number; weight: number }[], ruleWeight: number): GeneratedSet {
+function pickSet(config: SetConfig, weights: { num: number; weight: number }[], ruleWeight: number, random: RandomSource): GeneratedSet {
   for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
-    const numbers = pickWeightedNumbers(weights)
+    const numbers = pickWeightedNumbers(weights, random)
     if (passesCommonRules(numbers) && config.check(numbers)) {
       return {
         label: config.label,
@@ -265,7 +266,7 @@ function pickSet(config: SetConfig, weights: { num: number; weight: number }[], 
   }
 
   for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
-    const numbers = pickWeightedNumbers(weights)
+    const numbers = pickWeightedNumbers(weights, random)
     if (passesCommonRules(numbers)) {
       return {
         label: config.label,
@@ -275,12 +276,12 @@ function pickSet(config: SetConfig, weights: { num: number; weight: number }[], 
     }
   }
 
-  return buildFallbackSet(config.label, config.id, ruleWeight)
+  return buildFallbackSet(random, config.label, config.id, ruleWeight)
 }
 
-export function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
+export function buildGeneratedSets(draws: DrawNumbersRow[], random: RandomSource = Math.random): GeneratedSet[] {
   if (draws.length === 0) {
-    return SET_CONFIGS.map(({ label, id, baseWeight }) => buildFallbackSet(label, id, baseWeight))
+    return SET_CONFIGS.map(({ label, id, baseWeight }) => buildFallbackSet(random, label, id, baseWeight))
   }
 
   const weights = buildWeights(draws)
@@ -290,7 +291,7 @@ export function buildGeneratedSets(draws: DrawNumbersRow[]): GeneratedSet[] {
   return SET_CONFIGS
     .slice()
     .sort((a, b) => (weightMap.get(b.id) ?? b.baseWeight) - (weightMap.get(a.id) ?? a.baseWeight))
-    .map((config) => pickSet(config, weights, weightMap.get(config.id) ?? config.baseWeight))
+    .map((config) => pickSet(config, weights, weightMap.get(config.id) ?? config.baseWeight, random))
 }
 
 export function countMatches(picked: number[], draw: DrawNumbersRow) {
