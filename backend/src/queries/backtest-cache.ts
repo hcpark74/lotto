@@ -9,6 +9,12 @@ const CREATE_BACKTEST_CACHE_TABLE = `CREATE TABLE IF NOT EXISTS backtest_cache_v
   created_at TEXT NOT NULL
 )`
 
+// D1 오류 메시지 예: "D1_ERROR: no such table: backtest_cache_v2: SQLITE_ERROR"
+function isMissingTableError(error: unknown) {
+  const message = error instanceof Error ? `${error.message} ${String((error as { cause?: unknown }).cause ?? '')}` : String(error)
+  return /no such table/i.test(message)
+}
+
 export type BacktestDataVersion = { latest: number; count: number }
 
 export async function getBacktestCacheQuery(db: D1Database, cacheKey: string) {
@@ -36,7 +42,9 @@ export async function replaceBacktestCacheQuery(
 
   try {
     await db.batch(statements)
-  } catch {
+  } catch (error) {
+    // 테이블이 없을 때만 만들고 다시 시도한다. 나머지 오류는 호출부(withBacktestCache)가 경고로 남긴다.
+    if (!isMissingTableError(error)) throw error
     await db.prepare(CREATE_BACKTEST_CACHE_TABLE).run()
     await db.batch(statements)
   }
