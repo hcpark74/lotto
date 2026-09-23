@@ -15,12 +15,9 @@ export function createPensionRoutes() {
   const app = new Hono<{ Bindings: Bindings }>()
 
   app.post('/sync', requireAdminToken, withRouteErrorHandling(async (c) => {
-      const requestedLimit = Number(c.req.query('limit') ?? 0)
-      const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
-        ? Math.min(Math.floor(requestedLimit), 100)
-        : 0
-
-      const result = await syncPensionResults(c.env.DB, safeLimit)
+      // 0 = 제한 없음
+      const limit = parseIntQuery(c.req.query('limit'), 0, 0, 100)
+      const result = await syncPensionResults(c.env.DB, limit)
       return c.json({ success: true, ...result } satisfies PensionSyncResponse)
     }, {
       logLabel: 'Error in /api/pension/sync',

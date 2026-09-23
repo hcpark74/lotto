@@ -83,6 +83,23 @@ describe.each([
   })
 })
 
+describe('POST /api/pension/sync limit', () => {
+  it.each([
+    [undefined, 0],
+    ['10', 10],
+    ['500', 100],
+    ['-3', 0],
+    ['abc', 0],
+    ['2.5', 0],
+  ])('limit=%s → %i', async (limit, expected) => {
+    vi.mocked(syncPensionResults).mockClear()
+    const query = limit === undefined ? '' : `?limit=${limit}`
+    const res = await call(`/api/pension/sync${query}`, { headers: { Authorization: `Bearer ${TOKEN}` } })
+    expect(res.status).toBe(200)
+    expect(vi.mocked(syncPensionResults).mock.calls[0][1]).toBe(expected)
+  })
+})
+
 describe('보호 대상이 아닌 엔드포인트', () => {
   it('POST /api/generate 는 토큰 없이 동작', async () => {
     const res = await call('/api/generate', {}, null)
