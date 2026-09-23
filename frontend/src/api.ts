@@ -20,6 +20,13 @@ export class ApiError extends Error {
     }
 }
 
+// 회차 조회 실패 문구. "데이터 없음"은 404 일 때만 맞다.
+export function describeDrawLookupError(error: unknown, drawNo: number) {
+    if (error instanceof ApiError && error.status === 404) return `${drawNo}회차 데이터가 없습니다.`;
+    if (error instanceof ApiError && error.status === 400) return '회차 번호를 확인해 주세요. 1 이상의 정수만 조회할 수 있습니다.';
+    return '조회 중 오류가 발생했습니다.';
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${API_URL}${path}`, init);
     const data = await res.json().catch(() => null);

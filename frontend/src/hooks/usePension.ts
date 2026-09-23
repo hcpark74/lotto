@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError, fetchPensionBacktest, fetchPensionResult, fetchPensionResults, generatePension } from '../api';
+import { ApiError, describeDrawLookupError, fetchPensionBacktest, fetchPensionResult, fetchPensionResults, generatePension } from '../api';
 import { BACKTEST_DRAWS } from '../constants';
 import { parseDrawNo } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet, PensionRuleWeight } from '../types';
@@ -78,7 +78,7 @@ export function usePension() {
         try {
             setSearchResult(await fetchPensionResult(no));
         } catch (err) {
-            setSearchError(err instanceof ApiError ? `${no}회차 데이터가 없습니다.` : '조회 중 오류가 발생했습니다.');
+            setSearchError(describeDrawLookupError(err, no));
         }
     };
 

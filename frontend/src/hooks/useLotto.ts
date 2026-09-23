@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiError, fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto } from '../api';
+import { describeDrawLookupError, fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto } from '../api';
 import { BACKTEST_DRAWS } from '../constants';
 import { parseDrawNo } from '../format';
 import type { DrawResult, LottoRuleWeight, LottoSet } from '../types';
@@ -69,7 +69,7 @@ export function useLotto() {
         try {
             setSearchResult(await fetchLottoResult(no));
         } catch (error) {
-            setSearchError(error instanceof ApiError ? `${no}회차 데이터가 없습니다.` : '조회 중 오류가 발생했습니다.');
+            setSearchError(describeDrawLookupError(error, no));
         }
     };
 
