@@ -8,12 +8,13 @@ import {
 } from '../services/pension'
 import type { PensionSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
+import { requireAdminToken } from '../utils/admin-auth'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
 export function createPensionRoutes() {
   const app = new Hono<{ Bindings: Bindings }>()
 
-  app.post('/sync', withRouteErrorHandling(async (c) => {
+  app.post('/sync', requireAdminToken, withRouteErrorHandling(async (c) => {
       const requestedLimit = Number(c.req.query('limit') ?? 0)
       const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
         ? Math.min(Math.floor(requestedLimit), 100)

@@ -74,19 +74,37 @@ cd backend
 npm run init-db
 ```
 
-최신 당첨 데이터 동기화:
+최신 당첨 데이터 동기화 (관리자 토큰 필요, 아래 [관리자 토큰](#관리자-토큰) 참고):
 
 ```bash
-# 로컬
-curl -X POST http://localhost:8787/api/sync
+# 로컬 (backend/.dev.vars 의 ADMIN_TOKEN)
+curl -X POST http://localhost:8787/api/sync -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # 운영
-curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
+curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 참고:
 - 한 번에 최대 10회차씩 저장됩니다.
 - 1회부터 최신 회차까지 모두 채우려면 여러 번 호출해야 합니다.
+- 평소에는 cron 이 자동으로 동기화하므로 직접 호출할 일은 드뭅니다 ([자동 동기화](#자동-동기화)).
+
+### 관리자 토큰
+
+`POST /api/sync`, `POST /api/pension/sync` 는 `Authorization: Bearer <ADMIN_TOKEN>` 헤더가
+있어야 실행됩니다. 없거나 틀리면 `401`, 서버에 `ADMIN_TOKEN` 이 설정되지 않았으면 항상 `401` 입니다.
+cron 동기화는 토큰과 무관하게 동작합니다.
+
+```bash
+# 운영: Workers 시크릿으로 설정 (값은 프롬프트에 입력)
+cd backend
+npx wrangler secret put ADMIN_TOKEN
+
+# 로컬: backend/.dev.vars (git 에 올라가지 않음)
+echo "ADMIN_TOKEN=local-dev-token" > .dev.vars
+```
+
+토큰 값 예시 생성: `openssl rand -hex 32`
 
 ---
 
@@ -201,8 +219,8 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
-| `POST` | `/api/sync` | 최신 당첨 결과 동기화 |
-| `POST` | `/api/pension/sync` | 연금복권720+ 지난 회차/최신 회차 동기화 |
+| `POST` | `/api/sync` | 최신 당첨 결과 동기화 (관리자 토큰) |
+| `POST` | `/api/pension/sync` | 연금복권720+ 지난 회차/최신 회차 동기화 (관리자 토큰) |
 | `POST` | `/api/pension/generate` | 연금복권720+ 추천번호 세트 생성 |
 | `GET` | `/api/pension/generate/backtest` | 연금복권 추천 로직 백테스트 |
 | `GET` | `/api/pension/results` | 연금복권720+ 회차 조회 (`?limit=`, `?drawNo=`) |
@@ -225,17 +243,18 @@ curl -X POST https://lotto-analysis-backend.kbaysin.workers.dev/api/sync
 - `ruleDiagnostics.performance[].zScore` / `ci95` — 세트 규칙별 지표. 규칙당 회차마다 1세트라
   `z = (평균 − 0.8) / (0.784/√n)` 을 그대로 쓴다.
 
-어떤 전략이든 `|z| < 1.96` 이면 랜덤과 구분되지 않는 것으로 본다. 백테스트는 실행할 때마다
-세트를 새로 생성하므로 단일 실행의 유의 결과는 재실행으로 확인해야 한다.
+어떤 전략이든 `|z| < 1.96` 이면 랜덤과 구분되지 않는 것으로 본다. 백테스트는 고정 시드로 세트를
+생성하므로 같은 데이터면 같은 결과가 나온다. 결과는 최신 회차가 바뀔 때까지 D1 에 캐시된다.
+시드 하나의 결과이므로, 유의한 결과가 나오면 다른 시드로도 재현되는지 확인해야 한다.
 
 연금복권 동기화 예시:
 
 ```bash
 # 누락 회차 전체 저장
-curl -X POST "http://localhost:8787/api/pension/sync"
+curl -X POST "http://localhost:8787/api/pension/sync" -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # 누락 회차 중 10개만 저장
-curl -X POST "http://localhost:8787/api/pension/sync?limit=10"
+curl -X POST "http://localhost:8787/api/pension/sync?limit=10" -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # 최신 연금복권 1건 조회
 curl "http://localhost:8787/api/pension/results?limit=1"
@@ -284,9 +303,14 @@ npm run deploy
 
 ## 자동 동기화
 
-매주 토요일 기준 자동 동기화는 Workers 스케줄에서 관리합니다.
+Workers cron 으로 자동 동기화합니다 (Cloudflare cron 은 UTC 기준).
 
-- 설정 파일: `backend/wrangler.toml`
+| 대상 | cron (UTC) | KST |
+|------|-----------|-----|
+| 로또 | `30 21 * * 6` | 일요일 06:30 |
+| 연금복권 | `30 21 * * 4` | 금요일 06:30 |
+
+- 설정 파일: `backend/wrangler.toml` (cron 문자열은 `backend/src/index.ts` 의 상수와 같아야 합니다)
 
 ---
 

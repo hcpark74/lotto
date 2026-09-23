@@ -19,6 +19,10 @@ backend/wrangler-dev.err.log
 .env.*.local
 .env.production
 
+# Wrangler 로컬 시크릿 (ADMIN_TOKEN 등)
+.dev.vars
+**/.dev.vars
+
 # Logs
 *.log
 npm-debug.log*

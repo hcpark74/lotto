@@ -9,12 +9,13 @@ import {
 } from '../services/lotto'
 import type { LottoSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
+import { requireAdminToken } from '../utils/admin-auth'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
 export function createLottoRoutes() {
   const app = new Hono<{ Bindings: Bindings }>()
 
-  app.post('/sync', withRouteErrorHandling(async (c) => {
+  app.post('/sync', requireAdminToken, withRouteErrorHandling(async (c) => {
       const result = await syncLatestLottoResults(c.env.DB)
       return c.json({ success: true, ...result } satisfies LottoSyncResponse)
     }, {
