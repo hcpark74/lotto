@@ -16,10 +16,6 @@ app.get('/', (c) => c.text('Lotto Analysis API'))
 app.route('/api', createLottoRoutes())
 app.route('/api/pension', createPensionRoutes())
 
-// wrangler.toml 의 crons 와 같은 문자열이어야 한다
-const LOTTO_CRON = '30 21 * * 6'
-const PENSION_CRON = '30 21 * * 4'
-
 async function runLottoCron(db: D1Database) {
   const result = await syncLatestLottoResults(db, Number.POSITIVE_INFINITY)
   console.log(`Cron(lotto): synced ${result.syncedCount} draw(s), latest drwNo=${result.latestDraw}`)
@@ -35,10 +31,12 @@ export default {
   async scheduled(event: ScheduledEvent, env: Bindings, _ctx: ExecutionContext) {
     console.log(`Cron execution started (${event.cron})`)
 
-    // 알 수 없는 cron 이면 둘 다 실행한다. 한쪽이 실패해도 다른 쪽은 실행되게 allSettled.
-    const jobs: [string, (db: D1Database) => Promise<void>][] = []
-    if (event.cron !== PENSION_CRON) jobs.push(['lotto', runLottoCron])
-    if (event.cron !== LOTTO_CRON) jobs.push(['pension', runPensionCron])
+    // cron 은 매일 1개뿐이고 로또·연금을 모두 실행한다 (wrangler.toml).
+    // 한쪽이 실패해도 다른 쪽은 실행되게 allSettled.
+    const jobs: [string, (db: D1Database) => Promise<void>][] = [
+      ['lotto', runLottoCron],
+      ['pension', runPensionCron],
+    ]
 
     const results = await Promise.allSettled(jobs.map(([, job]) => job(env.DB)))
     const failures = results.flatMap((result, index) => result.status === 'rejected' ? [[jobs[index][0], result.reason] as const] : [])

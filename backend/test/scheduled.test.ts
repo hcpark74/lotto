@@ -16,7 +16,7 @@ const pensionSync = vi.mocked(syncPensionResults)
 const env = { DB: {} as D1Database }
 const ctx = {} as ExecutionContext
 
-function run(cron: string) {
+function run(cron = '30 21 * * *') {
   return worker.scheduled({ cron, scheduledTime: 0, type: 'scheduled', noRetry() {} } as ScheduledEvent, env, ctx)
 }
 
@@ -28,23 +28,16 @@ describe('scheduled', () => {
     pensionSync.mockReset().mockResolvedValue({ syncedCount: 1, latestDraw: 1, nextDrawNo: 2, pendingPrizeDrawNos: [] })
   })
 
-  it('로또 cron 은 로또만 동기화', async () => {
-    await run('30 21 * * 6')
+  it('매일 cron 은 로또·연금을 모두 동기화', async () => {
+    await run()
     expect(lottoSync).toHaveBeenCalledOnce()
-    expect(pensionSync).not.toHaveBeenCalled()
-  })
-
-  it('연금 cron 은 연금만 동기화', async () => {
-    await run('30 21 * * 4')
     expect(pensionSync).toHaveBeenCalledOnce()
-    expect(lottoSync).not.toHaveBeenCalled()
   })
 
-  it('알 수 없는 cron 이면 둘 다 실행하고, 한쪽이 실패해도 다른 쪽은 실행된 뒤 실패를 알린다', async () => {
+  it('한쪽이 실패해도 다른 쪽은 실행된 뒤 실패를 알린다', async () => {
     lottoSync.mockRejectedValue(new Error('boom'))
 
-    await expect(run('* * * * *')).rejects.toThrow('Cron failed: lotto')
-    expect(lottoSync).toHaveBeenCalledOnce()
+    await expect(run()).rejects.toThrow('Cron failed: lotto')
     expect(pensionSync).toHaveBeenCalledOnce()
   })
 })
