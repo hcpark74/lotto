@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isValidLottoRecord } from '../src/clients/lotto/results'
+import { isValidLottoRecord, parseFirstPrizeAmount } from '../src/clients/lotto/results'
 import type { LottoResultRecord } from '../src/types/lotto'
 
 const valid: LottoResultRecord = {
@@ -26,9 +26,26 @@ describe('isValidLottoRecord', () => {
     ['중복 번호', { drwtNo2: 10 }],
     ['보너스가 당첨번호와 중복', { bnusNo: 40 }],
     ['번호 누락', { drwtNo3: undefined }],
-    ['음수 당첨금', { firstWinamnt: -1 }],
-    ['당첨금 누락', { firstWinamnt: undefined }],
   ])('%s → 거부', (_label, patch) => {
     expect(isValidLottoRecord({ ...valid, ...patch } as unknown as LottoResultRecord)).toBe(false)
+  })
+
+  it('당첨금이 없어도 회차는 통과 (sync 가 멈추지 않도록)', () => {
+    expect(isValidLottoRecord({ ...valid, firstWinamnt: null })).toBe(true)
+  })
+})
+
+describe('parseFirstPrizeAmount', () => {
+  it.each([
+    [2002006800, 2002006800],
+    ['2002006800', 2002006800],
+    [0, 0],
+    [null, null],
+    [undefined, null],
+    ['', null],
+    ['abc', null],
+    [-1, null],
+  ])('%s → %s', (input, expected) => {
+    expect(parseFirstPrizeAmount(input)).toBe(expected)
   })
 })

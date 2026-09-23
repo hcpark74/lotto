@@ -11,6 +11,13 @@ function isValidLottoNumber(value: unknown): value is number {
   return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 45
 }
 
+// 당첨금은 보조 정보라 검증 대상이 아니다. 여기서 거부하면 sync 가 그 회차에서 멈추므로 null 로 저장한다.
+export function parseFirstPrizeAmount(value: unknown) {
+  if (value == null || value === '') return null
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount >= 0 ? amount : null
+}
+
 // 저장 후에는 다시 받지 않으므로 여기서 걸러야 잘못된 행이 영구히 남지 않는다
 export function isValidLottoRecord(record: LottoResultRecord) {
   const numbers = [record.drwtNo1, record.drwtNo2, record.drwtNo3, record.drwtNo4, record.drwtNo5, record.drwtNo6]
@@ -20,7 +27,6 @@ export function isValidLottoRecord(record: LottoResultRecord) {
     && new Set(numbers).size === 6
     && isValidLottoNumber(record.bnusNo)
     && !numbers.includes(record.bnusNo)
-    && Number.isFinite(record.firstWinamnt) && record.firstWinamnt >= 0
 }
 
 export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord | null> {
@@ -53,7 +59,7 @@ export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord
       drwtNo5: item.tm5WnNo,
       drwtNo6: item.tm6WnNo,
       bnusNo: item.bnsWnNo,
-      firstWinamnt: item.rnk1WnAmt,
+      firstWinamnt: parseFirstPrizeAmount(item.rnk1WnAmt),
     }
 
     if (!isValidLottoRecord(record)) {
