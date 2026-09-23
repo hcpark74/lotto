@@ -34,6 +34,8 @@ try {
 
 const mergedEnv = { ...process.env, ...env };
 
+// package.json 의 build 와 같게 타입 체크를 먼저 통과시킨다
+execSync('npm exec -- tsc', { stdio: 'inherit', env: mergedEnv });
 execSync('npm exec -- vite build', { stdio: 'inherit', env: mergedEnv });
 
 let lastError;
