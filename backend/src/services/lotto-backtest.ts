@@ -9,7 +9,7 @@ import {
   summarizeSignificanceByDraw,
 } from '../algorithms/lotto-baseline'
 import { getAllLottoBacktestRowsQuery, getLottoDataVersionQuery } from '../queries/lotto'
-import { withBacktestCache } from './backtest-cache'
+import { dataVersionOf, withBacktestCache } from './backtest-cache'
 import type { DrawNumbersRow, LottoBacktestSummary } from '../types/lotto'
 import { createSeededRandom, type RandomSource } from '../utils/random'
 
@@ -174,10 +174,13 @@ export function runLottoBacktest(
 }
 
 export async function runLottoBacktestFromDb(db: D1Database, lookback: number) {
-  return withBacktestCache(db, {
-    kind: 'lotto',
-    algorithm: LOTTO_ALGORITHM_VERSION,
-    dataVersion: await getLottoDataVersionQuery(db),
-    lookback,
-  }, async () => runLottoBacktest(await getAllLottoBacktestRowsQuery(db), lookback))
+  return withBacktestCache(
+    db,
+    { kind: 'lotto', algorithm: LOTTO_ALGORITHM_VERSION, lookback },
+    () => getLottoDataVersionQuery(db),
+    async () => {
+      const rows = await getAllLottoBacktestRowsQuery(db)
+      return { result: runLottoBacktest(rows, lookback), dataVersion: dataVersionOf(rows, (row) => row.drwNo) }
+    },
+  )
 }

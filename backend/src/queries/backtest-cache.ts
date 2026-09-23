@@ -1,22 +1,37 @@
 // schema.sql 과 같은 정의. 운영 DB 에 아직 테이블이 없으면 첫 저장 때 만든다.
-const CREATE_BACKTEST_CACHE_TABLE = `CREATE TABLE IF NOT EXISTS backtest_cache (
+// (이전 backtest_cache 테이블에는 데이터 버전 열이 없어 새 이름으로 만든다. 이전 테이블은 쓰지 않는다.)
+const CREATE_BACKTEST_CACHE_TABLE = `CREATE TABLE IF NOT EXISTS backtest_cache_v2 (
   cache_key TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
+  data_latest INTEGER NOT NULL,
+  data_count INTEGER NOT NULL,
   payload TEXT NOT NULL,
   created_at TEXT NOT NULL
 )`
 
+export type BacktestDataVersion = { latest: number; count: number }
+
 export async function getBacktestCacheQuery(db: D1Database, cacheKey: string) {
-  const row = await db.prepare('SELECT payload FROM backtest_cache WHERE cache_key = ?').bind(cacheKey).first<{ payload: string }>()
+  const row = await db.prepare('SELECT payload FROM backtest_cache_v2 WHERE cache_key = ?').bind(cacheKey).first<{ payload: string }>()
   return row?.payload ?? null
 }
 
-// 같은 kind 의 이전 키는 지운다 (회차가 바뀌면 다시 쓰일 일이 없다)
-export async function replaceBacktestCacheQuery(db: D1Database, kind: string, keyPrefix: string, cacheKey: string, payload: string) {
+// 저장하면서 같은 kind 의 "더 오래된 데이터 버전" 행만 지운다.
+// 버전이 다른 키를 모두 지우면, 느린 요청이 옛 데이터로 계산한 결과를 저장할 때 더 새 결과를 지울 수 있다.
+export async function replaceBacktestCacheQuery(
+  db: D1Database,
+  kind: string,
+  dataVersion: BacktestDataVersion,
+  cacheKey: string,
+  payload: string,
+) {
   const statements = [
-    db.prepare('DELETE FROM backtest_cache WHERE kind = ? AND substr(cache_key, 1, length(?)) != ?').bind(kind, keyPrefix, keyPrefix),
-    db.prepare('INSERT OR REPLACE INTO backtest_cache (cache_key, kind, payload, created_at) VALUES (?, ?, ?, ?)')
-      .bind(cacheKey, kind, payload, new Date().toISOString()),
+    db.prepare(
+      'DELETE FROM backtest_cache_v2 WHERE kind = ? AND (data_latest < ? OR (data_latest = ? AND data_count < ?))'
+    ).bind(kind, dataVersion.latest, dataVersion.latest, dataVersion.count),
+    db.prepare(
+      'INSERT OR REPLACE INTO backtest_cache_v2 (cache_key, kind, data_latest, data_count, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(cacheKey, kind, dataVersion.latest, dataVersion.count, payload, new Date().toISOString()),
   ]
 
   try {

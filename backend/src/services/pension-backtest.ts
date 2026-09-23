@@ -21,7 +21,7 @@ import type { PensionRankHits } from '../types/api'
 import type { PensionBacktestRow } from '../types/pension/models'
 import type { PensionBacktestSummary } from '../types/pension/summaries'
 import { createSeededRandom, type RandomSource } from '../utils/random'
-import { withBacktestCache } from './backtest-cache'
+import { dataVersionOf, withBacktestCache } from './backtest-cache'
 
 const MIN_PENSION_BACKTEST_DRAWS = 30
 const MIN_PENSION_TRAINING_DRAWS = 20
@@ -184,10 +184,13 @@ export function runPensionBacktest(
 }
 
 export async function runPensionBacktestFromDb(db: D1Database, lookback: number) {
-  return withBacktestCache(db, {
-    kind: 'pension',
-    algorithm: PENSION_ALGORITHM_VERSION,
-    dataVersion: await getPensionDataVersionQuery(db),
-    lookback,
-  }, async () => runPensionBacktest(await getAllPensionBacktestRowsQuery(db), lookback))
+  return withBacktestCache(
+    db,
+    { kind: 'pension', algorithm: PENSION_ALGORITHM_VERSION, lookback },
+    () => getPensionDataVersionQuery(db),
+    async () => {
+      const rows = await getAllPensionBacktestRowsQuery(db)
+      return { result: runPensionBacktest(rows, lookback), dataVersion: dataVersionOf(rows, (row) => row.draw_no) }
+    },
+  )
 }
