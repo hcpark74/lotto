@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto, syncLotto } from '../api';
 import { LAST_SYNC_DRAW_STORAGE_KEY, LAST_SYNC_STORAGE_KEY } from '../constants';
 import { parseDrawNo } from '../format';
+import { readStorage, writeStorage } from '../storage';
 import type { DrawResult, LottoRuleWeight, LottoSet } from '../types';
 import { useBacktest } from './useBacktest';
 import type { Toast } from './useToast';
@@ -19,14 +20,14 @@ export function useLotto(toast: Toast) {
 
     const [syncLoading, setSyncLoading] = useState(false);
     const [lastSyncedDraw, setLastSyncedDraw] = useState<number | null>(() => {
-        const saved = localStorage.getItem(LAST_SYNC_DRAW_STORAGE_KEY);
+        const saved = readStorage(LAST_SYNC_DRAW_STORAGE_KEY);
         if (!saved) return null;
 
         const parsed = Number(saved);
         return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     });
     const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(() => {
-        const saved = localStorage.getItem(LAST_SYNC_STORAGE_KEY);
+        const saved = readStorage(LAST_SYNC_STORAGE_KEY);
         if (!saved) return null;
 
         const parsed = new Date(saved);
@@ -82,9 +83,9 @@ export function useLotto(toast: Toast) {
             const now = new Date();
             setLastSyncedAt(now);
             setLastSyncedDraw(data.latestDraw ?? null);
-            localStorage.setItem(LAST_SYNC_STORAGE_KEY, now.toISOString());
+            writeStorage(LAST_SYNC_STORAGE_KEY, now.toISOString());
             if (data.latestDraw) {
-                localStorage.setItem(LAST_SYNC_DRAW_STORAGE_KEY, String(data.latestDraw));
+                writeStorage(LAST_SYNC_DRAW_STORAGE_KEY, String(data.latestDraw));
             }
 
             toast.success(
