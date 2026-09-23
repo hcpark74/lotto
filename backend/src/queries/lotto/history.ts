@@ -7,7 +7,7 @@ export async function getLatestStoredLottoDrawNo(db: D1Database) {
 
 export async function insertLottoResult(db: D1Database, result: LottoResultRecord) {
   await db.prepare(
-    `INSERT INTO lotto_history (drwNo, drwNoDate, drwtNo1, drwtNo2, drwtNo3, drwtNo4, drwtNo5, drwtNo6, bnusNo, firstWinamnt)
+    `INSERT OR IGNORE INTO lotto_history (drwNo, drwNoDate, drwtNo1, drwtNo2, drwtNo3, drwtNo4, drwtNo5, drwtNo6, bnusNo, firstWinamnt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     result.drwNo,

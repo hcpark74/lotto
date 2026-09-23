@@ -69,14 +69,15 @@ async function main() {
 
   console.log(`\n중복 제거: ${allDraws.length}건 → ${unique.length}건`);
 
-  const lines = ['DELETE FROM lotto_history;', ''];
+  // 운영 DB 에 적용해도 seed 이후 회차가 지워지지 않도록 DELETE 없이 없는 회차만 넣는다
+  const lines = [];
   const allDraws2 = unique;
 
   for (const item of allDraws2) {
     const d = String(item.ltRflYmd);
     const date = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
     lines.push(
-      `INSERT INTO lotto_history (drwNo, drwNoDate, drwtNo1, drwtNo2, drwtNo3, drwtNo4, drwtNo5, drwtNo6, bnusNo, firstWinamnt) VALUES (${item.ltEpsd}, '${date}', ${item.tm1WnNo}, ${item.tm2WnNo}, ${item.tm3WnNo}, ${item.tm4WnNo}, ${item.tm5WnNo}, ${item.tm6WnNo}, ${item.bnsWnNo}, ${item.rnk1WnAmt});`
+      `INSERT OR IGNORE INTO lotto_history (drwNo, drwNoDate, drwtNo1, drwtNo2, drwtNo3, drwtNo4, drwtNo5, drwtNo6, bnusNo, firstWinamnt) VALUES (${item.ltEpsd}, '${date}', ${item.tm1WnNo}, ${item.tm2WnNo}, ${item.tm3WnNo}, ${item.tm4WnNo}, ${item.tm5WnNo}, ${item.tm6WnNo}, ${item.bnsWnNo}, ${item.rnk1WnAmt});`
     );
   }
 

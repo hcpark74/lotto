@@ -7,6 +7,22 @@ const LOTTO_HEADERS = {
   'X-Requested-With': 'XMLHttpRequest',
 }
 
+function isValidLottoNumber(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 45
+}
+
+// 저장 후에는 다시 받지 않으므로 여기서 걸러야 잘못된 행이 영구히 남지 않는다
+export function isValidLottoRecord(record: LottoResultRecord) {
+  const numbers = [record.drwtNo1, record.drwtNo2, record.drwtNo3, record.drwtNo4, record.drwtNo5, record.drwtNo6]
+
+  return Number.isInteger(record.drwNo) && record.drwNo > 0
+    && numbers.every(isValidLottoNumber)
+    && new Set(numbers).size === 6
+    && isValidLottoNumber(record.bnusNo)
+    && !numbers.includes(record.bnusNo)
+    && Number.isFinite(record.firstWinamnt) && record.firstWinamnt >= 0
+}
+
 export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord | null> {
   try {
     const url = `https://www.dhlottery.co.kr/lt645/selectPstLt645InfoNew.do?srchDir=center&srchLtEpsd=${drwNo}&srchCursorLtEpsd=${drwNo}`
@@ -27,7 +43,7 @@ export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord
       return null
     }
 
-    return {
+    const record: LottoResultRecord = {
       drwNo: item.ltEpsd,
       drwNoDate: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`,
       drwtNo1: item.tm1WnNo,
@@ -39,6 +55,13 @@ export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord
       bnusNo: item.bnsWnNo,
       firstWinamnt: item.rnk1WnAmt,
     }
+
+    if (!isValidLottoRecord(record)) {
+      console.warn(`Invalid lotto result for draw ${drwNo}:`, JSON.stringify(item))
+      return null
+    }
+
+    return record
   } catch {
     return null
   }

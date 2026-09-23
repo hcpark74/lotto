@@ -19,6 +19,24 @@ export function getErrorMessage(error: unknown) {
   return '알 수 없는 오류가 발생했습니다.'
 }
 
+// 정수가 아니면 fallback, 정수면 [min, max] 로 자른다
+export function parseIntQuery(value: string | undefined, fallback: number, min: number, max: number) {
+  const parsed = Number(value)
+  if (value == null || value === '' || !Number.isInteger(parsed)) return fallback
+  return Math.min(Math.max(parsed, min), max)
+}
+
+// 회차 번호. 없으면 undefined, 양의 정수가 아니면 null
+export function parseDrawNoQuery(value: string | undefined) {
+  if (value == null) return undefined
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+export function badRequest(c: AppContext, message: string) {
+  return c.json({ error: message }, 400)
+}
+
 export function notFound(c: AppContext, message: string) {
   return c.json({ error: message }, 404)
 }

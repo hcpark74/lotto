@@ -8,4 +8,4 @@ database_name = "lotto_db"
 database_id = "d879aa99-d304-4001-b3d9-67ab6605de57"
 
 [triggers]
-crons = ["30 21 * * 6"] # Every Saturday 21:30 KST
+crons = ["30 21 * * 6"] # Saturday 21:30 UTC = Sunday 06:30 KST

@@ -26,8 +26,7 @@ export async function fetchPensionDrawList(): Promise<Pension720ListItem[]> {
   return results
 }
 
-export async function getLatestPensionDrawNo() {
-  const draws = await fetchPensionDrawList()
+export function findLatestPensionDrawNo(draws: Pension720ListItem[]) {
   let maxDrawNo = 0
 
   for (const draw of draws) {
@@ -42,4 +41,8 @@ export async function getLatestPensionDrawNo() {
   }
 
   return maxDrawNo
+}
+
+export async function getLatestPensionDrawNo() {
+  return findLatestPensionDrawNo(await fetchPensionDrawList())
 }

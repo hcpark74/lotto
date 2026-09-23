@@ -45,9 +45,11 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
   }>()
 
   for (const target of targetRows) {
+    // 알고리즘은 최신 회차가 앞에 오는 배열을 기대한다 (운영 조회가 draw_no DESC)
     const historyNumbers = rows
       .filter((row) => row.draw_no < target.draw_no)
       .map((row) => row.winning_number)
+      .reverse()
     const sets = buildPensionRecommendations(historyNumbers)
     const matchCounts = sets.map((set) => countExactDigitMatches(set.number, target.winning_number))
     const bestMatch = Math.max(...matchCounts)
@@ -90,7 +92,7 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
     exactMatchDistribution,
     bestExactMatchDistribution,
     ruleDiagnostics: {
-      currentWeights: buildPensionRuleWeights(rows.slice(0, startIndex).map((row) => row.winning_number)),
+      currentWeights: buildPensionRuleWeights(rows.slice(0, startIndex).map((row) => row.winning_number).reverse()),
       performance: Array.from(rulePerf.values()).map((entry) => ({
         ruleId: entry.ruleId,
         label: entry.label,

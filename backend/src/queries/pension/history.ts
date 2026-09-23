@@ -1,11 +1,23 @@
 import type { Pension720DrawRecord, Pension720PrizeCountRecord } from '../../types/pension'
 
-export async function getLatestStoredPensionDrawNo(db: D1Database) {
-  const row = await db.prepare(
-    'SELECT draw_no FROM pension720_draws ORDER BY draw_no DESC LIMIT 1'
-  ).first<{ draw_no: number }>()
+export async function getStoredPensionDrawNos(db: D1Database) {
+  const { results } = await db.prepare(
+    'SELECT draw_no FROM pension720_draws ORDER BY draw_no ASC'
+  ).all<{ draw_no: number }>()
 
-  return row?.draw_no ?? 0
+  return results.map((row) => row.draw_no)
+}
+
+export async function getPensionDrawNosWithIncompletePrizeCounts(db: D1Database, rankCount: number, limit: number) {
+  const { results } = await db.prepare(
+    `SELECT d.draw_no FROM pension720_draws d
+    LEFT JOIN pension720_prize_counts p ON p.draw_no = d.draw_no
+    GROUP BY d.draw_no
+    HAVING COUNT(p.draw_no) < ?
+    ORDER BY d.draw_no DESC LIMIT ?`
+  ).bind(rankCount, limit).all<{ draw_no: number }>()
+
+  return results.map((row) => row.draw_no)
 }
 
 export async function upsertPensionDraw(db: D1Database, row: Pension720DrawRecord) {

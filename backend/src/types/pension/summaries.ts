@@ -4,6 +4,8 @@ export type Pension720SyncSummary = {
   syncedCount: number
   latestDraw: number
   nextDrawNo: number
+  // 당첨 통계를 아직 받지 못해 다음 sync 에서 재시도할 회차
+  pendingPrizeDrawNos: number[]
 }
 
 export type PensionGenerateSummary = {

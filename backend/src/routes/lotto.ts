@@ -8,7 +8,7 @@ import {
   syncLatestLottoResults,
 } from '../services/lotto'
 import type { Bindings } from '../types/app'
-import { notFound, withRouteErrorHandling } from '../utils/route-handler'
+import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
 export function createLottoRoutes() {
   const app = new Hono<{ Bindings: Bindings }>()
@@ -21,11 +21,13 @@ export function createLottoRoutes() {
     }))
 
   app.get('/results', withRouteErrorHandling(async (c) => {
-      const limit = Math.min(Number(c.req.query('limit') ?? 10), 50)
-      const drwNo = c.req.query('drwNo')
+      const limit = parseIntQuery(c.req.query('limit'), 10, 1, 50)
+      const drwNo = parseDrawNoQuery(c.req.query('drwNo'))
 
-      if (drwNo) {
-        const row = await getLottoResultByDrawNo(c.env.DB, Number(drwNo))
+      if (drwNo === null) return badRequest(c, 'drwNo 는 양의 정수여야 합니다.')
+
+      if (drwNo !== undefined) {
+        const row = await getLottoResultByDrawNo(c.env.DB, drwNo)
         if (!row) return notFound(c, '해당 회차 데이터가 없습니다.')
         return c.json(row)
       }
@@ -38,7 +40,7 @@ export function createLottoRoutes() {
     }))
 
   app.get('/generate/backtest', withRouteErrorHandling(async (c) => {
-      const lookback = Math.min(Math.max(Number(c.req.query('draws') ?? 100), 20), 300)
+      const lookback = parseIntQuery(c.req.query('draws'), 100, 20, 300)
 
       return c.json(await runLottoBacktestFromDb(c.env.DB, lookback))
     }, {
