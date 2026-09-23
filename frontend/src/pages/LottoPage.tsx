@@ -5,10 +5,17 @@ import { RulePerformanceCard, RuleWeightCard, ZScoreBadge } from '../components/
 import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
 import { formatDateTime, formatMoneyKRW } from '../format';
+import type { BacktestStatus } from '../hooks/useBacktest';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 
 const PAGE_SIZE = 5;
+const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
+    idle: '백테스트 진단을 준비하고 있습니다.',
+    loading: '백테스트 진단을 계산하고 있습니다.',
+    failed: '백테스트 진단 데이터를 불러오지 못했습니다.',
+    done: '백테스트 진단 데이터가 없습니다.',
+};
 
 export function LottoPage({ lotto, tab }: { lotto: LottoState; tab: TabKey }) {
     if (tab === 'picks') return <LottoPicksTab lotto={lotto} />;
@@ -245,8 +252,7 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
 function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
     const {
         backtest: backtestDiagnostics,
-        backtestLoading,
-        backtestFailed,
+        backtestStatus,
         loadBacktest: loadBacktestDiagnostics,
         ensureBacktest,
     } = lotto;
@@ -264,10 +270,10 @@ function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
                 action={
                     <button
                         onClick={loadBacktestDiagnostics}
-                        disabled={backtestLoading}
+                        disabled={backtestStatus === 'loading'}
                         className="btn-secondary inline-flex h-10 items-center justify-center px-4 text-sm"
                     >
-                        {backtestLoading ? '분석 중...' : '진단 새로고침'}
+                        {backtestStatus === 'loading' ? '분석 중...' : '진단 새로고침'}
                     </button>
                 }
             >
@@ -355,7 +361,7 @@ function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
                     </>
                 ) : (
                     <div className="empty-state px-4 py-10 text-center text-sm text-ink-soft">
-                        {!backtestFailed ? '백테스트 진단을 계산하고 있습니다.' : '백테스트 진단 데이터를 불러오지 못했습니다.'}
+                        {BACKTEST_EMPTY_TEXT[backtestStatus]}
                     </div>
                 )}
             </SectionCard>

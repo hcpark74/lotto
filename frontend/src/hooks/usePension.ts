@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ApiError, fetchPensionBacktest, fetchPensionResult, fetchPensionResults, generatePension, syncPension } from '../api';
 import { parseDrawNo } from '../format';
-import type { PensionBacktestDiagnostics, PensionDrawResult, PensionRecommendationSet, PensionRuleWeight } from '../types';
+import type { PensionDrawResult, PensionRecommendationSet, PensionRuleWeight } from '../types';
+import { useBacktest } from './useBacktest';
 import type { Toast } from './useToast';
 
 export function usePension(toast: Toast) {
@@ -14,10 +15,7 @@ export function usePension(toast: Toast) {
     const [generateLoading, setGenerateLoading] = useState(false);
     const [generateError, setGenerateError] = useState('');
 
-    const [backtest, setBacktest] = useState<PensionBacktestDiagnostics | null>(null);
-    const [backtestLoading, setBacktestLoading] = useState(false);
-    const [backtestFailed, setBacktestFailed] = useState(false);
-    const backtestRequested = useRef(false);
+    const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchPensionBacktest(120));
 
     const [syncLoading, setSyncLoading] = useState(false);
 
@@ -48,26 +46,6 @@ export function usePension(toast: Toast) {
     useEffect(() => {
         loadLatest();
     }, []);
-
-    const loadBacktest = async () => {
-        backtestRequested.current = true;
-        setBacktestLoading(true);
-        setBacktestFailed(false);
-
-        try {
-            setBacktest(await fetchPensionBacktest(120));
-        } catch {
-            setBacktest(null);
-            setBacktestFailed(true);
-        } finally {
-            setBacktestLoading(false);
-        }
-    };
-
-    // 백테스트는 서버 계산 비용이 커서 진단 탭에 처음 들어갈 때만 불러온다
-    const ensureBacktest = () => {
-        if (!backtestRequested.current) loadBacktest();
-    };
 
     const generate = async () => {
         setGenerateLoading(true);
@@ -132,7 +110,7 @@ export function usePension(toast: Toast) {
     return {
         latestDraw, loading, error,
         recommendations, ruleWeights, generateLoading, generateError, generate,
-        backtest, backtestLoading, backtestFailed, loadBacktest, ensureBacktest,
+        backtest, backtestStatus, loadBacktest, ensureBacktest,
         syncLoading, sync,
         searchInput, searchResult, searchError, changeSearchInput, search,
     };

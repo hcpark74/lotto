@@ -4,8 +4,16 @@ import { PensionRulePerformanceCard, RuleWeightCard } from '../components/diagno
 import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import { PENSION_RULE_LABELS } from '../constants';
+import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
 import type { TabKey } from '../routing';
+
+const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
+    idle: '연금복권 백테스트 진단을 준비하고 있습니다.',
+    loading: '연금복권 백테스트 진단을 계산하고 있습니다.',
+    failed: '연금복권 백테스트 진단 데이터를 불러오지 못했습니다.',
+    done: '연금복권 백테스트 진단 데이터가 없습니다.',
+};
 
 export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabKey }) {
     const {
@@ -19,8 +27,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
         recommendations: pensionRecommendations,
         ruleWeights: pensionRuleWeights,
         backtest: pensionBacktestDiagnostics,
-        backtestLoading: pensionBacktestLoading,
-        backtestFailed: pensionBacktestFailed,
+        backtestStatus: pensionBacktestStatus,
         searchResult: pensionSearchResult,
         searchError: pensionSearchError,
         sync: onPensionSync,
@@ -178,10 +185,10 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                     action={
                         <button
                             onClick={onPensionBacktestRefresh}
-                            disabled={pensionBacktestLoading}
+                            disabled={pensionBacktestStatus === 'loading'}
                             className="btn-secondary inline-flex h-10 items-center justify-center px-4 text-sm"
                         >
-                            {pensionBacktestLoading ? '분석 중...' : '진단 새로고침'}
+                            {pensionBacktestStatus === 'loading' ? '분석 중...' : '진단 새로고침'}
                         </button>
                     }
                 >
@@ -238,7 +245,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                         </>
                     ) : (
                         <div className="empty-state px-4 py-10 text-center text-sm text-ink-soft">
-                            {!pensionBacktestFailed ? '연금복권 백테스트 진단을 계산하고 있습니다.' : '연금복권 백테스트 진단 데이터를 불러오지 못했습니다.'}
+                            {BACKTEST_EMPTY_TEXT[pensionBacktestStatus]}
                         </div>
                     )}
                 </SectionCard>

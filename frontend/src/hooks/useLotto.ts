@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ApiError, fetchLottoBacktest, fetchLottoResult, fetchLottoResults, generateLotto, syncLotto } from '../api';
 import { LAST_SYNC_DRAW_STORAGE_KEY, LAST_SYNC_STORAGE_KEY } from '../constants';
 import { parseDrawNo } from '../format';
-import type { DrawResult, LottoBacktestDiagnostics, LottoRuleWeight, LottoSet } from '../types';
+import type { DrawResult, LottoRuleWeight, LottoSet } from '../types';
+import { useBacktest } from './useBacktest';
 import type { Toast } from './useToast';
 
 export function useLotto(toast: Toast) {
@@ -14,10 +15,7 @@ export function useLotto(toast: Toast) {
     const [generating, setGenerating] = useState(false);
     const [generateError, setGenerateError] = useState('');
 
-    const [backtest, setBacktest] = useState<LottoBacktestDiagnostics | null>(null);
-    const [backtestLoading, setBacktestLoading] = useState(false);
-    const [backtestFailed, setBacktestFailed] = useState(false);
-    const backtestRequested = useRef(false);
+    const { data: backtest, status: backtestStatus, load: loadBacktest, ensure: ensureBacktest } = useBacktest(() => fetchLottoBacktest(120));
 
     const [syncLoading, setSyncLoading] = useState(false);
     const [lastSyncedDraw, setLastSyncedDraw] = useState<number | null>(() => {
@@ -54,26 +52,6 @@ export function useLotto(toast: Toast) {
     useEffect(() => {
         loadResults();
     }, []);
-
-    const loadBacktest = async () => {
-        backtestRequested.current = true;
-        setBacktestLoading(true);
-        setBacktestFailed(false);
-
-        try {
-            setBacktest(await fetchLottoBacktest(120));
-        } catch {
-            setBacktest(null);
-            setBacktestFailed(true);
-        } finally {
-            setBacktestLoading(false);
-        }
-    };
-
-    // 백테스트는 서버 계산 비용이 커서 진단 탭에 처음 들어갈 때만 불러온다
-    const ensureBacktest = () => {
-        if (!backtestRequested.current) loadBacktest();
-    };
 
     const generate = async () => {
         setGenerating(true);
@@ -146,7 +124,7 @@ export function useLotto(toast: Toast) {
     return {
         results, resultsLoading,
         sets, ruleWeights, generating, generateError, generate,
-        backtest, backtestLoading, backtestFailed, loadBacktest, ensureBacktest,
+        backtest, backtestStatus, loadBacktest, ensureBacktest,
         syncLoading, lastSyncedAt, lastSyncedDraw, sync,
         searchInput, searchResult, searchError, changeSearchInput, search,
     };
