@@ -130,15 +130,18 @@ export function buildRuleWeights(draws: DrawNumbersRow[]): RuleWeightDiagnostic[
     }))
   }
 
+  const lookbackNumbers = lookbackDraws.map((draw) => COLS.map((col) => draw[col]).sort((a, b) => a - b))
+  const commonPass = lookbackNumbers.map(passesCommonRules)
+
   return SET_CONFIGS.map((config) => {
     let passCount = 0
     let recentMatchCount = 0
 
-    for (const draw of lookbackDraws) {
-      const numbers = COLS.map((col) => draw[col]).sort((a, b) => a - b)
-      if (passesCommonRules(numbers) && config.check(numbers)) passCount += 1
-      if (config.check(numbers)) recentMatchCount += 1
-    }
+    lookbackNumbers.forEach((numbers, index) => {
+      const matched = config.check(numbers)
+      if (commonPass[index] && matched) passCount += 1
+      if (matched) recentMatchCount += 1
+    })
 
     const passRate = passCount / lookbackDraws.length
     const recentMatchRate = recentMatchCount / lookbackDraws.length
@@ -157,7 +160,11 @@ export function buildRuleWeights(draws: DrawNumbersRow[]): RuleWeightDiagnostic[
 }
 
 function getZoneCount(numbers: number[]) {
-  return new Set(numbers.map(n => Math.ceil(n / 9))).size
+  let zones = 0
+  for (const n of numbers) zones |= 1 << Math.ceil(n / 9)
+  let count = 0
+  for (; zones !== 0; zones &= zones - 1) count += 1
+  return count
 }
 
 export function passesCommonRules(numbers: number[]) {
@@ -182,67 +189,66 @@ function buildWeights(draws: DrawNumbersRow[]) {
   const coldDraws = recentDraws.slice(-coldN)
   const ageDraws = recentDraws.slice(-ageN)
 
-  const freqMap = new Map<number, number>()
+  // 번호(1~45)를 인덱스로 쓰는 배열. 백테스트가 회차마다 전체 이력을 다시 세므로 Map 대신 배열로 센다.
+  const freq = new Array<number>(46).fill(0)
   for (const row of draws) {
-    for (const col of COLS) freqMap.set(row[col], (freqMap.get(row[col]) ?? 0) + 1)
+    for (const col of COLS) freq[row[col]] += 1
   }
 
-  const recentMap = new Map<number, number>()
+  const recent = new Array<number>(46).fill(0)
   for (const row of recentDraws) {
-    for (const col of COLS) recentMap.set(row[col], (recentMap.get(row[col]) ?? 0) + 1)
+    for (const col of COLS) recent[row[col]] += 1
   }
 
-  const ageSet = new Set<number>()
+  const inAge = new Array<boolean>(46).fill(false)
   for (const row of ageDraws) {
-    for (const col of COLS) ageSet.add(row[col])
+    for (const col of COLS) inAge[row[col]] = true
   }
 
-  const coldSet = new Set<number>()
+  const inCold = new Array<boolean>(46).fill(false)
   for (const row of coldDraws) {
-    for (const col of COLS) coldSet.add(row[col])
+    for (const col of COLS) inCold[row[col]] = true
   }
 
-  const maxFreq = Math.max(...freqMap.values(), 1)
-  const maxRecent = Math.max(...recentMap.values(), 1)
+  const maxRecent = Math.max(...recent, 1)
 
-  const priorMap = new Map<number, number>()
-  for (let i = 1; i <= 45; i++) priorMap.set(i, 1)
-
-  for (const [num, count] of freqMap) {
-    priorMap.set(num, priorMap.get(num)! + count)
-  }
-
-  const totalPrior = Array.from(priorMap.values()).reduce((a, b) => a + b, 0)
-  const posteriorMap = new Map<number, number>()
-  for (const [num, prior] of priorMap) {
-    posteriorMap.set(num, prior / totalPrior)
-  }
+  // 사전분포: 모든 번호 1회 + 실제 출현 횟수
+  let totalPrior = 0
+  for (let num = 1; num <= 45; num++) totalPrior += 1 + freq[num]
 
   return Array.from({ length: 45 }, (_, i) => {
     const num = i + 1
-    const recentScore = (recentMap.get(num) ?? 0) / maxRecent
-    const isCold = !coldSet.has(num)
-    const isOverheat = ageSet.has(num) && (recentMap.get(num) ?? 0) >= 3
-    let weight = posteriorMap.get(num)! * 0.5 + recentScore * 0.5
+    const recentScore = recent[num] / maxRecent
+    const isCold = !inCold[num]
+    const isOverheat = inAge[num] && recent[num] >= 3
+    let weight = (1 + freq[num]) / totalPrior * 0.5 + recentScore * 0.5
     if (isCold) weight *= 0.5
     if (isOverheat) weight *= 0.7
     return { num, weight: Math.max(weight, 0.02) }
   })
 }
 
-function weightedPick(pool: { num: number; weight: number }[]) {
-  const total = pool.reduce((sum, entry) => sum + entry.weight, 0)
-  let random = Math.random() * total
-  for (const entry of pool) {
-    random -= entry.weight
-    if (random <= 0) return entry.num
-  }
-  return pool[pool.length - 1].num
-}
-
+// 비복원 가중 추출. 뽑힌 번호를 건너뛰고 total 에서 빼는 방식이라 매 추출마다 배열을 새로 만들지 않는다.
+// (백테스트에서 세트당 수백 번 호출되는 핫스팟)
 function pickWeightedNumbers(weights: { num: number; weight: number }[]) {
   const picked = new Set<number>()
-  while (picked.size < 6) picked.add(weightedPick(weights.filter(entry => !picked.has(entry.num))))
+  let total = weights.reduce((sum, entry) => sum + entry.weight, 0)
+
+  while (picked.size < 6) {
+    let random = Math.random() * total
+    let chosen: { num: number; weight: number } | undefined
+
+    for (const entry of weights) {
+      if (picked.has(entry.num)) continue
+      chosen = entry
+      random -= entry.weight
+      if (random <= 0) break
+    }
+
+    picked.add(chosen!.num)
+    total -= chosen!.weight
+  }
+
   return Array.from(picked).sort((a, b) => a - b)
 }
 

@@ -27,8 +27,12 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
     throw new Error('연금복권 백테스트에 필요한 데이터가 부족합니다.')
   }
 
-  const startIndex = Math.max(MIN_PENSION_TRAINING_DRAWS, rows.length - lookback)
-  const targetRows = rows.slice(startIndex)
+  const sorted = rows.slice().sort((a, b) => a.draw_no - b.draw_no)
+  const startIndex = Math.max(MIN_PENSION_TRAINING_DRAWS, sorted.length - lookback)
+  const targetRows = sorted.slice(startIndex)
+  // 알고리즘은 최신 회차가 앞에 오는 배열을 기대한다 (운영 조회가 draw_no DESC).
+  // newestFirst.slice(n - i) = i 번째 회차 이전 전체를 최신순으로.
+  const newestFirst = sorted.map((row) => row.winning_number).reverse()
 
   let totalSets = 0
   let totalExactMatches = 0
@@ -44,12 +48,9 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
     exactMatch4PlusCount: number
   }>()
 
-  for (const target of targetRows) {
-    // 알고리즘은 최신 회차가 앞에 오는 배열을 기대한다 (운영 조회가 draw_no DESC)
-    const historyNumbers = rows
-      .filter((row) => row.draw_no < target.draw_no)
-      .map((row) => row.winning_number)
-      .reverse()
+  for (let targetIndex = startIndex; targetIndex < sorted.length; targetIndex++) {
+    const target = sorted[targetIndex]
+    const historyNumbers = newestFirst.slice(sorted.length - targetIndex)
     const sets = buildPensionRecommendations(historyNumbers)
     const matchCounts = sets.map((set) => countExactDigitMatches(set.number, target.winning_number))
     const bestMatch = Math.max(...matchCounts)
@@ -92,7 +93,7 @@ export function runPensionBacktest(rows: PensionBacktestRow[], lookback: number)
     exactMatchDistribution,
     bestExactMatchDistribution,
     ruleDiagnostics: {
-      currentWeights: buildPensionRuleWeights(rows.slice(0, startIndex).map((row) => row.winning_number).reverse()),
+      currentWeights: buildPensionRuleWeights(newestFirst.slice(sorted.length - startIndex)),
       performance: Array.from(rulePerf.values()).map((entry) => ({
         ruleId: entry.ruleId,
         label: entry.label,

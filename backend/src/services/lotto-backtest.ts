@@ -19,8 +19,10 @@ export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): L
     throw new Error('백테스트에 필요한 데이터가 부족합니다.')
   }
 
-  const startIndex = Math.max(MIN_TRAINING_DRAWS, results.length - lookback)
-  const targetDraws = results.slice(startIndex)
+  // 회차 오름차순을 전제로 대상 회차 이전 데이터를 slice 로 자른다
+  const sorted = results.slice().sort((a, b) => (a.drwNo ?? 0) - (b.drwNo ?? 0))
+  const startIndex = Math.max(MIN_TRAINING_DRAWS, sorted.length - lookback)
+  const targetDraws = sorted.slice(startIndex)
 
   let totalSets = 0
   let totalMatches = 0
@@ -50,8 +52,9 @@ export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): L
     randomFallbackCount: 0,
   }]))
 
-  for (const target of targetDraws) {
-    const sets = buildGeneratedSets(results.filter(row => (row.drwNo ?? 0) < (target.drwNo ?? 0)))
+  for (let targetIndex = startIndex; targetIndex < sorted.length; targetIndex++) {
+    const target = sorted[targetIndex]
+    const sets = buildGeneratedSets(sorted.slice(0, targetIndex))
     const matchCounts = sets.map(set => countMatches(set.numbers, target))
     const bestMatch = Math.max(...matchCounts)
 
@@ -141,7 +144,7 @@ export function runLottoBacktest(results: DrawNumbersRow[], lookback: number): L
     hitDistribution,
     bestHitDistribution,
     ruleDiagnostics: {
-      currentWeights: buildRuleWeights(results.slice(0, startIndex)),
+      currentWeights: buildRuleWeights(sorted.slice(0, startIndex)),
       performance: Array.from(rulePerf.values()).map((entry) => {
         const significance = summarizeSignificance(entry.totalMatches, entry.generatedCount)
         const denominator = Math.max(entry.generatedCount, 1)
