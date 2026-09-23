@@ -1,3 +1,4 @@
+import type { RuleWeight } from '../types/api'
 import type { PensionRecommendationSet } from '../types/pension'
 import type { RandomSource } from '../utils/random'
 
@@ -8,14 +9,7 @@ type PensionSetConfig = {
   check: (digits: number[]) => boolean
 }
 
-export type PensionRuleWeightDiagnostic = {
-  ruleId: string
-  label: string
-  weight: number
-  score: number
-  passRate: number
-  recentMatchRate: number
-}
+export type PensionRuleWeightDiagnostic = RuleWeight
 
 export const PENSION_ALGORITHM_VERSION = 'pension-multi-set-v2.2'
 

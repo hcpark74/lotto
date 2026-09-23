@@ -6,6 +6,7 @@ import {
   runPensionBacktestFromDb,
   syncPensionResults,
 } from '../services/pension'
+import type { PensionSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
@@ -19,10 +20,10 @@ export function createPensionRoutes() {
         : 0
 
       const result = await syncPensionResults(c.env.DB, safeLimit)
-      return c.json({ success: true, ...result })
+      return c.json({ success: true, ...result } satisfies PensionSyncResponse)
     }, {
       logLabel: 'Error in /api/pension/sync',
-      errorBody: (message) => ({ success: false, error: message }),
+      errorBody: (message) => ({ success: false, error: message } satisfies SyncErrorResponse),
     }))
 
   app.get('/results', withRouteErrorHandling(async (c) => {

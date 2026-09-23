@@ -7,6 +7,7 @@ import {
   runLottoBacktestFromDb,
   syncLatestLottoResults,
 } from '../services/lotto'
+import type { LottoSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
@@ -15,9 +16,9 @@ export function createLottoRoutes() {
 
   app.post('/sync', withRouteErrorHandling(async (c) => {
       const result = await syncLatestLottoResults(c.env.DB)
-      return c.json({ success: true, ...result })
+      return c.json({ success: true, ...result } satisfies LottoSyncResponse)
     }, {
-      errorBody: (message) => ({ success: false, error: message }),
+      errorBody: (message) => ({ success: false, error: message } satisfies SyncErrorResponse),
     }))
 
   app.get('/results', withRouteErrorHandling(async (c) => {

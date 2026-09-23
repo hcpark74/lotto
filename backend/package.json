@@ -12,7 +12,7 @@
     "seed:apply": "wrangler d1 execute lotto_db --remote --file=./seed.sql",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json"
   },
   "keywords": [],
   "author": "",

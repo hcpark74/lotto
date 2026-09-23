@@ -1,0 +1,14 @@
+{
+  // types/api.ts 는 프론트가 가져가는 파일이라 Workers·Node 타입 없이 단독으로 컴파일돼야 한다
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": [],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true
+  },
+  "files": ["src/types/api.ts"]
+}

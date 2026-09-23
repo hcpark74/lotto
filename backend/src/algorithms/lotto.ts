@@ -1,3 +1,4 @@
+import type { RuleWeight } from '../types/api'
 import type { DrawNumbersRow, GeneratedSet } from '../types/lotto'
 import type { RandomSource } from '../utils/random'
 import { buildRandomNumbers } from './lotto-baseline'
@@ -9,14 +10,7 @@ type SetConfig = {
   check: (numbers: number[]) => boolean
 }
 
-export type RuleWeightDiagnostic = {
-  ruleId: string
-  label: string
-  weight: number
-  score: number
-  passRate: number
-  recentMatchRate: number
-}
+export type RuleWeightDiagnostic = RuleWeight
 
 const COLS = ['drwtNo1', 'drwtNo2', 'drwtNo3', 'drwtNo4', 'drwtNo5', 'drwtNo6'] as const
 

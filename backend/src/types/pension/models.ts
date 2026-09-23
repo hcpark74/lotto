@@ -1,3 +1,5 @@
+import type { PensionDrawDetail, PensionDrawResult, PensionPrizeCount, PensionRecommendationSet as ApiPensionRecommendationSet } from '../api'
+
 export type Pension720DrawRecord = {
   draw_no: number
   draw_date: string
@@ -39,37 +41,11 @@ export type Pension720PrizeInfoItem = {
   [key: string]: unknown
 }
 
-export type PensionRecommendationSet = {
-  label: string
-  number: string
-  meta: {
-    ruleId?: string
-    ruleWeight?: number
-    sum: number
-    oddCount: number
-    uniqueDigitCount: number
-    maxDuplicateCount: number
-    hasThreeConsecutive: boolean
-  }
-}
+export type PensionRecommendationSet = ApiPensionRecommendationSet
 
-export type Pension720PrizeCountQueryRow = {
-  rank_no: number
-  internet_count: number
-  store_count: number
-  total_count: number
-  win_amount: number | null
-  total_amount: number | null
-}
+export type Pension720PrizeCountQueryRow = PensionPrizeCount
 
-export type Pension720ResultQueryRow = {
-  draw_no: number
-  draw_date: string
-  winning_band: string
-  winning_number: string
-  bonus_number: string
-  synced_at: string
-}
+export type Pension720ResultQueryRow = PensionDrawResult
 
 export type PensionWinningNumberRow = {
   winning_number: string
@@ -80,6 +56,4 @@ export type PensionBacktestRow = {
   winning_number: string
 }
 
-export type Pension720ResultDetail = Pension720ResultQueryRow & {
-  prize_counts: Pension720PrizeCountQueryRow[]
-}
+export type Pension720ResultDetail = PensionDrawDetail

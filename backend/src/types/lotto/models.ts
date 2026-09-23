@@ -1,3 +1,5 @@
+import type { LottoDrawResult, LottoGeneratedSet } from '../api'
+
 export type DrawNumbersRow = {
   drwNo?: number
   drwtNo1: number
@@ -9,18 +11,7 @@ export type DrawNumbersRow = {
   bnusNo?: number
 }
 
-export type GeneratedSet = {
-  label: string
-  numbers: number[]
-  meta?: {
-    ruleId?: string
-    ruleWeight?: number
-    sum: number
-    oddCount: number
-    maxConsecutiveRun: number
-    passedRules: string[]
-  }
-}
+export type GeneratedSet = LottoGeneratedSet
 
 export type LottoHistoryItem = {
   ltEpsd: number
@@ -48,8 +39,5 @@ export type LottoResultRecord = {
   firstWinamnt: number | null
 }
 
-export type LottoHistoryQueryRow = DrawNumbersRow & {
-  drwNo: number
-  drwNoDate: string
-  firstWinamnt?: number | null
-}
+// SELECT * FROM lotto_history 한 행 = API 응답 한 건
+export type LottoHistoryQueryRow = LottoDrawResult
