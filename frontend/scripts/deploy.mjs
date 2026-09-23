@@ -9,14 +9,25 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 재시도 판정에는 끝부분 출력만 있으면 된다
+const CAPTURED_OUTPUT_LIMIT = 64 * 1024;
+
 // stdio: 'inherit' 로는 wrangler 출력이 error.message 에 남지 않아 재시도 판정을 할 수 없다.
-// 출력을 화면에 그대로 흘려보내면서 모아 두었다가 실패 시 에러에 담는다.
+// 출력을 화면에 그대로 흘려보내면서 끝부분만 모아 두었다가 실패 시 에러에 담는다.
 function runCaptured(command, env) {
     return new Promise((resolvePromise, reject) => {
         const child = spawn(command, { shell: true, env, stdio: ['inherit', 'pipe', 'pipe'] });
         let output = '';
-        child.stdout.on('data', chunk => { process.stdout.write(chunk); output += chunk; });
-        child.stderr.on('data', chunk => { process.stderr.write(chunk); output += chunk; });
+        const capture = (stream, target) => {
+            // 조각 경계에 걸린 멀티바이트 문자(한글 등)가 깨지지 않도록 스트림 단위로 디코딩한다
+            stream.setEncoding('utf8');
+            stream.on('data', text => {
+                target.write(text);
+                output = (output + text).slice(-CAPTURED_OUTPUT_LIMIT);
+            });
+        };
+        capture(child.stdout, process.stdout);
+        capture(child.stderr, process.stderr);
         child.on('error', reject);
         child.on('close', code => {
             if (code === 0) resolvePromise();
