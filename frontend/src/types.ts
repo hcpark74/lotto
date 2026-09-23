@@ -11,9 +11,11 @@ import type {
 } from '../../backend/src/types/api';
 
 export type {
+    ConfidenceInterval95,
     LottoGenerateResponse,
     LottoRulePerformance,
     PensionGenerateResponse,
+    PensionRankHits,
     PensionRecommendationSet,
     PensionRulePerformance,
 } from '../../backend/src/types/api';

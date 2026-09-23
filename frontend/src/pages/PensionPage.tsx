@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ChevronRight, Info, Search, Sparkles } from 'lucide-react';
-import { PensionRulePerformanceCard, RuleWeightCard } from '../components/diagnostics';
+import { PensionRankHitsPanel, PensionRulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
 import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
@@ -193,14 +193,27 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                     <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.totalGeneratedSets}</div>
                                 </div>
                                 <div className="stat-tile">
-                                    <div className="text-xs text-ink-soft">세트 평균 정확 일치</div>
-                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.averageExactMatchPerSet.toFixed(3)}</div>
+                                    <div className="text-xs text-ink-soft">세트 평균 끝자리 일치</div>
+                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.averageMatchPerSet.toFixed(4)}</div>
+                                    <div className="mt-1 text-[11px] text-ink-soft">랜덤 기대 {pensionBacktestDiagnostics.baseline.theoretical.expectedMatchPerSet.toFixed(4)}</div>
                                 </div>
                                 <div className="stat-tile">
-                                    <div className="text-xs text-ink-soft">회차 최고 평균 정확 일치</div>
-                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.averageBestExactMatchPerDraw.toFixed(3)}</div>
+                                    <div className="text-xs text-ink-soft">회차 최고 평균</div>
+                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.averageBestMatchPerDraw.toFixed(4)}</div>
                                 </div>
                             </div>
+
+                            <SignificancePanel
+                                data={pensionBacktestDiagnostics}
+                                description={`끝자리부터 연속 일치한 자리 수(0~6) 기준, 무작위 기대값 ${pensionBacktestDiagnostics.baseline.theoretical.expectedMatchPerSet.toFixed(4)}`}
+                                digits={4}
+                            />
+
+                            <PensionRankHitsPanel
+                                rankHits={pensionBacktestDiagnostics.rankHits}
+                                expected={pensionBacktestDiagnostics.baseline.theoretical.expectedHitDistribution}
+                                totalSets={pensionBacktestDiagnostics.totalGeneratedSets}
+                            />
 
                             <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5">
                                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -223,7 +236,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">성향 성과 분석</p>
                                         <h3 className="mt-1 text-lg font-extrabold text-ink">추천 성향별 백테스트 성과</h3>
                                     </div>
-                                    <p className="text-xs text-ink-soft sm:text-sm">추천 성향별 정확 일치 성과를 비교합니다.</p>
+                                    <p className="text-xs text-ink-soft sm:text-sm">추천 성향별 끝자리 연속 일치 성과를 비교합니다.</p>
                                 </div>
                                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                     {pensionBacktestDiagnostics.ruleDiagnostics.performance.map((item) => (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Info, Search, Sparkles, Waves } from 'lucide-react';
 import { Ball, BonusBadge } from '../components/Ball';
-import { RulePerformanceCard, RuleWeightCard, ZScoreBadge } from '../components/diagnostics';
+import { RulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
 import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
 import { formatMoneyKRW } from '../format';
@@ -291,35 +291,7 @@ function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
                             </div>
                         </div>
 
-                        <div className="mt-5 border-2 border-ink bg-card p-4 sm:p-5">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                <div>
-                                    <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">랜덤 대비 유의성</p>
-                                    <h3 className="mt-1 text-lg font-extrabold text-ink">기준선 0.800 비교</h3>
-                                </div>
-                                <p className="text-xs text-ink-soft sm:text-sm">6/45 초기하분포 기대값 0.8, 표준편차 {backtestDiagnostics.baseline.theoretical.matchStdPerSet.toFixed(3)}. |z| ≥ 1.96 이면 유의.</p>
-                            </div>
-                            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                <div className="stat-tile px-4 py-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="text-sm font-semibold text-ink">추천 알고리즘 전체</div>
-                                        <ZScoreBadge zScore={backtestDiagnostics.baseline.overall.zScore} />
-                                    </div>
-                                    <div className="mt-2 text-xs text-ink-soft">
-                                        평균 {backtestDiagnostics.averageMatchPerSet.toFixed(3)} · 95% CI {backtestDiagnostics.baseline.overall.ci95[0].toFixed(3)} ~ {backtestDiagnostics.baseline.overall.ci95[1].toFixed(3)}
-                                    </div>
-                                </div>
-                                <div className="stat-tile px-4 py-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="text-sm font-semibold text-ink">순수 랜덤 대조군</div>
-                                        <ZScoreBadge zScore={backtestDiagnostics.baseline.randomControl.zScore} />
-                                    </div>
-                                    <div className="mt-2 text-xs text-ink-soft">
-                                        평균 {backtestDiagnostics.baseline.randomControl.averageMatchPerSet.toFixed(3)} · 95% CI {backtestDiagnostics.baseline.randomControl.ci95[0].toFixed(3)} ~ {backtestDiagnostics.baseline.randomControl.ci95[1].toFixed(3)} · {backtestDiagnostics.baseline.randomControl.totalSets}세트
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <SignificancePanel data={backtestDiagnostics} description="6/45 초기하분포 기대값 0.8" digits={3} />
 
                         <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5">
                             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
