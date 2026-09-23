@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs';
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { resolve } from 'path';
 
 const DEPLOY_RETRY_COUNT = 3;
@@ -7,6 +7,22 @@ const DEPLOY_RETRY_DELAY_MS = 5000;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// stdio: 'inherit' 로는 wrangler 출력이 error.message 에 남지 않아 재시도 판정을 할 수 없다.
+// 출력을 화면에 그대로 흘려보내면서 모아 두었다가 실패 시 에러에 담는다.
+function runCaptured(command, env) {
+    return new Promise((resolvePromise, reject) => {
+        const child = spawn(command, { shell: true, env, stdio: ['inherit', 'pipe', 'pipe'] });
+        let output = '';
+        child.stdout.on('data', chunk => { process.stdout.write(chunk); output += chunk; });
+        child.stderr.on('data', chunk => { process.stderr.write(chunk); output += chunk; });
+        child.on('error', reject);
+        child.on('close', code => {
+            if (code === 0) resolvePromise();
+            else reject(new Error(`Command failed (exit ${code}): ${command}\n${output}`));
+        });
+    });
 }
 
 function shouldRetryDeploy(error) {
@@ -42,10 +58,7 @@ let lastError;
 
 for (let attempt = 1; attempt <= DEPLOY_RETRY_COUNT; attempt += 1) {
     try {
-        execSync('npm exec -- wrangler pages deploy dist --project-name=lotto-frontend --commit-dirty=true', {
-            stdio: 'inherit',
-            env: mergedEnv,
-        });
+        await runCaptured('npm exec -- wrangler pages deploy dist --project-name=lotto-frontend --commit-dirty=true', mergedEnv);
         lastError = undefined;
         break;
     } catch (error) {
