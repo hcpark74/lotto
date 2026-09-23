@@ -163,7 +163,8 @@ export function runPensionBacktest(
     bestHitDistribution,
     rankHits,
     ruleDiagnostics: {
-      currentWeights: buildPensionRuleWeights(newestFirst.slice(sorted.length - startIndex)),
+      // 현재 우선순위: /pension/generate 와 같은 입력(최신순 전체 회차)으로 계산한다. 백테스트 창 이전이 아니다.
+      currentWeights: buildPensionRuleWeights(newestFirst),
       performance: Array.from(rulePerf.values()).map((entry) => {
         // 규칙당 회차마다 1세트라 세트 간 독립으로 본다
         const significance = summarizeSignificance(entry.totalMatches, entry.generatedCount, PENSION_NULL_MODEL, DIGITS)

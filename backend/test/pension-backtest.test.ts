@@ -4,18 +4,18 @@ import { runPensionBacktest } from '../src/services/pension-backtest'
 import { createSeededRandom } from '../src/utils/random'
 
 describe('runPensionBacktest', () => {
-  it('규칙 가중치는 운영 추천처럼 최근 회차 기준으로 계산한다', () => {
-    // 학습 구간 30회 중 가장 오래된 6회만 공통 규칙을 통과하지 못하는 번호
+  it('현재 규칙 가중치는 운영 추천처럼 전체 데이터의 최신 회차 기준으로 계산한다', () => {
+    // 앞 30회는 균형형을 통과하는 번호, 마지막 20회는 공통 규칙을 통과하지 못하는 번호
     const rows = Array.from({ length: 50 }, (_, i) => ({
       draw_no: i + 1,
-      winning_number: i < 6 ? '000000' : '357246',
+      winning_number: i < 30 ? '357246' : '000000',
     }))
 
     const summary = runPensionBacktest(rows, 20)
     const balanced = summary.ruleDiagnostics.currentWeights.find((entry) => entry.ruleId === 'balanced-core')
 
-    // 최근 24회(7~30회)는 모두 균형형을 통과한다. 오래된 24회를 쓰면 18/24 = 0.75 가 된다.
-    expect(balanced?.passRate).toBe(1)
+    // 최신 24회(27~50회) 중 4회만 통과 → 4/24. 백테스트 창 이전(1~30회)으로 계산하면 1 이 된다.
+    expect(balanced?.passRate).toBe(0.167)
   })
 
   function pseudoRows(count: number, seed = 5) {

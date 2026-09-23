@@ -152,7 +152,8 @@ export function runLottoBacktest(
     hitDistribution,
     bestHitDistribution,
     ruleDiagnostics: {
-      currentWeights: buildRuleWeights(sorted.slice(0, startIndex)),
+      // 현재 우선순위: /generate 와 같은 입력(전체 회차)으로 계산한다. 백테스트 창 이전이 아니다.
+      currentWeights: buildRuleWeights(sorted),
       performance: Array.from(rulePerf.values()).map((entry) => {
         const significance = summarizeSignificance(entry.totalMatches, entry.generatedCount)
         const denominator = Math.max(entry.generatedCount, 1)
