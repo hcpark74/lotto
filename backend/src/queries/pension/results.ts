@@ -23,6 +23,15 @@ export async function getRecentPensionResultsQuery(db: D1Database, limit: number
   return results
 }
 
+// draw_no 이하에서 최신순 limit 개. 회차 브라우저가 "보는 회차부터 과거로" 창을 잡을 때 쓴다.
+export async function getPensionResultsUpToQuery(db: D1Database, drawNo: number, limit: number) {
+  const { results } = await db.prepare(
+    'SELECT draw_no, draw_date, winning_band, winning_number, bonus_number, synced_at FROM pension720_draws WHERE draw_no <= ? ORDER BY draw_no DESC LIMIT ?'
+  ).bind(drawNo, limit).all<Pension720ResultQueryRow>()
+
+  return results
+}
+
 export async function getRecentPensionWinningNumbersQuery(db: D1Database, limit: number) {
   const { results } = await db.prepare(
     'SELECT winning_number FROM pension720_draws ORDER BY draw_no DESC LIMIT ?'

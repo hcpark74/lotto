@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import {
   generatePensionSets,
   getPensionResultByDrawNo,
+  getPensionResultsUpTo,
   getRecentPensionResults,
   runPensionBacktestFromDb,
   syncPensionResults,
@@ -39,6 +40,11 @@ export function createPensionRoutes() {
 
         return c.json(row)
       }
+
+      // to=N 이면 N 회 이하에서 최신순 limit 개. 회차 브라우저가 창을 옮길 때 쓴다.
+      const to = parseDrawNoQuery(c.req.query('to'))
+      if (to === null) return badRequest(c, 'to 는 양의 정수여야 합니다.')
+      if (to !== undefined) return c.json(await getPensionResultsUpTo(c.env.DB, to, limit))
 
       return c.json(await getRecentPensionResults(c.env.DB, limit))
     }))

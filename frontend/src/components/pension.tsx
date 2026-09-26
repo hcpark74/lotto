@@ -3,13 +3,32 @@ import { PENSION_BAND_COLOR, PENSION_DIGIT_COLORS } from '../constants';
 import { formatDateTime } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet } from '../types';
 
-export function PensionDigitBall({ value, color }: { value: string; color: string }) {
+export function PensionDigitBall({ value, color, compact = false }: { value: string; color: string; compact?: boolean }) {
+    const size = compact
+        ? 'h-8 w-7 text-base'
+        : 'h-[clamp(42px,8.6vw,72px)] w-[clamp(36px,7.6vw,64px)] text-[clamp(18px,3.6vw,34px)]';
+
     return (
         <div
-            className="flex h-[clamp(42px,8.6vw,72px)] w-[clamp(36px,7.6vw,64px)] shrink-0 items-center justify-center rounded-[4px] border-2 border-ink font-mono text-[clamp(18px,3.6vw,34px)] font-bold text-ink shadow-brutal-sm"
+            className={`flex shrink-0 items-center justify-center rounded-[4px] border-2 border-ink font-mono font-bold text-ink shadow-brutal-sm ${size}`}
             style={{ background: color }}
         >
             {value}
+        </div>
+    );
+}
+
+// 목록 한 줄에 들어가는 조 + 6자리
+export function PensionNumberStrip({ draw }: { draw: PensionDrawResult }) {
+    const digits = draw.winning_number.padStart(6, '0').slice(-6).split('');
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <PensionDigitBall value={draw.winning_band} color={PENSION_BAND_COLOR} compact />
+            <span className="pr-0.5 text-xs font-medium text-ink-soft">조</span>
+            {digits.map((digit, index) => (
+                <PensionDigitBall key={index} value={digit} color={PENSION_DIGIT_COLORS[index]} compact />
+            ))}
         </div>
     );
 }
@@ -61,22 +80,47 @@ export function PensionNumberRow({
     );
 }
 
-export function PensionResultCard({ draw }: { draw: PensionDrawResult }) {
+export function PensionResultCard({
+    draw,
+    onOlder,
+    onNewer,
+    canGoOlder = false,
+    canGoNewer = false,
+}: {
+    draw: PensionDrawResult;
+    onOlder?: () => void;
+    onNewer?: () => void;
+    canGoOlder?: boolean;
+    canGoNewer?: boolean;
+}) {
     return (
         <div className="latest-feature-card px-5 py-7 sm:px-8 sm:py-9 lg:px-12 lg:py-12">
+            {/* 좌: 과거(회차 −1), 우: 최신 방향(회차 +1). 양 끝에서는 비활성. */}
             <div className="latest-feature-heading">
-                <div className="result-arrow-shell result-arrow-left">
-                    <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} />
-                </div>
+                <button
+                    type="button"
+                    onClick={onOlder}
+                    disabled={!canGoOlder}
+                    aria-label="이전 회차"
+                    className="result-arrow-shell result-arrow-left"
+                >
+                    <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
+                </button>
                 <div className="text-center">
                     <h2 className="text-[30px] font-extrabold tracking-[-0.05em] text-ink sm:text-[48px] lg:text-[56px]">
                     제 <span className="bg-lemon px-2">{draw.draw_no}</span>회 추첨 결과
                     </h2>
                     <p className="mt-3 text-base font-medium text-ink-soft sm:text-[18px]">{draw.draw_date} 추첨</p>
                 </div>
-                <div className="result-arrow-shell result-arrow-right text-ink-soft">
-                    <ChevronRight className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} />
-                </div>
+                <button
+                    type="button"
+                    onClick={onNewer}
+                    disabled={!canGoNewer}
+                    aria-label="다음 회차"
+                    className="result-arrow-shell result-arrow-right"
+                >
+                    <ChevronRight className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
+                </button>
             </div>
 
             <div className="result-divider mt-8 sm:mt-10" />

@@ -1,17 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import { describeDrawLookupError, fetchLottoResult, fetchLottoResults, fetchLottoResultsUpTo } from '../api';
+import {
+    describeDrawLookupError,
+    fetchLottoResult,
+    fetchLottoResults,
+    fetchLottoResultsUpTo,
+    fetchPensionResult,
+    fetchPensionResults,
+    fetchPensionResultsUpTo,
+} from '../api';
 import { parseDrawNo } from '../format';
-import type { DrawResult } from '../types';
+import type { DrawResult, PensionDrawResult } from '../types';
 
 // 목록 한 창에 보여줄 회차 수. 보는 회차를 맨 위에 두고 그 아래로 과거를 잇는다.
 export const WINDOW_SIZE = 10;
 
+// 로또·연금은 응답 필드 이름(drwNo / draw_no)과 엔드포인트만 다르다. 그 차이만 주입받는다.
+export type DrawBrowserApi<T> = {
+    fetchLatest: (limit: number) => Promise<T[]>;
+    fetchUpTo: (drawNo: number, limit: number) => Promise<T[]>;
+    fetchOne: (drawNo: number) => Promise<T>;
+    drawNoOf: (row: T) => number;
+};
+
 // 회차 브라우저: 뷰어 1개 + 그 회차를 따라 움직이는 목록.
 // 화살표·검색·목록 클릭이 모두 selected 하나만 바꾸고, 목록 창은 selected 를 따라간다.
-export function useDrawBrowser() {
+export function useDrawBrowser<T>(api: DrawBrowserApi<T>) {
     const [latestDrawNo, setLatestDrawNo] = useState<number | null>(null);
     const [selected, setSelected] = useState<number | null>(null);
-    const [cache, setCache] = useState<Map<number, DrawResult>>(new Map());
+    const [cache, setCache] = useState<Map<number, T>>(new Map());
     const [loading, setLoading] = useState(true);
     const [windowError, setWindowError] = useState('');
 
@@ -19,10 +35,10 @@ export function useDrawBrowser() {
     const [searchError, setSearchError] = useState('');
     const latestWindowRequest = useRef(0);
 
-    const merge = (rows: DrawResult[]) => {
+    const merge = (rows: T[]) => {
         setCache(prev => {
             const next = new Map(prev);
-            for (const row of rows) next.set(row.drwNo, row);
+            for (const row of rows) next.set(api.drawNoOf(row), row);
             return next;
         });
     };
@@ -33,10 +49,10 @@ export function useDrawBrowser() {
 
         (async () => {
             try {
-                const rows = await fetchLottoResults(WINDOW_SIZE);
+                const rows = await api.fetchLatest(WINDOW_SIZE);
                 if (cancelled) return;
                 merge(rows);
-                const latest = rows[0]?.drwNo ?? null;
+                const latest = rows[0] === undefined ? null : api.drawNoOf(rows[0]);
                 setLatestDrawNo(latest);
                 setSelected(latest);
             } catch {
@@ -62,7 +78,7 @@ export function useDrawBrowser() {
         const requestId = ++latestWindowRequest.current;
         (async () => {
             try {
-                const rows = await fetchLottoResultsUpTo(selected, WINDOW_SIZE);
+                const rows = await api.fetchUpTo(selected, WINDOW_SIZE);
                 if (requestId === latestWindowRequest.current) {
                     merge(rows);
                     setWindowError('');
@@ -96,14 +112,14 @@ export function useDrawBrowser() {
         if (cache.has(no)) { select(no); return; }
 
         try {
-            merge([await fetchLottoResult(no)]);
+            merge([await api.fetchOne(no)]);
             select(no);
         } catch (error) {
             setSearchError(describeDrawLookupError(error, no));
         }
     };
 
-    const windowRows: DrawResult[] = [];
+    const windowRows: T[] = [];
     if (selected !== null) {
         for (let no = selected; no > Math.max(selected - WINDOW_SIZE, 0); no--) {
             const row = cache.get(no);
@@ -127,3 +143,17 @@ export function useDrawBrowser() {
 }
 
 export type DrawBrowserState = ReturnType<typeof useDrawBrowser>;
+
+export const lottoBrowserApi: DrawBrowserApi<DrawResult> = {
+    fetchLatest: fetchLottoResults,
+    fetchUpTo: fetchLottoResultsUpTo,
+    fetchOne: fetchLottoResult,
+    drawNoOf: row => row.drwNo,
+};
+
+export const pensionBrowserApi: DrawBrowserApi<PensionDrawResult> = {
+    fetchLatest: fetchPensionResults,
+    fetchUpTo: fetchPensionResultsUpTo,
+    fetchOne: fetchPensionResult,
+    drawNoOf: row => row.draw_no,
+};

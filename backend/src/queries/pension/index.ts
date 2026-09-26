@@ -9,6 +9,7 @@ export {
 } from './history'
 export {
   getAllPensionBacktestRowsQuery,
+  getPensionResultsUpToQuery,
   getRecentPensionResultsQuery,
   getPensionPrizeCountsByDrawNoQuery,
   getPensionDataVersionQuery,

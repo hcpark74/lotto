@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { Search, Sparkles } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Search, Sparkles } from 'lucide-react';
 import { PensionHonestyPanel } from '../components/diagnostics';
-import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
+import { pensionBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
+import { FeaturedPensionRecommendationCard, PensionNumberStrip, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
@@ -16,22 +17,14 @@ const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
 
 export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabKey }) {
     const {
-        latestDraw: latestPensionDraw,
-        loading: pensionLoading,
-        error: pensionError,
         generateLoading: pensionGenerateLoading,
         generateError: pensionGenerateError,
-        searchInput: pensionSearchInput,
         recommendations: pensionRecommendations,
         backtest: pensionBacktestDiagnostics,
         backtestStatus: pensionBacktestStatus,
-        searchResult: pensionSearchResult,
-        searchError: pensionSearchError,
         generate: onPensionGenerate,
         loadBacktest: onPensionBacktestRefresh,
         ensureBacktest,
-        changeSearchInput: onPensionSearchInputChange,
-        search: onPensionSearch,
     } = pension;
 
     // 하단 고지 패널에 쓸 백테스트는 추천 탭에 들어올 때만 불러온다
@@ -43,60 +36,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
 
     return (
         <div className="space-y-6 lg:space-y-8">
-            {tab === 'results' && (
-            <>
-            <section>
-                <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-5">
-                    <div>
-                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">연금복권720+</p>
-                        <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">회차별 당첨번호</h2>
-                    </div>
-                    <p className="text-xs font-medium text-ink-soft sm:text-sm">당첨 결과는 매주 자동으로 갱신됩니다.</p>
-                </div>
-                {pensionLoading ? (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
-                ) : pensionError ? (
-                    <div className="panel bg-coral px-4 py-8 text-sm">{pensionError}</div>
-                ) : latestPensionDraw ? (
-                    <PensionResultCard draw={latestPensionDraw} />
-                ) : (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">아직 연금복권 당첨 결과가 없습니다. 당첨 결과는 매주 자동으로 갱신됩니다.</div>
-                )}
-            </section>
-
-            <section className="mt-5 lg:mt-6">
-                <SectionCard title="지난 회차 검색" eyebrow="연금복권 조회" icon={<Search className="h-5 w-5" />}> 
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <input
-                            type="number"
-                            min={1}
-                            value={pensionSearchInput}
-                            onChange={e => onPensionSearchInputChange(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && onPensionSearch()}
-                            placeholder="예: 306"
-                            className="input-brutal h-12 flex-1 px-4 text-sm"
-                        />
-                        <button
-                            onClick={onPensionSearch}
-                            className="btn-primary inline-flex h-12 items-center justify-center px-5 text-sm font-semibold transition sm:min-w-[120px]"
-                        >
-                            회차 조회
-                        </button>
-                    </div>
-
-                    <div className="mt-4 border-2 border-ink bg-paper p-4">
-                        {pensionSearchError ? (
-                            <p className="text-sm font-medium text-ink">{pensionSearchError}</p>
-                        ) : pensionSearchResult ? (
-                            <PensionResultCard draw={pensionSearchResult} />
-                        ) : (
-                            <p className="text-sm text-ink-soft">조회할 연금복권 회차를 입력하면 지난 회차 추첨 결과를 확인할 수 있습니다.</p>
-                        )}
-                    </div>
-                </SectionCard>
-            </section>
-            </>
-            )}
+            {tab === 'results' && <PensionResultsTab />}
 
             {tab === 'picks' && (
             <section>
@@ -144,5 +84,138 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
             )}
 
         </div>
+    );
+}
+
+// 로또 결과 화면과 같은 구조: 뷰어 1개 + 그 회차를 따라 움직이는 목록 1개
+function PensionResultsTab() {
+    const {
+        selectedDraw, windowRows, loading, windowError,
+        latestDrawNo, selected, canGoOlder, canGoNewer, select, shiftWindow,
+        searchInput, searchError, changeSearchInput, search,
+    } = useDrawBrowser(pensionBrowserApi);
+
+    const viewerRef = useRef<HTMLDivElement>(null);
+
+    const selectAndReveal = (drawNo: number) => {
+        select(drawNo);
+        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    const oldest = windowRows.length > 0 ? windowRows[windowRows.length - 1].draw_no : null;
+
+    return (
+        <>
+            <section ref={viewerRef}>
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-5">
+                    <div>
+                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">연금복권720+</p>
+                        <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">회차별 당첨번호</h2>
+                    </div>
+                    <p className="text-xs font-medium text-ink-soft sm:text-sm">
+                        {selected === latestDrawNo ? '최신 회차입니다. 당첨 결과는 매주 자동으로 갱신됩니다.' : `최신은 ${latestDrawNo}회입니다.`}
+                    </p>
+                </div>
+
+                {loading ? (
+                    <div className="panel px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
+                ) : selectedDraw ? (
+                    <PensionResultCard
+                        draw={selectedDraw}
+                        onOlder={() => select((selected ?? 0) - 1)}
+                        onNewer={() => select((selected ?? 0) + 1)}
+                        canGoOlder={canGoOlder}
+                        canGoNewer={canGoNewer}
+                    />
+                ) : (
+                    <div className="panel px-4 py-8 text-sm text-ink-soft">
+                        {windowError || '아직 연금복권 당첨 결과가 없습니다. 당첨 결과는 매주 자동으로 갱신됩니다.'}
+                    </div>
+                )}
+            </section>
+
+            <section className="mt-5 lg:mt-6">
+                <SectionCard
+                    title="회차 목록"
+                    eyebrow="지난 회차"
+                    icon={<Search className="h-5 w-5" />}
+                    action={
+                        <div className="flex w-full gap-2 sm:w-auto">
+                            <input
+                                type="number"
+                                min={1}
+                                max={latestDrawNo ?? undefined}
+                                value={searchInput}
+                                onChange={e => changeSearchInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && search()}
+                                placeholder={latestDrawNo ? `예: ${latestDrawNo}` : '회차'}
+                                aria-label="회차 검색"
+                                className="input-brutal h-10 w-full px-3 text-sm sm:w-28"
+                            />
+                            <button onClick={search} className="btn-primary inline-flex h-10 shrink-0 items-center justify-center px-4 text-sm font-semibold transition">
+                                이동
+                            </button>
+                        </div>
+                    }
+                >
+                    {searchError && <p className="mb-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{searchError}</p>}
+                    {windowError && <p className="mb-3 text-sm text-ink-soft">{windowError}</p>}
+
+                    {windowRows.length > 0 ? (
+                        <>
+                            <div className="history-table p-3 sm:p-4">
+                                <div className="space-y-2">
+                                {windowRows.map(draw => (
+                                    <button
+                                        type="button"
+                                        key={draw.draw_no}
+                                        onClick={() => selectAndReveal(draw.draw_no)}
+                                        aria-current={draw.draw_no === selected ? 'true' : undefined}
+                                        className={`history-row px-4 py-4 ${draw.draw_no === selected ? 'is-selected' : ''}`}
+                                    >
+                                        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[104px_1fr] lg:items-center">
+                                            <div>
+                                                <div className="text-sm font-semibold text-ink">
+                                                    {draw.draw_no}회
+                                                    {draw.draw_no === selected && <span className="ml-2 font-mono text-[10px] font-bold uppercase">보는 중</span>}
+                                                </div>
+                                                <div className="mt-1 text-xs text-ink-soft">{draw.draw_date}</div>
+                                            </div>
+                                            <PensionNumberStrip draw={draw} />
+                                        </div>
+                                    </button>
+                                ))}
+                                </div>
+                            </div>
+
+                            {/* 창은 보는 회차를 따라 움직인다. 좌=최신 방향, 우=과거 방향. */}
+                            <div className="mt-4 flex items-center justify-between gap-3 border-2 border-ink bg-paper px-4 py-3">
+                                <button
+                                    onClick={() => shiftWindow(WINDOW_SIZE)}
+                                    disabled={!canGoNewer}
+                                    aria-label="최신 방향으로 이동"
+                                    className="btn-icon"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                <span className="font-mono text-sm font-medium text-ink-soft">
+                                    {selected}회 ~ {oldest}회
+                                </span>
+                                <button
+                                    onClick={() => shiftWindow(-WINDOW_SIZE)}
+                                    disabled={!canGoOlder}
+                                    aria-label="과거 방향으로 이동"
+                                    className="btn-icon"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-sm text-ink-soft">표시할 회차가 아직 없습니다.</p>
+                    )}
+                </SectionCard>
+            </section>
+        </>
     );
 }

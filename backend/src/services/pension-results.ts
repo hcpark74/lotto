@@ -1,6 +1,7 @@
 import {
   getPensionPrizeCountsByDrawNoQuery,
   getPensionResultByDrawNoQuery,
+  getPensionResultsUpToQuery,
   getRecentPensionResultsQuery,
 } from '../queries/pension'
 import type {
@@ -22,4 +23,8 @@ export async function getPensionResultByDrawNo(db: D1Database, drawNo: number): 
 
 export async function getRecentPensionResults(db: D1Database, limit: number) {
   return getRecentPensionResultsQuery(db, limit)
+}
+
+export async function getPensionResultsUpTo(db: D1Database, drawNo: number, limit: number) {
+  return getPensionResultsUpToQuery(db, drawNo, limit)
 }

@@ -64,6 +64,10 @@ export const fetchPensionResults = (limit: number) =>
     request<unknown>(`/api/pension/results?limit=${limit}`)
         .then(data => (Array.isArray(data) ? data : data ? [data] : []) as PensionDrawResult[]);
 
+// draw_no 이하에서 최신순 limit 개
+export const fetchPensionResultsUpTo = (drawNo: number, limit: number) =>
+    request<unknown>(`/api/pension/results?to=${drawNo}&limit=${limit}`).then(data => toArray<PensionDrawResult>(data));
+
 export const fetchPensionResult = (drawNo: number) =>
     request<PensionDrawResult>(`/api/pension/results?drawNo=${drawNo}`);
 

@@ -6,7 +6,7 @@ import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
 import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
-import { useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
+import { lottoBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 
@@ -28,7 +28,7 @@ function LottoResultsTab() {
         selectedDraw, windowRows, loading, windowError,
         latestDrawNo, selected, canGoOlder, canGoNewer, select, shiftWindow,
         searchInput, searchError, changeSearchInput, search,
-    } = useDrawBrowser();
+    } = useDrawBrowser(lottoBrowserApi);
 
     const viewerRef = useRef<HTMLDivElement>(null);
 
