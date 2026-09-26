@@ -9,19 +9,26 @@
   --color-ink: #141414;
   --color-ink-soft: #4a4a4a;
 
-  /* 강조 3색 + 상태 */
+  /* 강조색 — 의미가 있는 셋만 (lemon: 가장 추천·CTA, mint/coral: 유의성) */
   --color-lemon: #ffd93d;
-  --color-sky: #7cc5ff;
   --color-coral: #ff6b6b;
   --color-mint: #8ce99a;
-  --color-grape: #c3a6ff;
 
-  /* 로또 공 5구간 — 동행복권 색 유지, 평면화 */
-  --color-ball-1: #ffd93d;
-  --color-ball-2: #5dadec;
-  --color-ball-3: #ff6b6b;
-  --color-ball-4: #b0b8c1;
-  --color-ball-5: #7cd67c;
+  /* 로또 공 5구간 — dhlottery.co.kr/lt645/result 의 .num-0n~.num-4n 실측값 (2026-09-26) */
+  --color-ball-1: #e08f00;  /* 1–10  */
+  --color-ball-2: #0063cc;  /* 11–20 */
+  --color-ball-3: #d8314f;  /* 21–30 */
+  --color-ball-4: #6e7382;  /* 31–40 */
+  --color-ball-5: #2c9e44;  /* 41–45 */
+
+  /* 연금복권 자릿수 6색 + 조 — dhlottery.co.kr/pt720/result 의 .wf-1n~.wf-6n 실측값 */
+  --color-wf-1: #de4c0e;
+  --color-wf-2: #f08200;
+  --color-wf-3: #f3c00f;
+  --color-wf-4: #2a9bdb;
+  --color-wf-5: #a87ad7;
+  --color-wf-6: #adb0ba;
+  --color-wf-band: #d9d9d9;
 
   /* 형태 */
   --radius-ctl: 4px;
@@ -220,7 +227,6 @@
   .btn-primary,
   .btn-secondary,
   .latest-feature-primary,
-  .latest-feature-secondary,
   .btn-icon {
     border: 2px solid var(--color-ink);
     border-radius: var(--radius-ctl);
@@ -236,8 +242,7 @@
     min-height: 44px;
   }
 
-  .latest-feature-primary,
-  .latest-feature-secondary {
+  .latest-feature-primary {
     min-height: 56px;
   }
 
@@ -247,7 +252,6 @@
   }
 
   .btn-secondary,
-  .latest-feature-secondary,
   .btn-icon {
     background: var(--color-card);
   }
@@ -263,8 +267,7 @@
 
   .btn-primary:hover:not(:disabled),
   .btn-secondary:hover:not(:disabled),
-  .latest-feature-primary:hover:not(:disabled),
-  .latest-feature-secondary:hover:not(:disabled) {
+  .latest-feature-primary:hover:not(:disabled) {
     transform: translate(-2px, -2px);
     box-shadow: var(--shadow-brutal-lg);
   }
@@ -276,8 +279,7 @@
 
   .btn-primary:active:not(:disabled),
   .btn-secondary:active:not(:disabled),
-  .latest-feature-primary:active:not(:disabled),
-  .latest-feature-secondary:active:not(:disabled) {
+  .latest-feature-primary:active:not(:disabled) {
     transform: translate(4px, 4px);
     box-shadow: none;
   }
@@ -290,7 +292,6 @@
   .btn-primary:disabled,
   .btn-secondary:disabled,
   .latest-feature-primary:disabled,
-  .latest-feature-secondary:disabled,
   .btn-icon:disabled {
     background: var(--color-paper);
     color: var(--color-ink-soft);
@@ -319,10 +320,8 @@
   }
 
   .chip-lemon { background: var(--color-lemon); }
-  .chip-sky   { background: var(--color-sky); }
   .chip-coral { background: var(--color-coral); }
   .chip-mint  { background: var(--color-mint); }
-  .chip-grape { background: var(--color-grape); }
 
   /* ── 입력 ─────────────────────────────────────────── */
   .input-brutal {
@@ -354,8 +353,6 @@
     border-right: 2px solid var(--color-ink);
   }
 
-  .meter-fill.mint { background: var(--color-mint); }
-  .meter-fill.sky  { background: var(--color-sky); }
 
   .meter-baseline {
     position: absolute;
@@ -461,7 +458,6 @@
   .btn-primary,
   .btn-secondary,
   .latest-feature-primary,
-  .latest-feature-secondary,
   .btn-icon {
     transition: none;
   }
@@ -510,8 +506,7 @@
     font-size: 12px;
   }
 
-  .latest-feature-primary,
-  .latest-feature-secondary {
+  .latest-feature-primary {
     min-height: 52px;
   }
 }

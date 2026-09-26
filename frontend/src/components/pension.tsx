@@ -1,12 +1,12 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { PENSION_DIGIT_COLORS, PENSION_DIGIT_COLORS_WITH_BAND } from '../constants';
+import { PENSION_BAND_COLOR, PENSION_DIGIT_COLORS } from '../constants';
 import { formatDateTime } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet } from '../types';
 
 export function PensionDigitBall({ value, color }: { value: string; color: string }) {
     return (
         <div
-            className="flex h-[clamp(50px,8.6vw,72px)] w-[clamp(44px,7.6vw,64px)] items-center justify-center rounded-[4px] border-2 border-ink font-mono text-[clamp(22px,3.6vw,34px)] font-bold text-ink shadow-brutal-sm"
+            className="flex h-[clamp(42px,8.6vw,72px)] w-[clamp(36px,7.6vw,64px)] shrink-0 items-center justify-center rounded-[4px] border-2 border-ink font-mono text-[clamp(18px,3.6vw,34px)] font-bold text-ink shadow-brutal-sm"
             style={{ background: color }}
         >
             {value}
@@ -29,31 +29,31 @@ export function PensionNumberRow({
     showBand?: boolean;
     prefixLabel?: string;
 }) {
-    const colors = PENSION_DIGIT_COLORS_WITH_BAND;
     const digits = number.padStart(6, '0').slice(-6).split('');
 
     return (
-        <div className="grid gap-5 border-t-2 border-ink py-6 lg:grid-cols-[1.05fr_1.55fr] lg:items-center lg:gap-12">
+        <div className="grid gap-5 py-6 lg:grid-cols-[1.05fr_1.55fr] lg:items-center lg:gap-12">
+            {/* 등위와 수령 조건을 두 줄로 나눠 1등·보너스 행의 높이를 맞춘다 */}
             <div className="text-center lg:text-left">
-                <div className="text-[24px] font-semibold tracking-[-0.04em] text-ink sm:text-[34px] lg:text-[38px]">
-                    {label} <span className="mx-1.5 text-ink-soft">|</span> {subtitle}
-                </div>
+                <div className="text-[24px] font-extrabold tracking-[-0.04em] text-ink sm:text-[30px] lg:text-[34px]">{label}</div>
+                <div className="mt-1 text-sm font-medium text-ink-soft sm:text-base lg:text-lg">{subtitle}</div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
+            {/* 오른쪽 정렬이라 두 행의 자릿수가 같은 열에 선다 */}
+            <div className="flex items-center justify-center gap-1.5 sm:gap-3.5 lg:justify-end">
                 {showBand && band ? (
-                    <div className="text-center">
-                        <PensionDigitBall value={band} color={colors[0]} />
-                        <div className="mt-2 text-sm font-medium text-ink-soft">조</div>
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                        <PensionDigitBall value={band} color={PENSION_BAND_COLOR} />
+                        <span className="pr-0.5 text-sm font-medium text-ink-soft sm:pr-1 sm:text-lg">조</span>
                     </div>
                 ) : prefixLabel ? (
-                    <div className="px-1 text-base font-medium text-ink-soft sm:text-lg">{prefixLabel}</div>
+                    <div className="shrink-0 pr-0.5 text-sm font-medium text-ink-soft sm:pr-1 sm:text-lg">{prefixLabel}</div>
                 ) : null}
                 {digits.map((digit, index) => (
                     <PensionDigitBall
                         key={`${label}-${index}`}
                         value={digit}
-                        color={colors[Math.min(index + (showBand ? 1 : 0), colors.length - 1)]}
+                        color={PENSION_DIGIT_COLORS[index]}
                     />
                 ))}
             </div>
@@ -81,7 +81,8 @@ export function PensionResultCard({ draw }: { draw: PensionDrawResult }) {
 
             <div className="result-divider mt-8 sm:mt-10" />
 
-            <div className="mt-8">
+            {/* 행 사이에만 구분선 — 위쪽 경계는 .result-divider 가 이미 그린다 */}
+            <div className="mt-2 divide-y-2 divide-ink">
                 <PensionNumberRow label="1등" subtitle="월 700만원 x 20년" band={draw.winning_band} number={draw.winning_number} />
                 <PensionNumberRow label="보너스" subtitle="월 100만원 x 10년" number={draw.bonus_number} showBand={false} prefixLabel="각조" />
             </div>
@@ -99,7 +100,7 @@ export function PensionRecommendationCard({ set }: { set: PensionRecommendationS
     return (
         <div className="recommend-card px-4 py-5 sm:px-6 sm:py-7">
             <div className="text-center">
-                <div className="chip chip-mint">
+                <div className="chip">
                     {set.label}
                 </div>
                 <h3 className="mt-4 text-xl font-extrabold tracking-[-0.03em] text-ink sm:text-[28px]">
@@ -113,7 +114,7 @@ export function PensionRecommendationCard({ set }: { set: PensionRecommendationS
                             </span>
                         ) : null}
                         {ruleName ? (
-                            <span className="chip chip-mint">
+                            <span className="chip">
                                 {ruleName}
                             </span>
                         ) : null}
@@ -123,8 +124,8 @@ export function PensionRecommendationCard({ set }: { set: PensionRecommendationS
 
             <div className="result-divider mt-7" />
 
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
-                <div className="px-1 text-base font-medium text-ink-soft sm:text-lg">각조</div>
+            <div className="mt-7 flex items-center justify-center gap-1.5 sm:gap-3.5">
+                <span className="shrink-0 pr-0.5 text-sm font-medium text-ink-soft sm:pr-1 sm:text-lg">각조</span>
                 {set.number.split('').map((digit, index) => {
                     const colors = PENSION_DIGIT_COLORS;
                     return <PensionDigitBall key={`${set.label}-${index}`} value={digit} color={colors[index]} />;
@@ -157,7 +158,7 @@ export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecomme
         <div className="recommend-card is-featured px-5 py-6 sm:px-7 sm:py-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <div className="chip chip-mint">
+                    <div className="chip">
                         대표 추천 1세트
                     </div>
                     <h3 className="mt-4 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-[32px]">
@@ -173,7 +174,7 @@ export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecomme
                             </span>
                         ) : null}
                         {ruleName ? (
-                            <span className="chip chip-mint">
+                            <span className="chip">
                                 {ruleName}
                             </span>
                         ) : null}
@@ -181,8 +182,8 @@ export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecomme
                 </div>
 
                 <div className="border-2 border-ink bg-card px-4 py-4 shadow-brutal-sm sm:px-5">
-                    <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5">
-                        <div className="px-1 text-base font-medium text-ink-soft sm:text-lg">각조</div>
+                    <div className="flex items-center justify-center gap-1.5 sm:gap-3.5">
+                        <span className="shrink-0 pr-0.5 text-sm font-medium text-ink-soft sm:pr-1 sm:text-lg">각조</span>
                         {set.number.split('').map((digit, index) => {
                             const colors = PENSION_DIGIT_COLORS;
                             return <PensionDigitBall key={`featured-${set.label}-${index}`} value={digit} color={colors[index]} />;

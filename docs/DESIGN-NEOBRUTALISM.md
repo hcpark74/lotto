@@ -49,7 +49,7 @@ v4 에서는 `@config` 지시어 없이는 읽히지 않는다(정의된 `lotto.
 | 공 | 광택 그라디언트 제거 → 평면색 + 잉크 테두리 + 오프셋 그림자. 동행복권 5구간 색은 유지 |
 
 로또 공이 이 서비스의 정체성이므로 **볼드함은 공과 CTA 에만** 쓰고 나머지는 흑백에 가깝게
-둔다. 배경·카드는 종이색/흰색, 강조는 lemon(CTA)·sky(연금)·coral(당첨금) 세 가지로 제한.
+둔다. 배경·카드는 종이색/흰색, 강조는 lemon(CTA)·mint/coral(유의성) 로 제한.
 
 ---
 
@@ -68,19 +68,18 @@ v4 에서는 `@config` 지시어 없이는 읽히지 않는다(정의된 `lotto.
   --color-ink-soft: #4a4a4a;
   --color-rule: #141414;          /* 테두리는 항상 잉크 */
 
-  /* 강조 3색 + 상태 */
-  --color-lemon: #ffd93d;         /* 주 CTA, 로또 */
-  --color-sky: #7cc5ff;           /* 연금복권 */
-  --color-coral: #ff6b6b;         /* 당첨금, 오류 */
+  /* 강조색 — 2026-09-26 정리: 의미가 있는 셋만 남겼다.
+     sky(연금)·grape(보조)는 정직하게 쓸 자리가 없어 제거했다. */
+  --color-lemon: #ffd93d;         /* 주 CTA, 가장 추천 1세트 */
+  --color-coral: #ff6b6b;         /* 오류, 유의(−) */
   --color-mint: #8ce99a;          /* 동기화 성공, 유의(+) */
-  --color-grape: #c3a6ff;         /* 보조 강조(백테스트) */
 
-  /* 로또 공 5구간 — 동행복권 색 유지, 평면화 */
-  --color-ball-1: #ffd93d;
-  --color-ball-2: #5dadec;
-  --color-ball-3: #ff6b6b;
-  --color-ball-4: #b0b8c1;
-  --color-ball-5: #7cd67c;
+  /* 로또 공 5구간 — 동행복권 공식색 (2026-09-26 실측, 아래 주석 참고) */
+  --color-ball-1: #e08f00;
+  --color-ball-2: #0063cc;
+  --color-ball-3: #d8314f;
+  --color-ball-4: #6e7382;
+  --color-ball-5: #2c9e44;
 
   /* 형태 */
   --radius-none: 0;
@@ -97,9 +96,27 @@ v4 에서는 `@config` 지시어 없이는 읽히지 않는다(정의된 `lotto.
 `--color-*` 를 정의하면 `bg-lemon`, `border-ink`, `text-ink-soft` 유틸리티가 자동 생성된다.
 `slate-*`, `emerald-*` 등 기본 팔레트는 남겨두되 App.tsx 에서는 쓰지 않는 방향.
 
-공 텍스트는 5구간 모두 **잉크색**으로 통일(현재는 흰색 + text-shadow). 명도 대비:
-lemon 13.4:1, sky(#5dadec) 7.6:1, coral 6.6:1, gray 9.2:1, green 10.3:1 — 전부 AA(4.5:1) 통과.
-칩 채움색(sky 9.9, mint 12.5, grape 9.0)과 `ink-soft`/paper 7.8 도 통과.
+### 번호 색은 동행복권 공식색을 쓴다 (2026-09-26 반영)
+
+로또 공과 연금 자릿수 색은 사용자가 이미 아는 데이터 표기라 임의로 정하지 않고
+`dhlottery.co.kr` 실측값을 쓴다. Playwright 로 계산 스타일을 읽어 채집했다.
+
+| 구간 | 공식 클래스 | 값 | 글자색 | 대비 |
+|---|---|---|---|---|
+| 1–10 | `.num-0n` | `#e08f00` | 잉크 | 7.10 |
+| 11–20 | `.num-1n` | `#0063cc` | 흰색 | 5.74 |
+| 21–30 | `.num-2n` | `#d8314f` | 흰색 | 4.70 |
+| 31–40 | `.num-3n` | `#6e7382` | 흰색 | 4.73 |
+| 41–45 | `.num-4n` | `#2c9e44` | 잉크 | 5.33 |
+
+연금복권 자릿수는 `.wf-1n`~`.wf-6n` = `#de4c0e` `#f08200` `#f3c00f` `#2a9bdb` `#a87ad7`
+`#adb0ba`, 조는 `#d9d9d9`. 원본은 흰 바탕 + 3px 색 테두리지만 여기서는 잉크 테두리 규칙을
+지키기 위해 **같은 색을 채움으로** 쓴다. 잉크 글자 대비 최저 4.51(`#de4c0e`)로 전부 AA 통과.
+
+**글자색을 구간마다 다르게 쓰는 이유**: 공식 사이트는 5구간 모두 흰 글자인데 주황 2.59,
+초록 3.45 로 AA(4.5:1) 미달이다. 색은 그대로 두고 글자색만 구간별로 대비가 높은 쪽을 쓴다.
+
+칩 채움색(mint 12.5, coral 6.6, lemon 13.4)과 `ink-soft`/paper 7.8 도 통과.
 
 ---
 
@@ -145,9 +162,12 @@ App.tsx 가 이미 `.panel`, `.btn-primary`, `.recommend-card`, `.header-nav-lin
     background: var(--color-card);
   }
   .chip-lemon { background: var(--color-lemon); }
-  .chip-sky   { background: var(--color-sky); }
   .chip-coral { background: var(--color-coral); }
   .chip-mint  { background: var(--color-mint); }
+
+  /* 칩 톤은 의미가 있을 때만 쓴다 (2026-09-26):
+     mint/coral = 유의성(ZScoreBadge) 전용, lemon = 가장 추천 1세트.
+     가중치·평균 일치·당첨금처럼 등급이 없는 값은 중립 칩(흰 배경)을 쓴다. */
 
   .header-nav { border: 2px solid var(--color-ink); border-radius: 0; padding: 0; background: var(--color-card); gap: 0; }
   .header-nav-link { border-radius: 0; color: var(--color-ink); }
@@ -162,8 +182,10 @@ App.tsx 가 이미 `.panel`, `.btn-primary`, `.recommend-card`, `.header-nav-lin
     background: var(--color-paper);
     padding: 8px 12px;
   }
-  .meter { height: 12px; border: 2px solid var(--color-ink); background: var(--color-card); }
-  .meter > div { height: 100%; background: var(--color-lemon); border-right: 2px solid var(--color-ink); }
+  .meter { height: 14px; border: 2px solid var(--color-ink); background: var(--color-card); }
+  .meter-fill { height: 100%; background: var(--color-lemon); border-right: 2px solid var(--color-ink); }
+  /* 랜덤 기준선. 스케일을 기준선의 2배로 잡아 left:50% 에 세운다 (BaselineMeter) */
+  .meter-baseline { position: absolute; top: -6px; bottom: -6px; border-left: 2px dashed var(--color-ink); }
 
   input[type="text"], input[type="number"] {
     border: 2px solid var(--color-ink); border-radius: var(--radius-ctl);
@@ -210,7 +232,7 @@ style={{
 | `text-slate-500` (71) | `text-ink-soft` |
 | `text-slate-900/950` (50) | `text-ink` |
 | `bg-emerald-50 text-emerald-700 rounded-full` 배지 | `chip chip-mint` |
-| `bg-sky-50 text-sky-700` 배지 | `chip chip-sky` |
+| `bg-sky-50 text-sky-700` 배지 | `chip` (중립) |
 | `bg-rose-50 text-rose-600` (1등 당첨금) | `chip chip-coral` |
 | `shadow-[0_20px_50px_…]`, `backdrop-blur-xl` (토스트) | `border-2 border-ink shadow-brutal` + `bg-mint` / `bg-coral` |
 | `bg-white/70`, `/80`, `/95` 반투명 | `bg-card` |
@@ -251,6 +273,8 @@ style={{
 - 진행바 → `meter`, 통계 타일 → `stat-tile`
 - 0.8 랜덤 기준선을 `meter` 위에 2px 점선 세로선으로 표시 (현재는 텍스트만)
 - `ZScoreBadge` 는 색만이 아니라 `chip` 채움 + 부호 기호(`▲ / ▼ / ＝`)로 상태 구분
+- 순수 랜덤 대조군은 정의상 무작위라 유의 판정이 의미 없다. 같은 배지를 `verdict={false}`
+  로 쓴다 — 형태·부호·크기는 형제와 같고 톤과 판정 라벨만 빼고 `우연 변동` 으로 적는다
 
 ### Phase 4 — 마무리
 

@@ -13,7 +13,7 @@ export function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: 
                     <div className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink">우선순위 {index + 1}</div>
                     <div className="mt-2 text-base font-semibold text-ink">{item.label}</div>
                 </div>
-                <div className="chip chip-mint">
+                <div className="chip">
                     가중치 {item.weight.toFixed(3)}
                 </div>
             </div>
@@ -29,7 +29,7 @@ export function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: 
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs text-ink-soft sm:text-sm">
+                <div className="grid gap-2 text-xs text-ink-soft sm:grid-cols-2 sm:text-sm">
                     <div className="stat-tile">
                         <div>공통+세트 통과</div>
                         <div className="mt-1 font-semibold text-ink">{(item.passRate * 100).toFixed(1)}%</div>
@@ -46,35 +46,62 @@ export function RuleWeightCard({ item, index }: { item: LottoRuleWeight; index: 
 
 // 검정이 하나면 |z| >= 1.96 (양측 5%). 규칙 여러 개를 동시에 볼 때는 threshold 에 Bonferroni 값을 넘긴다.
 // significant 를 넘기면 그 판정을 그대로 쓴다 (백엔드가 계산한 값).
-export function ZScoreBadge({ zScore, threshold = 1.96, significant: given }: { zScore: number; threshold?: number; significant?: boolean }) {
+// verdict={false} 는 대조군처럼 정의상 무작위라 유의 판정이 의미 없는 계열용이다.
+// 판정과 색은 빼되 형태·부호·크기는 같게 둬서 형제 배지와 나란히 읽힌다.
+export function ZScoreBadge({
+    zScore,
+    threshold = 1.96,
+    significant: given,
+    verdict = true,
+}: { zScore: number; threshold?: number; significant?: boolean; verdict?: boolean }) {
     const significant = given ?? Math.abs(zScore) >= threshold;
-    const tone = !significant ? '' : zScore > 0 ? 'chip-mint' : 'chip-coral';
+    const tone = verdict && significant ? (zScore > 0 ? 'chip-mint' : 'chip-coral') : '';
     const mark = !significant ? '＝' : zScore > 0 ? '▲' : '▼';
+    const label = verdict ? (significant ? '유의' : '랜덤 범위') : '우연 변동';
     return (
         <span className={`chip ${tone}`}>
-            {mark} z {zScore > 0 ? '+' : ''}{zScore.toFixed(2)} · {significant ? '유의' : '랜덤 범위'}
+            {mark} z {zScore > 0 ? '+' : ''}{zScore.toFixed(2)} · {label}
         </span>
     );
 }
 
-export function RulePerformanceCard({ item, threshold }: { item: LottoRulePerformance; threshold: number }) {
+// 평균 일치를 랜덤 기준선과 같은 자로 재는 미터. 기준선이 눈금 한가운데(50%)에 오도록
+// 스케일을 기준선의 2배로 잡는다 — 막대가 점선보다 길면 기준선 초과다.
+function BaselineMeter({ value, baseline, digits }: { value: number; baseline: number; digits: number }) {
+    const scale = baseline * 2;
+    const width = Math.min((value / scale) * 100, 100);
+
+    return (
+        <div className="mt-3">
+            <div className="mb-1 flex items-center justify-between text-[11px] text-ink-soft">
+                <span>평균 일치 {value.toFixed(digits)}</span>
+                <span>랜덤 기준선 {baseline.toFixed(digits)}</span>
+            </div>
+            <div className="meter">
+                <div className="meter-fill" style={{ width: `${Math.max(width, 2)}%` }} />
+                <div className="meter-baseline" style={{ left: '50%' }} />
+            </div>
+        </div>
+    );
+}
+
+export function RulePerformanceCard({ item, baseline, threshold }: { item: LottoRulePerformance; baseline: number; threshold: number }) {
     return (
         <div className="border-2 border-ink bg-card px-4 py-4 sm:px-5">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <div>
                     <div className="text-base font-semibold text-ink">{item.label}</div>
                     <div className="mt-1 text-xs text-ink-soft">생성 {item.generatedCount}회</div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                    <div className="chip chip-sky">
-                        평균 일치 {item.averageMatches.toFixed(3)}
-                    </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-col sm:items-end">
                     <ZScoreBadge zScore={item.zScore} threshold={threshold} />
                     <div className="text-[11px] text-ink-soft">95% CI {formatCi(item.ci95, 3)}</div>
                 </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-ink-soft sm:text-sm">
+            <BaselineMeter value={item.averageMatches} baseline={baseline} digits={3} />
+
+            <div className="mt-4 grid gap-2 text-xs text-ink-soft sm:grid-cols-3 sm:text-sm">
                 <div className="stat-tile">
                     <div>공통 규칙</div>
                     <div className="mt-1 font-semibold text-ink">{item.commonRulePassRate.toFixed(1)}%</div>
@@ -92,24 +119,23 @@ export function RulePerformanceCard({ item, threshold }: { item: LottoRulePerfor
     );
 }
 
-export function PensionRulePerformanceCard({ item, threshold }: { item: PensionRulePerformance; threshold: number }) {
+export function PensionRulePerformanceCard({ item, baseline, threshold }: { item: PensionRulePerformance; baseline: number; threshold: number }) {
     return (
         <div className="border-2 border-ink bg-card px-4 py-4 sm:px-5">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <div>
                     <div className="text-base font-semibold text-ink">{item.label}</div>
                     <div className="mt-1 text-xs text-ink-soft">생성 {item.generatedCount}회</div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                    <div className="chip chip-sky">
-                        평균 일치 {item.averageMatches.toFixed(4)}
-                    </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-col sm:items-end">
                     <ZScoreBadge zScore={item.zScore} threshold={threshold} />
                     <div className="text-[11px] text-ink-soft">95% CI {formatCi(item.ci95, 4)}</div>
                 </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-ink-soft sm:text-sm">
+            <BaselineMeter value={item.averageMatches} baseline={baseline} digits={4} />
+
+            <div className="mt-4 grid gap-2 text-xs text-ink-soft sm:grid-cols-2 sm:text-sm">
                 <div className="stat-tile">
                     <div>5등 이상 (끝 3자리+)</div>
                     <div className="mt-1 font-semibold text-ink">{item.match3PlusRate.toFixed(1)}%</div>
@@ -147,7 +173,7 @@ export function SignificancePanel({ data, description, digits }: { data: Signifi
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="stat-tile px-4 py-3">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="text-sm font-semibold text-ink">추천 알고리즘 전체</div>
                         <ZScoreBadge zScore={overall.zScore} significant={overall.significant} />
                     </div>
@@ -156,10 +182,10 @@ export function SignificancePanel({ data, description, digits }: { data: Signifi
                     </div>
                 </div>
                 <div className="stat-tile px-4 py-3">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="text-sm font-semibold text-ink">순수 랜덤 대조군</div>
-                        {/* 대조군은 정의상 무작위라 유의 판정은 의미가 없다. z 만 보여준다. */}
-                        <span className="chip">z {randomControl.zScore > 0 ? '+' : ''}{randomControl.zScore.toFixed(2)}</span>
+                        {/* 대조군은 정의상 무작위라 유의 판정은 하지 않는다 (verdict={false}). */}
+                        <ZScoreBadge zScore={randomControl.zScore} verdict={false} />
                     </div>
                     <div className="mt-2 text-xs text-ink-soft">
                         평균 {randomControl.averageMatchPerSet.toFixed(digits)} · 95% CI {formatCi(randomControl.ci95, digits)} · {randomControl.totalSets}세트

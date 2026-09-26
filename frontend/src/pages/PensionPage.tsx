@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ChevronRight, Info, Search, Sparkles } from 'lucide-react';
+import { Info, Search, Sparkles } from 'lucide-react';
 import { MultipleComparisonNote, PensionRankHitsPanel, PensionRulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
 import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
@@ -52,18 +52,13 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
             {tab === 'results' && (
             <>
             <section>
-                <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-5">
                     <div>
                         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">연금복권720+</p>
                         <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">회차별 당첨번호</h2>
                     </div>
-                    <div className="chip chip-sky text-sm">
-                        <span>{latestPensionDraw ? `${latestPensionDraw.draw_no}회` : '회차 선택'}</span>
-                        <ChevronRight className="h-4 w-4 rotate-90 text-ink-soft" />
-                    </div>
+                    <p className="text-xs font-medium text-ink-soft sm:text-sm">당첨 결과는 매주 자동으로 갱신됩니다.</p>
                 </div>
-
-                <p className="mb-3 text-right text-xs font-medium text-ink-soft sm:text-sm">당첨 결과는 매주 자동으로 갱신됩니다.</p>
                 {pensionLoading ? (
                     <div className="panel px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
                 ) : pensionError ? (
@@ -246,7 +241,12 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                 <MultipleComparisonNote count={pensionRuleCount} threshold={pensionRuleZThreshold} />
                                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                     {pensionBacktestDiagnostics.ruleDiagnostics.performance.map((item) => (
-                                        <PensionRulePerformanceCard key={`pension-perf-${item.ruleId}`} item={item} threshold={pensionRuleZThreshold} />
+                                        <PensionRulePerformanceCard
+                                            key={`pension-perf-${item.ruleId}`}
+                                            item={item}
+                                            baseline={pensionBacktestDiagnostics.baseline.theoretical.expectedMatchPerSet}
+                                            threshold={pensionRuleZThreshold}
+                                        />
                                     ))}
                                 </div>
                             </div>

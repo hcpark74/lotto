@@ -20,8 +20,9 @@ function App() {
         <div className="min-h-screen text-ink">
             <div className="app-shell relative overflow-hidden">
 
-                <header className="relative border-b-2 border-ink bg-card">
-                    <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-2.5 sm:px-6 sm:py-3 lg:px-8">
+                {/* 헤더와 본문은 같은 컨테이너(max-w-7xl + 동일 좌우 패딩)를 쓴다 */}
+                <header className="relative bg-card">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-2.5 sm:px-6 sm:py-3 lg:px-10">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-5">
                             <img
                                 src="/images/logo_dong.svg"
@@ -48,7 +49,7 @@ function App() {
                             </nav>
                         </div>
                     </div>
-                    <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+                    <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
                         <nav className="tab-nav" aria-label={`${activePage === 'lotto' ? '로또6/45' : '연금복권720+'} 메뉴`}>
                             {TABS.map(tab => (
                                 <button

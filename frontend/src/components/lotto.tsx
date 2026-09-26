@@ -108,14 +108,14 @@ export function DrawResultCard({
                         <ChevronRight className="h-7 w-7" strokeWidth={1.5} />
                     </div>
                 </div>
-                <div className="chip chip-mint">
+                <div className="chip">
                     {chipLabel}
                 </div>
                 <h3 className="mt-4 text-[28px] font-extrabold tracking-[-0.04em] text-ink sm:text-[42px]">
                     제 <span className="bg-lemon px-2">{draw.drwNo}</span>회 추첨 결과
                 </h3>
                 <p className="mt-3 text-base font-medium text-ink-soft sm:text-[18px]">{draw.drwNoDate} 추첨</p>
-                <div className="chip chip-coral mt-5 text-sm">
+                <div className="chip mt-5 text-sm">
                     1등 당첨금 {formatMoneyKRW(draw.firstWinamnt)}
                 </div>
             </div>
@@ -202,7 +202,7 @@ export function RecommendationCard({
                             </span>
                         ) : null}
                         {ruleName ? (
-                            <span className="chip chip-mint">
+                            <span className="chip">
                                 {ruleName}
                             </span>
                         ) : null}

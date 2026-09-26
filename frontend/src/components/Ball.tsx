@@ -1,11 +1,19 @@
-// 동행복권 구간색 1–10 / 11–20 / 21–30 / 31–40 / 41–45.
+// 동행복권 공식 구간색 1–10 / 11–20 / 21–30 / 31–40 / 41–45.
 // Tailwind v4 는 소스에서 참조된 @theme 변수만 CSS 로 내보내므로 템플릿 문자열 대신 리터럴로 나열한다.
-const BALL_COLORS = ['var(--color-ball-1)', 'var(--color-ball-2)', 'var(--color-ball-3)', 'var(--color-ball-4)', 'var(--color-ball-5)'];
-function getBallColor(num: number) {
-    return BALL_COLORS[Math.min(Math.ceil(num / 10), 5) - 1];
+// 글자색은 구간마다 대비가 높은 쪽을 쓴다 — 공식 사이트의 흰 글자는 주황(2.6:1)·초록(3.5:1)에서 AA 미달.
+const BALL_BANDS = [
+    { bg: 'var(--color-ball-1)', fg: 'var(--color-ink)' },
+    { bg: 'var(--color-ball-2)', fg: 'var(--color-card)' },
+    { bg: 'var(--color-ball-3)', fg: 'var(--color-card)' },
+    { bg: 'var(--color-ball-4)', fg: 'var(--color-card)' },
+    { bg: 'var(--color-ball-5)', fg: 'var(--color-ink)' },
+];
+function getBallBand(num: number) {
+    return BALL_BANDS[Math.min(Math.ceil(num / 10), 5) - 1];
 }
 
 export function Ball({ num, size = 'md', delay = 0 }: { num: number; size?: 'sm' | 'md' | 'responsive'; delay?: number }) {
+    const band = getBallBand(num);
     const dimensions = size === 'sm'
         ? { width: 36, height: 36, fontSize: 13 }
         : size === 'responsive'
@@ -26,10 +34,10 @@ export function Ball({ num, size = 'md', delay = 0 }: { num: number; size?: 'sm'
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 fontSize: dimensions.fontSize,
-                color: 'var(--color-ink)',
+                color: band.fg,
                 flexShrink: 0,
                 border: '2px solid var(--color-ink)',
-                background: getBallColor(num),
+                background: band.bg,
                 boxShadow: size === 'sm' ? 'var(--shadow-brutal-sm)' : '3px 3px 0 0 var(--color-ink)',
             }}
         >

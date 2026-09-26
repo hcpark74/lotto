@@ -62,7 +62,7 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
                 )}
             </section>
 
-            <section id="lookup-section" className="mt-5 grid gap-5 lg:mt-6 lg:grid-cols-[0.85fr_1.15fr]">
+            <section id="lookup-section" className="mt-5 grid items-start gap-5 lg:mt-6 lg:grid-cols-[0.85fr_1.15fr]">
                 <SectionCard title="회차 탐색" eyebrow="회차 조회" icon={<Search className="h-5 w-5" />}>
                     <div className="flex flex-col gap-3 sm:flex-row">
                         <input
@@ -118,7 +118,7 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
                                             </div>
 
                                             <div className="text-left lg:text-right">
-                                                <div className="chip chip-mint">
+                                                <div className="chip">
                                                     {formatMoneyKRW(draw.firstWinamnt)}
                                                 </div>
                                             </div>
@@ -154,7 +154,7 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
                 </SectionCard>
             </section>
 
-            <section className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <section className="mt-4 lg:mt-5">
                 <SectionCard title="번호 색상 안내" eyebrow="번호 안내" icon={<Waves className="h-5 w-5" />} bodyClassName="py-4 sm:py-4">
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                         {[1, 11, 21, 31, 41].map((n, i) => {
@@ -196,12 +196,9 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                 }
                 accent="soft"
             >
-                <div className="mb-3 flex items-center justify-end">
-                    <div className="chip chip-mint">5개 조합</div>
-                </div>
-
                 <p className="mb-3 text-sm text-ink-soft">
                     전체 이력과 최근 출현 흐름을 함께 반영하고, 최근 당첨 패턴에 맞는 규칙을 더 먼저 시도합니다.
+                    한 번에 <span className="font-semibold text-ink">5개 조합</span>을 만듭니다.
                 </p>
 
                 {ruleWeights.length > 0 && (
@@ -324,7 +321,12 @@ function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
                             <MultipleComparisonNote count={ruleCount} threshold={ruleZThreshold} />
                             <div className="mt-4 grid gap-3 lg:grid-cols-2">
                                 {backtestDiagnostics.ruleDiagnostics.performance.map((item) => (
-                                    <RulePerformanceCard key={item.ruleId} item={item} threshold={ruleZThreshold} />
+                                    <RulePerformanceCard
+                                        key={item.ruleId}
+                                        item={item}
+                                        baseline={backtestDiagnostics.baseline.theoretical.expectedMatchPerSet}
+                                        threshold={ruleZThreshold}
+                                    />
                                 ))}
                             </div>
                         </div>
