@@ -14,7 +14,7 @@ export type RuleWeightDiagnostic = RuleWeight
 
 const COLS = ['drwtNo1', 'drwtNo2', 'drwtNo3', 'drwtNo4', 'drwtNo5', 'drwtNo6'] as const
 
-export const LOTTO_ALGORITHM_VERSION = 'v3.2'
+export const LOTTO_ALGORITHM_VERSION = 'v3.3'
 
 export const SET_CONFIGS: SetConfig[] = [
   {
@@ -62,6 +62,13 @@ const COLD_DRAW_COUNT = 15
 const AGE_BONUS_WINDOW = 10
 const MAX_PICK_ATTEMPTS = 300
 const RULE_WEIGHT_LOOKBACK = 24
+// 세트 5개가 같은 weights 를 쓰면 같은 "핫 넘버"로 몰려 30칸 중 22칸만 쓴다.
+// 앞 세트가 쓴 번호의 가중치를 이만큼으로 낮춰 5장의 커버리지를 넓힌다.
+// 1 이면 기존 동작. 값은 백테스트로 정했다 (docs/PLAN.md "세트 간 번호 분산").
+// 0.05 에서 회차 최고 일치가 이론 상한(1.835)에 닿고, 더 낮춰도 나아지지 않는다.
+export const CROSS_SET_PENALTY = 0.05
+// 페널티가 적용된 번호는 기본 하한(0.02)보다 아래로 내려갈 수 있어야 한다
+const PENALIZED_MIN_WEIGHT = 0.001
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -247,6 +254,17 @@ function pickWeightedNumbers(weights: { num: number; weight: number }[], random:
   return Array.from(picked).sort((a, b) => a - b)
 }
 
+// 앞 세트들이 이미 쓴 번호의 가중치를 낮춘 사본을 만든다. 완전히 빼지 않는 이유는
+// 세트 규칙(끝수 균형·구간 분포 등)을 만족할 후보가 남아 있어야 하기 때문이다.
+function penalizeUsed(weights: { num: number; weight: number }[], used: Set<number>, penalty: number) {
+  if (used.size === 0 || penalty >= 1) return weights
+  return weights.map((entry) => (
+    used.has(entry.num)
+      ? { num: entry.num, weight: Math.max(entry.weight * penalty, PENALIZED_MIN_WEIGHT) }
+      : entry
+  ))
+}
+
 function pickSet(config: SetConfig, weights: { num: number; weight: number }[], ruleWeight: number, random: RandomSource): GeneratedSet {
   for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
     const numbers = pickWeightedNumbers(weights, random)
@@ -273,7 +291,11 @@ function pickSet(config: SetConfig, weights: { num: number; weight: number }[], 
   return buildFallbackSet(random, config.label, config.id, ruleWeight)
 }
 
-export function buildGeneratedSets(draws: DrawNumbersRow[], random: RandomSource = Math.random): GeneratedSet[] {
+export function buildGeneratedSets(
+  draws: DrawNumbersRow[],
+  random: RandomSource = Math.random,
+  crossSetPenalty: number = CROSS_SET_PENALTY,
+): GeneratedSet[] {
   if (draws.length === 0) {
     return SET_CONFIGS.map(({ label, id, baseWeight }) => buildFallbackSet(random, label, id, baseWeight))
   }
@@ -282,10 +304,21 @@ export function buildGeneratedSets(draws: DrawNumbersRow[], random: RandomSource
   const ruleWeights = buildRuleWeights(draws)
   const weightMap = new Map(ruleWeights.map((entry) => [entry.ruleId, entry.weight]))
 
+  // 가중치 높은 규칙부터 순차 생성한다. 뒤 세트일수록 앞이 쓴 번호를 피한다.
+  const used = new Set<number>()
   return SET_CONFIGS
     .slice()
     .sort((a, b) => (weightMap.get(b.id) ?? b.baseWeight) - (weightMap.get(a.id) ?? a.baseWeight))
-    .map((config) => pickSet(config, weights, weightMap.get(config.id) ?? config.baseWeight, random))
+    .map((config) => {
+      const set = pickSet(
+        config,
+        penalizeUsed(weights, used, crossSetPenalty),
+        weightMap.get(config.id) ?? config.baseWeight,
+        random,
+      )
+      for (const num of set.numbers) used.add(num)
+      return set
+    })
 }
 
 export function countMatches(picked: number[], draw: DrawNumbersRow) {

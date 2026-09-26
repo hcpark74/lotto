@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Info, Search, Sparkles, Waves } from 'lucide-react';
 import { Ball, BonusBadge } from '../components/Ball';
-import { MultipleComparisonNote, RulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
+import { LottoHonestyPanel } from '../components/diagnostics';
 import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
 import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
-import { bonferroniZ } from '../stats';
 
 const PAGE_SIZE = 5;
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
@@ -20,7 +19,6 @@ const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
 
 export function LottoPage({ lotto, tab }: { lotto: LottoState; tab: TabKey }) {
     if (tab === 'picks') return <LottoPicksTab lotto={lotto} />;
-    if (tab === 'backtest') return <LottoBacktestTab lotto={lotto} />;
     return <LottoResultsTab lotto={lotto} />;
 }
 
@@ -176,7 +174,19 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
 }
 
 function LottoPicksTab({ lotto }: { lotto: LottoState }) {
-    const { sets, ruleWeights, generateError, generating: loading, generate: generateNumbers } = lotto;
+    const {
+        sets,
+        generateError,
+        generating: loading,
+        generate: generateNumbers,
+        backtest,
+        ensureBacktest,
+    } = lotto;
+
+    // 하단 고지 패널에 쓸 백테스트는 추천 탭에 들어올 때만 불러온다
+    useEffect(() => {
+        ensureBacktest();
+    }, []);
 
     return (
         <section>
@@ -201,24 +211,6 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                     한 번에 <span className="font-semibold text-ink">5개 조합</span>을 만듭니다.
                 </p>
 
-                {ruleWeights.length > 0 && (
-                    <div className="mb-4 border-2 border-ink bg-paper p-4 sm:p-5">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                            <div>
-                                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink">규칙 가중치 분석</p>
-                                <h3 className="mt-1 text-lg font-extrabold text-ink">최근 24회 기준 추천 규칙 우선순위</h3>
-                            </div>
-                            <p className="text-xs text-ink-soft sm:text-sm">점수가 높은 규칙을 먼저 적용해 추천 세트를 만듭니다.</p>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                            {ruleWeights.map((item, index) => (
-                                <RuleWeightCard key={item.ruleId} item={item} index={index} />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
                 {generateError ? (
                     <div className="panel bg-coral px-4 py-8 text-center text-sm font-medium">{generateError}</div>
                 ) : sets.length > 0 ? (
@@ -235,108 +227,8 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                     </div>
                 )}
             </SectionCard>
-        </section>
-    );
-}
 
-function LottoBacktestTab({ lotto }: { lotto: LottoState }) {
-    const {
-        backtest: backtestDiagnostics,
-        backtestStatus,
-        loadBacktest: loadBacktestDiagnostics,
-        ensureBacktest,
-    } = lotto;
-
-    useEffect(() => {
-        ensureBacktest();
-    }, []);
-
-    // 규칙별 z 는 규칙 수만큼 동시에 검정하므로 Bonferroni 기준을 쓴다
-    const ruleCount = backtestDiagnostics?.ruleDiagnostics.performance.length ?? 0;
-    const ruleZThreshold = bonferroniZ(ruleCount);
-
-    return (
-        <section>
-            <SectionCard
-                title="백테스트 규칙 진단"
-                eyebrow="알고리즘 진단"
-                icon={<Info className="h-5 w-5" />}
-                action={
-                    <button
-                        onClick={loadBacktestDiagnostics}
-                        disabled={backtestStatus === 'loading'}
-                        className="btn-secondary inline-flex h-10 items-center justify-center px-4 text-sm"
-                    >
-                        {backtestStatus === 'loading' ? '분석 중...' : '진단 새로고침'}
-                    </button>
-                }
-            >
-                {backtestDiagnostics ? (
-                    <>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <div className="stat-tile">
-                                <div className="text-xs text-ink-soft">평가 회차</div>
-                                <div className="mt-1 text-xl font-semibold text-ink">{backtestDiagnostics.evaluatedDraws}</div>
-                            </div>
-                            <div className="stat-tile">
-                                <div className="text-xs text-ink-soft">세트 평균 일치</div>
-                                <div className="mt-1 text-xl font-semibold text-ink">{backtestDiagnostics.averageMatchPerSet.toFixed(3)}</div>
-                                <div className="mt-1 text-[11px] text-ink-soft">랜덤 기대 {backtestDiagnostics.baseline.theoretical.expectedMatchPerSet.toFixed(3)}</div>
-                            </div>
-                            <div className="stat-tile">
-                                <div className="text-xs text-ink-soft">회차 최고 평균</div>
-                                <div className="mt-1 text-xl font-semibold text-ink">{backtestDiagnostics.averageBestMatchPerDraw.toFixed(3)}</div>
-                            </div>
-                            <div className="stat-tile">
-                                <div className="text-xs text-ink-soft">공통 규칙 통과율</div>
-                                <div className="mt-1 text-xl font-semibold text-ink">{backtestDiagnostics.generationQuality.commonRulePassRate.toFixed(1)}%</div>
-                            </div>
-                        </div>
-
-                        <SignificancePanel data={backtestDiagnostics} description="6/45 초기하분포 기대값 0.8" digits={3} />
-
-                        <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                <div>
-                                    <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink">백테스트 가중치</p>
-                                    <h3 className="mt-1 text-lg font-extrabold text-ink">현재 규칙 가중치</h3>
-                                </div>
-                                <p className="text-xs text-ink-soft sm:text-sm">최근 데이터로 계산한 현재 우선순위입니다.</p>
-                            </div>
-                            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                                {backtestDiagnostics.ruleDiagnostics.currentWeights.map((item, index) => (
-                                    <RuleWeightCard key={`backtest-${item.ruleId}`} item={item} index={index} />
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="mt-5 border-2 border-ink bg-card p-4 sm:p-5">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                <div>
-                                    <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">규칙 성과 분석</p>
-                                    <h3 className="mt-1 text-lg font-extrabold text-ink">규칙별 백테스트 성과</h3>
-                                </div>
-                                <p className="text-xs text-ink-soft sm:text-sm">규칙별 생성 결과와 폴백 비율입니다.</p>
-                            </div>
-                            <MultipleComparisonNote count={ruleCount} threshold={ruleZThreshold} />
-                            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                                {backtestDiagnostics.ruleDiagnostics.performance.map((item) => (
-                                    <RulePerformanceCard
-                                        key={item.ruleId}
-                                        item={item}
-                                        baseline={backtestDiagnostics.baseline.theoretical.expectedMatchPerSet}
-                                        threshold={ruleZThreshold}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="empty-state px-4 py-10 text-center text-sm text-ink-soft">
-                        {BACKTEST_EMPTY_TEXT[backtestStatus]}
-                    </div>
-                )}
-            </SectionCard>
+            {backtest && <LottoHonestyPanel data={backtest} />}
         </section>
     );
 }

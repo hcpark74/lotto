@@ -11,7 +11,7 @@ const { getBacktestCacheQuery, replaceBacktestCacheQuery } = await import('../sr
 const getCache = vi.mocked(getBacktestCacheQuery)
 const replaceCache = vi.mocked(replaceBacktestCacheQuery)
 const db = {} as D1Database
-const options = { kind: 'lotto', algorithm: 'v3.2', lookback: 300 }
+const options = { kind: 'lotto', algorithm: 'v3.3', lookback: 300 }
 const v1215 = { latest: 1215, count: 1215 }
 const readVersion = async () => v1215
 const computeWith = <T>(result: T, dataVersion = v1215) => async () => ({ result, dataVersion })
@@ -29,20 +29,20 @@ describe('withBacktestCache', () => {
 
     await expect(withBacktestCache(db, options, readVersion, compute)).resolves.toEqual({ cached: true })
     expect(compute).not.toHaveBeenCalled()
-    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c4:v3.2:1215:1215:300')
+    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c7:v3.3:1215:1215:300')
   })
 
   it('없으면 계산해서, 계산에 쓴 데이터 버전으로 저장한다', async () => {
     await expect(withBacktestCache(db, options, readVersion, computeWith({ value: 1 }))).resolves.toEqual({ value: 1 })
-    expect(replaceCache).toHaveBeenCalledWith(db, 'lotto', v1215, 'lotto:c4:v3.2:1215:1215:300', '{"value":1}')
+    expect(replaceCache).toHaveBeenCalledWith(db, 'lotto', v1215, 'lotto:c7:v3.3:1215:1215:300', '{"value":1}')
   })
 
   it('버전 조회와 계산 사이에 새 회차가 들어오면 새 데이터의 키로 저장한다', async () => {
     const v1216 = { latest: 1216, count: 1216 }
     await withBacktestCache(db, options, readVersion, computeWith({ value: 2 }, v1216))
 
-    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c4:v3.2:1215:1215:300')
-    expect(replaceCache).toHaveBeenCalledWith(db, 'lotto', v1216, 'lotto:c4:v3.2:1216:1216:300', '{"value":2}')
+    expect(getCache).toHaveBeenCalledWith(db, 'lotto:c7:v3.3:1215:1215:300')
+    expect(replaceCache).toHaveBeenCalledWith(db, 'lotto', v1216, 'lotto:c7:v3.3:1216:1216:300', '{"value":2}')
   })
 
   it('캐시 조회·저장이 실패해도 계산 결과를 돌려준다', async () => {

@@ -48,6 +48,16 @@ export function buildRandomNumbers(random: RandomSource = Math.random) {
   return Array.from(picked).sort((a, b) => a - b)
 }
 
+// 1~45 를 섞은 배열. 앞에서 6개씩 잘라 쓰면 번호가 겹치지 않는 세트 여러 개를 만들 수 있다.
+export function buildShuffledPool(random: RandomSource = Math.random) {
+  const pool = Array.from({ length: LOTTO_POOL_SIZE }, (_, i) => i + 1)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool
+}
+
 export type { SignificanceSummary } from './significance'
 
 const LOTTO_NULL_MODEL = { expected: LOTTO_EXPECTED_MATCHES, std: LOTTO_MATCH_STD }

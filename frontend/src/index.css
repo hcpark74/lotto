@@ -354,6 +354,15 @@
   }
 
 
+  /* 도달 가능한 상한 (번호가 하나도 겹치지 않을 때). 기준선 점선과 구분되게 실선으로 */
+  .meter-ceiling {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 0;
+    border-left: 2px solid var(--color-ink);
+  }
+
   .meter-baseline {
     position: absolute;
     top: -6px;

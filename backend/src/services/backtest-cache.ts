@@ -1,7 +1,8 @@
 import { type BacktestDataVersion, getBacktestCacheQuery, replaceBacktestCacheQuery } from '../queries/backtest-cache'
 
-// 캐시 형식이나 결과에 영향을 주는 코드가 바뀌었는데 알고리즘 버전은 그대로일 때 올린다
-const BACKTEST_CACHE_VERSION = 4
+// 캐시 형식이나 결과에 영향을 주는 코드가 바뀌었는데 알고리즘 버전은 그대로일 때 올린다.
+// 응답에 필드를 추가할 때도 올려야 한다 — 안 올리면 새 프론트가 옛 캐시(필드 없음)를 읽고 깨진다.
+const BACKTEST_CACHE_VERSION = 7
 
 export type { BacktestDataVersion }
 

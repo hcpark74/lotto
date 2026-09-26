@@ -90,6 +90,16 @@ export type LottoBacktestResponse = {
   totalGeneratedSets: number
   averageMatchPerSet: number
   averageBestMatchPerDraw: number
+  // 5장을 합쳐 실제로 몇 칸을 덮는가. 세트 간 번호가 겹치면 줄어든다.
+  coverage: {
+    averageDistinctNumbers: number
+    maxDistinctNumbers: number
+  }
+  // 회차마다 5세트 중 최고 일치가 k 이상이었던 비율 (세트 단위인 setHitRate 와 다르다)
+  drawHitRate: {
+    best3Plus: number
+    best4Plus: number
+  }
   baseline: {
     theoretical: {
       expectedMatchPerSet: number
@@ -100,9 +110,17 @@ export type LottoBacktestResponse = {
     randomControl: {
       totalSets: number
       averageMatchPerSet: number
+      averageBestMatchPerDraw: number
+      averageDistinctNumbers: number
+      best3PlusRate: number
       hitDistribution: Record<number, number>
       zScore: number
       ci95: ConfidenceInterval95
+    }
+    // 번호가 겹치지 않는 5세트(30개 전부 다름). 커버리지를 넓혔을 때의 상한선이다.
+    disjointControl: {
+      averageBestMatchPerDraw: number
+      best3PlusRate: number
     }
     overall: {
       zScore: number

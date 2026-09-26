@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
-import { Info, Search, Sparkles } from 'lucide-react';
-import { MultipleComparisonNote, PensionRankHitsPanel, PensionRulePerformanceCard, RuleWeightCard, SignificancePanel } from '../components/diagnostics';
+import { Search, Sparkles } from 'lucide-react';
+import { PensionHonestyPanel } from '../components/diagnostics';
 import { FeaturedPensionRecommendationCard, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
 import type { TabKey } from '../routing';
-import { bonferroniZ } from '../stats';
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
     idle: '연금복권 백테스트 진단을 준비하고 있습니다.',
@@ -24,7 +23,6 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
         generateError: pensionGenerateError,
         searchInput: pensionSearchInput,
         recommendations: pensionRecommendations,
-        ruleWeights: pensionRuleWeights,
         backtest: pensionBacktestDiagnostics,
         backtestStatus: pensionBacktestStatus,
         searchResult: pensionSearchResult,
@@ -36,14 +34,10 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
         search: onPensionSearch,
     } = pension;
 
-    // 백테스트는 진단 탭에 처음 들어갈 때만 불러온다
+    // 하단 고지 패널에 쓸 백테스트는 추천 탭에 들어올 때만 불러온다
     useEffect(() => {
-        if (tab === 'backtest') ensureBacktest();
+        if (tab === 'picks') ensureBacktest();
     }, [tab]);
-
-    // 규칙별 z 는 규칙 수만큼 동시에 검정하므로 Bonferroni 기준을 쓴다
-    const pensionRuleCount = pensionBacktestDiagnostics?.ruleDiagnostics.performance.length ?? 0;
-    const pensionRuleZThreshold = bonferroniZ(pensionRuleCount);
 
     const featuredRecommendation = pensionRecommendations[0] ?? null;
 
@@ -124,24 +118,6 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                         숫자 6개를 독립 추출한 뒤 공통 규칙을 통과시키고, 추천 성향별 규칙 세트로 여러 조합을 나눠 제안합니다.
                     </p>
 
-                    {pensionRuleWeights.length > 0 && (
-                        <div className="mb-4 border-2 border-ink bg-paper p-4 sm:p-5">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                <div>
-                                    <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink">추천 성향 분석</p>
-                                    <h3 className="mt-1 text-lg font-extrabold text-ink">최근 24회 기준 추천 성향 우선순위</h3>
-                                </div>
-                                <p className="text-xs text-ink-soft sm:text-sm">점수가 높은 추천 성향을 먼저 적용합니다.</p>
-                            </div>
-
-                            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                                {pensionRuleWeights.map((item, index) => (
-                                    <RuleWeightCard key={`pension-${item.ruleId}`} item={item} index={index} />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {featuredRecommendation && (
                         <div className="mb-4">
                             <FeaturedPensionRecommendationCard set={featuredRecommendation} />
@@ -162,103 +138,11 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                         </div>
                     )}
                 </SectionCard>
+
+                {pensionBacktestDiagnostics && <PensionHonestyPanel data={pensionBacktestDiagnostics} />}
             </section>
             )}
 
-            {tab === 'backtest' && (
-            <section>
-                <SectionCard
-                    title="백테스트 성향 진단"
-                    eyebrow="알고리즘 진단"
-                    icon={<Info className="h-5 w-5" />}
-                    action={
-                        <button
-                            onClick={onPensionBacktestRefresh}
-                            disabled={pensionBacktestStatus === 'loading'}
-                            className="btn-secondary inline-flex h-10 items-center justify-center px-4 text-sm"
-                        >
-                            {pensionBacktestStatus === 'loading' ? '분석 중...' : '진단 새로고침'}
-                        </button>
-                    }
-                >
-                    {pensionBacktestDiagnostics ? (
-                        <>
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="stat-tile">
-                                    <div className="text-xs text-ink-soft">평가 회차</div>
-                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.evaluatedDraws}</div>
-                                </div>
-                                <div className="stat-tile">
-                                    <div className="text-xs text-ink-soft">세트 수</div>
-                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.totalGeneratedSets}</div>
-                                </div>
-                                <div className="stat-tile">
-                                    <div className="text-xs text-ink-soft">세트 평균 끝자리 일치</div>
-                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.averageMatchPerSet.toFixed(4)}</div>
-                                    <div className="mt-1 text-[11px] text-ink-soft">랜덤 기대 {pensionBacktestDiagnostics.baseline.theoretical.expectedMatchPerSet.toFixed(4)}</div>
-                                </div>
-                                <div className="stat-tile">
-                                    <div className="text-xs text-ink-soft">회차 최고 평균</div>
-                                    <div className="mt-1 text-xl font-semibold text-ink">{pensionBacktestDiagnostics.averageBestMatchPerDraw.toFixed(4)}</div>
-                                </div>
-                            </div>
-
-                            <SignificancePanel
-                                data={pensionBacktestDiagnostics}
-                                description={`끝자리부터 연속 일치한 자리 수(0~6) 기준, 무작위 기대값 ${pensionBacktestDiagnostics.baseline.theoretical.expectedMatchPerSet.toFixed(4)}`}
-                                digits={4}
-                            />
-
-                            <PensionRankHitsPanel
-                                rankHits={pensionBacktestDiagnostics.rankHits}
-                                expected={pensionBacktestDiagnostics.baseline.theoretical.expectedHitDistribution}
-                                totalSets={pensionBacktestDiagnostics.totalGeneratedSets}
-                            />
-
-                            <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5">
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                    <div>
-                                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink">백테스트 성향 가중치</p>
-                                        <h3 className="mt-1 text-lg font-extrabold text-ink">현재 추천 성향 우선순위</h3>
-                                    </div>
-                                    <p className="text-xs text-ink-soft sm:text-sm">최근 데이터로 계산한 현재 우선순위입니다.</p>
-                                </div>
-                                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                                    {pensionBacktestDiagnostics.ruleDiagnostics.currentWeights.map((item, index) => (
-                                        <RuleWeightCard key={`pension-backtest-${item.ruleId}`} item={item} index={index} />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="mt-5 border-2 border-ink bg-card p-4 sm:p-5">
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                                    <div>
-                                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">성향 성과 분석</p>
-                                        <h3 className="mt-1 text-lg font-extrabold text-ink">추천 성향별 백테스트 성과</h3>
-                                    </div>
-                                    <p className="text-xs text-ink-soft sm:text-sm">추천 성향별 끝자리 연속 일치 성과를 비교합니다.</p>
-                                </div>
-                                <MultipleComparisonNote count={pensionRuleCount} threshold={pensionRuleZThreshold} />
-                                <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                                    {pensionBacktestDiagnostics.ruleDiagnostics.performance.map((item) => (
-                                        <PensionRulePerformanceCard
-                                            key={`pension-perf-${item.ruleId}`}
-                                            item={item}
-                                            baseline={pensionBacktestDiagnostics.baseline.theoretical.expectedMatchPerSet}
-                                            threshold={pensionRuleZThreshold}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="empty-state px-4 py-10 text-center text-sm text-ink-soft">
-                            {BACKTEST_EMPTY_TEXT[pensionBacktestStatus]}
-                        </div>
-                    )}
-                </SectionCard>
-            </section>
-            )}
         </div>
     );
 }
