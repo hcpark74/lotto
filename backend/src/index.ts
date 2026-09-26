@@ -31,7 +31,9 @@ export default {
   async scheduled(event: ScheduledEvent, env: Bindings, _ctx: ExecutionContext) {
     console.log(`Cron execution started (${event.cron})`)
 
-    // cron 은 매일 1개뿐이고 로또·연금을 모두 실행한다 (wrangler.toml).
+    // cron 이 여러 개지만 어느 것이든 로또·연금을 모두 실행한다 (wrangler.toml).
+    // 추첨이 없는 쪽은 최신 회차 확인 요청 하나로 끝나므로 cron 별로 나눌 이득이 없고,
+    // 나누면 cron 표현식 문자열에 코드가 묶여 wrangler.toml 을 고칠 때 조용히 어긋난다.
     // 한쪽이 실패해도 다른 쪽은 실행되게 allSettled.
     const jobs: [string, (db: D1Database) => Promise<void>][] = [
       ['lotto', runLottoCron],
