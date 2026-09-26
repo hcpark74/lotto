@@ -46,6 +46,10 @@ export const fetchLottoResults = (limit: number) =>
 export const fetchLottoResult = (drwNo: number) =>
     request<DrawResult>(`/api/results?drwNo=${drwNo}`);
 
+// drwNo 이하에서 최신순 limit 개
+export const fetchLottoResultsUpTo = (drwNo: number, limit: number) =>
+    request<unknown>(`/api/results?to=${drwNo}&limit=${limit}`).then(data => toArray<DrawResult>(data));
+
 export const generateLotto = () =>
     request<LottoGenerateResponse>('/api/generate', { method: 'POST' })
         .then(data => ({ sets: toArray<LottoSet>(data?.sets), ruleWeights: toArray<LottoRuleWeight>(data?.ruleWeights) }));

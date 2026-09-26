@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Info, Search, Sparkles, Waves } from 'lucide-react';
 import { Ball, BonusBadge } from '../components/Ball';
 import { LottoHonestyPanel } from '../components/diagnostics';
@@ -6,10 +6,11 @@ import { DrawResultCard, RecommendationCard } from '../components/lotto';
 import { SectionCard } from '../components/SectionCard';
 import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
+import { useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 
-const PAGE_SIZE = 5;
+
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
     idle: '백테스트 진단을 준비하고 있습니다.',
     loading: '백테스트 진단을 계산하고 있습니다.',
@@ -19,88 +20,98 @@ const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
 
 export function LottoPage({ lotto, tab }: { lotto: LottoState; tab: TabKey }) {
     if (tab === 'picks') return <LottoPicksTab lotto={lotto} />;
-    return <LottoResultsTab lotto={lotto} />;
+    return <LottoResultsTab />;
 }
 
-function LottoResultsTab({ lotto }: { lotto: LottoState }) {
+function LottoResultsTab() {
     const {
-        results,
-        resultsLoading,
-        searchInput,
-        searchResult,
-        searchError,
-        changeSearchInput,
-        search: searchDraw,
-    } = lotto;
-    const [page, setPage] = useState(0);
+        selectedDraw, windowRows, loading, windowError,
+        latestDrawNo, selected, canGoOlder, canGoNewer, select, shiftWindow,
+        searchInput, searchError, changeSearchInput, search,
+    } = useDrawBrowser();
 
-    const latestDraw = results[0] ?? null;
-    const totalPages = Math.ceil(Math.max(results.length - 1, 0) / PAGE_SIZE);
-    const pagedResults = results.slice(1).slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+    const viewerRef = useRef<HTMLDivElement>(null);
 
-    const scrollToLookupSection = () => {
-        document.getElementById('lookup-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 목록에서 회차를 고르면 뷰어가 화면 밖일 수 있다. 뷰어로 올려준다.
+    const selectAndReveal = (drwNo: number) => {
+        select(drwNo);
+        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
+
+    const oldest = windowRows.length > 0 ? windowRows[windowRows.length - 1].drwNo : null;
 
     return (
         <>
-            <section>
-                {resultsLoading ? (
+            <section ref={viewerRef}>
+                {loading ? (
                     <div className="panel px-4 py-8 text-sm text-ink-soft">데이터를 불러오는 중입니다...</div>
-                ) : latestDraw ? (
+                ) : selectedDraw ? (
                     <DrawResultCard
-                        draw={latestDraw}
-                        chipLabel={`최신 ${latestDraw.drwNo}회`}
+                        draw={selectedDraw}
+                        chipLabel={selectedDraw.drwNo === latestDrawNo ? `최신 ${selectedDraw.drwNo}회` : `${selectedDraw.drwNo}회`}
                         variant="latest"
-                        onDetailAction={scrollToLookupSection}
-                        statusText="당첨 결과는 매주 자동으로 갱신됩니다."
+                        statusText={
+                            selectedDraw.drwNo === latestDrawNo
+                                ? '최신 회차입니다. 당첨 결과는 매주 자동으로 갱신됩니다.'
+                                : `최신은 ${latestDrawNo}회입니다.`
+                        }
+                        onOlder={() => select((selected ?? 0) - 1)}
+                        onNewer={() => select((selected ?? 0) + 1)}
+                        canGoOlder={canGoOlder}
+                        canGoNewer={canGoNewer}
                     />
                 ) : (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">아직 당첨 결과가 없습니다. 당첨 결과는 매주 자동으로 갱신됩니다.</div>
+                    <div className="panel px-4 py-8 text-sm text-ink-soft">
+                        {windowError || '아직 당첨 결과가 없습니다. 당첨 결과는 매주 자동으로 갱신됩니다.'}
+                    </div>
                 )}
             </section>
 
-            <section id="lookup-section" className="mt-5 grid items-start gap-5 lg:mt-6 lg:grid-cols-[0.85fr_1.15fr]">
-                <SectionCard title="회차 탐색" eyebrow="회차 조회" icon={<Search className="h-5 w-5" />}>
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <input
-                            type="number"
-                            min={1}
-                            value={searchInput}
-                            onChange={e => changeSearchInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && searchDraw()}
-                            placeholder="예: 1158"
-                            className="input-brutal h-12 flex-1 px-4 text-sm"
-                        />
-                        <button
-                            onClick={searchDraw}
-                            className="btn-primary inline-flex h-12 items-center justify-center px-5 text-sm font-semibold transition sm:min-w-[120px]"
-                        >
-                            회차 조회
-                        </button>
-                    </div>
+            <section className="mt-5 lg:mt-6">
+                <SectionCard
+                    title="회차 목록"
+                    eyebrow="지난 회차"
+                    icon={<Search className="h-5 w-5" />}
+                    action={
+                        <div className="flex w-full gap-2 sm:w-auto">
+                            <input
+                                type="number"
+                                min={1}
+                                max={latestDrawNo ?? undefined}
+                                value={searchInput}
+                                onChange={e => changeSearchInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && search()}
+                                placeholder={latestDrawNo ? `예: ${latestDrawNo}` : '회차'}
+                                aria-label="회차 검색"
+                                className="input-brutal h-10 w-full px-3 text-sm sm:w-28"
+                            />
+                            <button onClick={search} className="btn-primary inline-flex h-10 shrink-0 items-center justify-center px-4 text-sm font-semibold transition">
+                                이동
+                            </button>
+                        </div>
+                    }
+                >
+                    {searchError && <p className="mb-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{searchError}</p>}
+                    {windowError && <p className="mb-3 text-sm text-ink-soft">{windowError}</p>}
 
-                    <div className="mt-4 border-2 border-ink bg-paper p-4">
-                        {searchError ? (
-                            <p className="text-sm font-medium text-ink">{searchError}</p>
-                        ) : searchResult ? (
-                            <DrawResultCard draw={searchResult} chipLabel="조회 결과" />
-                        ) : (
-                            <p className="text-sm text-ink-soft">회차 번호를 입력하면 당첨 번호와 1등 당첨금을 바로 확인할 수 있습니다.</p>
-                        )}
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="최근 회차 히스토리" eyebrow="최근 회차" icon={<ChevronRight className="h-5 w-5" />}>
-                    {results.length > 1 ? (
+                    {windowRows.length > 0 ? (
                         <>
                             <div className="history-table p-3 sm:p-4">
                                 <div className="space-y-2">
-                                {pagedResults.map(draw => (
-                                    <div key={draw.drwNo} className="history-row px-4 py-4">
-                                        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[88px_1fr_96px] lg:items-center">
+                                {windowRows.map(draw => (
+                                    <button
+                                        type="button"
+                                        key={draw.drwNo}
+                                        onClick={() => selectAndReveal(draw.drwNo)}
+                                        aria-current={draw.drwNo === selected ? 'true' : undefined}
+                                        className={`history-row px-4 py-4 ${draw.drwNo === selected ? 'is-selected' : ''}`}
+                                    >
+                                        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[104px_1fr_96px] lg:items-center">
                                             <div>
-                                                <div className="text-sm font-semibold text-ink">{draw.drwNo}회</div>
+                                                <div className="text-sm font-semibold text-ink">
+                                                    {draw.drwNo}회
+                                                    {draw.drwNo === selected && <span className="ml-2 font-mono text-[10px] font-bold uppercase">보는 중</span>}
+                                                </div>
                                                 <div className="mt-1 text-xs text-ink-soft">{draw.drwNoDate}</div>
                                             </div>
 
@@ -116,38 +127,39 @@ function LottoResultsTab({ lotto }: { lotto: LottoState }) {
                                             </div>
 
                                             <div className="text-left lg:text-right">
-                                                <div className="chip">
-                                                    {formatMoneyKRW(draw.firstWinamnt)}
-                                                </div>
+                                                <div className="chip">{formatMoneyKRW(draw.firstWinamnt)}</div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </button>
                                 ))}
                                 </div>
                             </div>
 
-                            {totalPages > 1 && (
-                                <div className="mt-4 flex items-center justify-between border-2 border-ink bg-paper px-4 py-3">
-                                    <button
-                                        onClick={() => setPage(p => Math.max(0, p - 1))}
-                                        disabled={page === 0}
-                                        className="btn-icon"
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </button>
-                                    <span className="text-sm font-medium text-ink-soft">{page + 1} / {totalPages}</span>
-                                    <button
-                                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                                        disabled={page >= totalPages - 1}
-                                        className="btn-icon"
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            )}
+                            {/* 창은 보는 회차를 따라 움직인다. 좌=최신 방향, 우=과거 방향. */}
+                            <div className="mt-4 flex items-center justify-between gap-3 border-2 border-ink bg-paper px-4 py-3">
+                                <button
+                                    onClick={() => shiftWindow(WINDOW_SIZE)}
+                                    disabled={!canGoNewer}
+                                    aria-label="최신 방향으로 이동"
+                                    className="btn-icon"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                <span className="font-mono text-sm font-medium text-ink-soft">
+                                    {selected}회 ~ {oldest}회
+                                </span>
+                                <button
+                                    onClick={() => shiftWindow(-WINDOW_SIZE)}
+                                    disabled={!canGoOlder}
+                                    aria-label="과거 방향으로 이동"
+                                    className="btn-icon"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
                         </>
                     ) : (
-                        <p className="text-sm text-ink-soft">표시할 과거 회차가 아직 없습니다.</p>
+                        <p className="text-sm text-ink-soft">표시할 회차가 아직 없습니다.</p>
                     )}
                 </SectionCard>
             </section>

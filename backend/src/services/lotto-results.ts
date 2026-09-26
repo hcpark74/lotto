@@ -1,4 +1,4 @@
-import { getLottoResultByDrawNoQuery, getRecentLottoResultsQuery } from '../queries/lotto'
+import { getLottoResultByDrawNoQuery, getLottoResultsUpToQuery, getRecentLottoResultsQuery } from '../queries/lotto'
 import type { LottoHistoryQueryRow } from '../types/lotto'
 
 export async function getLottoResultByDrawNo(db: D1Database, drwNo: number) {
@@ -7,4 +7,8 @@ export async function getLottoResultByDrawNo(db: D1Database, drwNo: number) {
 
 export async function getRecentLottoResults(db: D1Database, limit: number) {
   return getRecentLottoResultsQuery(db, limit)
+}
+
+export async function getLottoResultsUpTo(db: D1Database, drwNo: number, limit: number) {
+  return getLottoResultsUpToQuery(db, drwNo, limit)
 }

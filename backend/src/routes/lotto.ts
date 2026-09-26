@@ -3,6 +3,7 @@ import {
   generateLottoSetsFromDb,
   getHotNumbersFromDb,
   getLottoResultByDrawNo,
+  getLottoResultsUpTo,
   getRecentLottoResults,
   runLottoBacktestFromDb,
   syncLatestLottoResults,
@@ -33,6 +34,11 @@ export function createLottoRoutes() {
         if (!row) return notFound(c, '해당 회차 데이터가 없습니다.')
         return c.json(row)
       }
+
+      // to=N 이면 N 회 이하에서 최신순 limit 개. 회차 브라우저가 창을 옮길 때 쓴다.
+      const to = parseDrawNoQuery(c.req.query('to'))
+      if (to === null) return badRequest(c, 'to 는 양의 정수여야 합니다.')
+      if (to !== undefined) return c.json(await getLottoResultsUpTo(c.env.DB, to, limit))
 
       return c.json(await getRecentLottoResults(c.env.DB, limit))
     }))

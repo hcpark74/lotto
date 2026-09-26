@@ -7,14 +7,20 @@ export function DrawResultCard({
     draw,
     chipLabel,
     variant = 'default',
-    onDetailAction,
     statusText,
+    onOlder,
+    onNewer,
+    canGoOlder = false,
+    canGoNewer = false,
 }: {
     draw: DrawResult;
     chipLabel: string;
     variant?: 'default' | 'latest';
-    onDetailAction?: () => void;
     statusText?: string;
+    onOlder?: () => void;
+    onNewer?: () => void;
+    canGoOlder?: boolean;
+    canGoNewer?: boolean;
 }) {
     const numbers = [draw.drwtNo1, draw.drwtNo2, draw.drwtNo3, draw.drwtNo4, draw.drwtNo5, draw.drwtNo6];
     const oddCount = numbers.filter(num => num % 2 === 1).length;
@@ -37,17 +43,30 @@ export function DrawResultCard({
                     />
                 </div>
 
+                {/* 좌: 과거(회차 −1), 우: 최신 방향(회차 +1). 양 끝에서는 비활성. */}
                 <div className="latest-feature-heading mt-8 sm:mt-10">
-                    <div className="result-arrow-shell result-arrow-left">
-                        <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} />
-                    </div>
+                    <button
+                        type="button"
+                        onClick={onOlder}
+                        disabled={!canGoOlder}
+                        aria-label="이전 회차"
+                        className="result-arrow-shell result-arrow-left"
+                    >
+                        <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
+                    </button>
                     <div className="text-center">
                         <div className="text-[42px] font-extrabold tracking-[-0.05em] text-ink sm:text-[56px]">{draw.drwNo}회</div>
                         <div className="mt-1 text-[18px] font-medium text-ink-soft sm:text-[20px]">{draw.drwNoDate}</div>
                     </div>
-                    <div className="result-arrow-shell result-arrow-right text-ink-soft">
-                        <ChevronRight className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.5} />
-                    </div>
+                    <button
+                        type="button"
+                        onClick={onNewer}
+                        disabled={!canGoNewer}
+                        aria-label="다음 회차"
+                        className="result-arrow-shell result-arrow-right"
+                    >
+                        <ChevronRight className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
+                    </button>
                 </div>
 
                 <div className="result-divider mt-8 sm:mt-10" />
@@ -72,19 +91,7 @@ export function DrawResultCard({
                     </p>
                 </div>
 
-                {onDetailAction && (
-                    <div className="mt-10 sm:mt-12">
-                        <button
-                            type="button"
-                            onClick={onDetailAction}
-                            className="latest-feature-primary inline-flex min-h-14 w-full items-center justify-center px-3 text-[15px] font-semibold tracking-[-0.02em] transition sm:px-5 sm:text-lg"
-                        >
-                            회차 상세 보기
-                        </button>
-                    </div>
-                )}
-
-                <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-soft sm:mt-8 sm:text-base">
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-soft sm:mt-8 sm:text-base">
                     <span>보너스 {draw.bnusNo}</span>
                     <span className="text-ink-soft">/</span>
                     <span>번호 합계 {sum}</span>

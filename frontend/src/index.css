@@ -214,10 +214,6 @@
     border: 2px solid var(--color-ink);
   }
 
-  .history-row:hover {
-    background: var(--color-paper);
-  }
-
   .empty-state {
     border: 2px dashed var(--color-ink);
     background: var(--color-paper);
@@ -225,8 +221,6 @@
 
   /* ── 버튼 ─────────────────────────────────────────── */
   .btn-primary,
-  .btn-secondary,
-  .latest-feature-primary,
   .btn-icon {
     border: 2px solid var(--color-ink);
     border-radius: var(--radius-ctl);
@@ -238,20 +232,9 @@
   }
 
   .btn-primary,
-  .btn-secondary {
-    min-height: 44px;
-  }
-
-  .latest-feature-primary {
-    min-height: 56px;
-  }
 
   .btn-primary,
-  .latest-feature-primary {
-    background: var(--color-lemon);
-  }
 
-  .btn-secondary,
   .btn-icon {
     background: var(--color-card);
   }
@@ -265,9 +248,7 @@
     box-shadow: var(--shadow-brutal-sm);
   }
 
-  .btn-primary:hover:not(:disabled),
-  .btn-secondary:hover:not(:disabled),
-  .latest-feature-primary:hover:not(:disabled) {
+  .btn-primary:hover:not(:disabled) {
     transform: translate(-2px, -2px);
     box-shadow: var(--shadow-brutal-lg);
   }
@@ -277,9 +258,7 @@
     box-shadow: 3px 3px 0 0 var(--color-ink);
   }
 
-  .btn-primary:active:not(:disabled),
-  .btn-secondary:active:not(:disabled),
-  .latest-feature-primary:active:not(:disabled) {
+  .btn-primary:active:not(:disabled) {
     transform: translate(4px, 4px);
     box-shadow: none;
   }
@@ -290,8 +269,6 @@
   }
 
   .btn-primary:disabled,
-  .btn-secondary:disabled,
-  .latest-feature-primary:disabled,
   .btn-icon:disabled {
     background: var(--color-paper);
     color: var(--color-ink-soft);
@@ -320,8 +297,6 @@
   }
 
   .chip-lemon { background: var(--color-lemon); }
-  .chip-coral { background: var(--color-coral); }
-  .chip-mint  { background: var(--color-mint); }
 
   /* ── 입력 ─────────────────────────────────────────── */
   .input-brutal {
@@ -353,15 +328,7 @@
     border-right: 2px solid var(--color-ink);
   }
 
-
   /* 도달 가능한 상한 (번호가 하나도 겹치지 않을 때). 기준선 점선과 구분되게 실선으로 */
-  .meter-ceiling {
-    position: absolute;
-    top: -4px;
-    bottom: -4px;
-    width: 0;
-    border-left: 2px solid var(--color-ink);
-  }
 
   .meter-baseline {
     position: absolute;
@@ -389,6 +356,45 @@
     background: var(--color-card);
     box-shadow: var(--shadow-brutal-sm);
     color: var(--color-ink);
+    cursor: pointer;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+  }
+
+  .result-arrow-shell:hover:not(:disabled) {
+    background: var(--color-lemon);
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 0 var(--color-ink);
+  }
+
+  .result-arrow-shell:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+
+  .result-arrow-shell:disabled {
+    background: var(--color-paper);
+    color: var(--color-ink-soft);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  /* 목록 행: 클릭해서 뷰어를 옮긴다 */
+  .history-row {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+  }
+
+  .history-row:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: var(--shadow-brutal-sm);
+  }
+
+  .history-row.is-selected {
+    background: var(--color-lemon);
+    box-shadow: var(--shadow-brutal);
   }
 
   .latest-feature-heading {
@@ -465,8 +471,6 @@
   }
 
   .btn-primary,
-  .btn-secondary,
-  .latest-feature-primary,
   .btn-icon {
     transition: none;
   }
@@ -515,9 +519,6 @@
     font-size: 12px;
   }
 
-  .latest-feature-primary {
-    min-height: 52px;
-  }
 }
 
 @media (max-width: 420px) {
