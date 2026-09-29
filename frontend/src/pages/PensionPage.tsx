@@ -109,7 +109,7 @@ function PensionResultsTab() {
             <section ref={viewerRef}>
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-5">
                     <div>
-                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">연금복권720+</p>
+                        <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink-soft">연금복권720+</p>
                         <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">회차별 당첨번호</h2>
                     </div>
                     <p className="text-xs font-medium text-ink-soft sm:text-sm">
@@ -177,7 +177,7 @@ function PensionResultsTab() {
                                             <div>
                                                 <div className="text-sm font-semibold text-ink">
                                                     {draw.draw_no}회
-                                                    {draw.draw_no === selected && <span className="ml-2 font-mono text-[10px] font-bold uppercase">보는 중</span>}
+                                                    {draw.draw_no === selected && <span className="ml-2 font-mono text-2xs font-bold uppercase">보는 중</span>}
                                                 </div>
                                                 <div className="mt-1 text-xs text-ink-soft">{draw.draw_date}</div>
                                             </div>

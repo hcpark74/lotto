@@ -22,7 +22,7 @@ function App() {
 
                 {/* 헤더와 본문은 같은 컨테이너(max-w-7xl + 동일 좌우 패딩)를 쓴다 */}
                 <header className="relative bg-card">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-2.5 sm:px-6 sm:py-3 lg:px-10">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-2 sm:px-6 sm:py-3 lg:px-10">
                         <div className="flex min-w-0 items-center gap-3 sm:gap-5">
                             <img
                                 src="/images/logo_dong.svg"
@@ -72,7 +72,7 @@ function App() {
                         : <PensionPage pension={pension} tab={activeTab} />}
 
                     <section className="mt-5 lg:mt-6">
-                        <div className="panel flex flex-col gap-2 px-4 py-3 text-[13px] text-ink-soft sm:flex-row sm:items-start sm:px-5 sm:text-sm">
+                        <div className="panel flex flex-col gap-2 px-4 py-3 text-xs text-ink-soft sm:flex-row sm:items-start sm:px-5 sm:text-sm">
                             <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft sm:h-5 sm:w-5" />
                             <p className="leading-5 sm:leading-6">
                                 본 서비스는 과거 당첨 데이터를 바탕으로 정보를 정리하고 추천 번호를 제공하는 참고용 도구입니다. 당첨을 보장하지 않으며,

@@ -12,7 +12,7 @@ function RangeMeter({ value, low, high, format }: { value: number; low: number; 
             <div className="meter">
                 <div className="meter-fill" style={{ width: `${Math.max(clamped * 100, 2)}%` }} />
             </div>
-            <div className="flex justify-between font-mono text-[10px] text-ink-soft">
+            <div className="flex justify-between font-mono text-2xs text-ink-soft">
                 <span>랜덤 {format(low)}</span>
                 <span>상한 {format(high)}</span>
             </div>
@@ -40,7 +40,7 @@ function Row({ label, value, note, children }: { label: string; value: string; n
                 <span className="font-mono text-lg font-bold text-ink">{value}</span>
             </div>
             {children}
-            <p className="text-[11px] leading-4 text-ink-soft sm:text-xs">{note}</p>
+            <p className="text-2xs leading-4 text-ink-soft sm:text-xs">{note}</p>
         </div>
     );
 }
@@ -49,7 +49,7 @@ function PanelHead({ draws, note }: { draws: number; note: string }) {
     return (
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink">이 추천이 실제로 하는 일</p>
+                <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">이 추천이 실제로 하는 일</p>
                 <h3 className="mt-1 text-lg font-extrabold text-ink">최근 {draws}회 백테스트</h3>
             </div>
             <p className="text-xs text-ink-soft sm:text-sm">{note}</p>

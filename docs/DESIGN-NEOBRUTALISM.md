@@ -90,8 +90,30 @@ v4 에서는 `@config` 지시어 없이는 읽히지 않는다(정의된 `lotto.
 
   --font-sans: 'SUIT', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  /* 타입 스케일 (2026-09-29) — Tailwind 기본에 캡션 한 단만 더한다 */
+  --text-2xs: 0.6875rem;   /* 11px */
 }
 ```
+
+### 타입 스케일은 10단으로 고정한다
+
+`text-[42px]` 같은 임의값을 쓰지 않는다. 쓸 수 있는 단계는 다음뿐이다.
+
+| 단계 | 크기 | 용도 |
+|---|---|---|
+| `text-2xs` | 11px | eyebrow, 각주, 기준선 라벨 |
+| `text-xs` | 12px | 보조 설명, 날짜 |
+| `text-sm` | 14px | 본문 |
+| `text-base` | 16px | 본문 강조 |
+| `text-lg` | 18px | 카드 제목, 지표 값 |
+| `text-xl` | 20px | 추천 세트 제목(모바일) |
+| `text-2xl` | 24px | 화면 제목(모바일) |
+| `text-3xl` | 30px | 히어로 회차(모바일), 화면 제목 |
+| `text-4xl` | 36px | 당첨금(모바일) |
+| `text-5xl` | 48px | 히어로 회차·당첨금(데스크톱) |
+
+화면 크기별 대비는 `sm:` 한 번만 준다. 공(`Ball`)의 `clamp()` 는 연속 보간이라 예외다.
 
 `--color-*` 를 정의하면 `bg-lemon`, `border-ink`, `text-ink-soft` 유틸리티가 자동 생성된다.
 `slate-*`, `emerald-*` 등 기본 팔레트는 남겨두되 App.tsx 에서는 쓰지 않는 방향.

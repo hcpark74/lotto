@@ -25,7 +25,7 @@ export function SectionCard({
             <div className={`panel-head flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6 ${headerClassName}`.trim()}>
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        {eyebrow && <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">{eyebrow}</p>}
+                        {eyebrow && <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink-soft">{eyebrow}</p>}
                         <h2 className="mt-1 text-lg font-extrabold text-ink">{title}</h2>
                     </div>
                     {icon && <div className="panel-icon shrink-0 sm:hidden">{icon}</div>}

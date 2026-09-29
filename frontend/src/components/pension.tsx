@@ -55,7 +55,7 @@ export function PensionNumberRow({
         <div className="grid gap-5 py-6 lg:grid-cols-[1.05fr_1.55fr] lg:items-center lg:gap-12">
             {/* 등위와 수령 조건을 두 줄로 나눠 1등·보너스 행의 높이를 맞춘다 */}
             <div className="text-center lg:text-left">
-                <div className="text-[24px] font-extrabold tracking-[-0.04em] text-ink sm:text-[30px] lg:text-[34px]">{label}</div>
+                <div className="text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl lg:text-3xl">{label}</div>
                 <div className="mt-1 text-sm font-medium text-ink-soft sm:text-base lg:text-lg">{subtitle}</div>
             </div>
 
@@ -95,7 +95,7 @@ export function PensionResultCard({
     canGoNewer?: boolean;
 }) {
     return (
-        <div className="latest-feature-card px-5 py-7 sm:px-8 sm:py-9 lg:px-12 lg:py-12">
+        <div className="latest-feature-card px-5 py-7 sm:px-8 sm:py-8 lg:px-12 lg:py-12">
             {/* 좌: 과거(회차 −1), 우: 최신 방향(회차 +1). 양 끝에서는 비활성. */}
             <div className="latest-feature-heading">
                 <button
@@ -110,10 +110,10 @@ export function PensionResultCard({
                 <div className="text-center">
                     {/* 좁은 화면에서는 화살표가 양옆을 차지한다. 카드 위 제목이 "회차별 당첨번호"라
                         "추첨 결과"는 중복이므로 회차만 남겨 한 줄에 들어가게 한다. */}
-                    <h2 className="text-[26px] font-extrabold tracking-[-0.05em] text-ink sm:text-[44px] lg:text-[52px]">
+                    <h2 className="text-3xl font-extrabold tracking-[-0.05em] text-ink sm:text-5xl lg:text-5xl">
                         제 <span className="bg-lemon px-2">{draw.draw_no}</span>회
                     </h2>
-                    <p className="mt-2 text-sm font-medium text-ink-soft sm:mt-3 sm:text-[18px]">{draw.draw_date} 추첨</p>
+                    <p className="mt-2 text-sm font-medium text-ink-soft sm:mt-3 sm:text-lg">{draw.draw_date} 추첨</p>
                 </div>
                 <button
                     type="button"
@@ -150,7 +150,7 @@ export function PensionRecommendationCard({ set }: { set: PensionRecommendationS
                 <div className="chip">
                     {set.label}
                 </div>
-                <h3 className="mt-4 text-xl font-extrabold tracking-[-0.03em] text-ink sm:text-[28px]">
+                <h3 className="mt-4 text-xl font-extrabold tracking-[-0.03em] text-ink sm:text-3xl">
                     연금복권 추천번호
                 </h3>
                 {(set.meta.ruleWeight || ruleName) && (
@@ -202,13 +202,13 @@ export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecomme
     const ruleName = set.meta.ruleId ? set.label : null;
 
     return (
-        <div className="recommend-card is-featured px-5 py-6 sm:px-7 sm:py-7">
+        <div className="recommend-card is-featured px-5 py-6 sm:px-6 sm:py-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <div className="chip">
                         대표 추천 1세트
                     </div>
-                    <h3 className="mt-4 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-[32px]">
+                    <h3 className="mt-4 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">
                         {set.label}
                     </h3>
                     <p className="mt-2 text-sm text-ink-soft sm:text-base">

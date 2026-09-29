@@ -45,7 +45,7 @@ function LottoResultsTab() {
             <section ref={viewerRef}>
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-5">
                     <div>
-                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">로또6/45</p>
+                        <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink-soft">로또6/45</p>
                         <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">회차별 당첨번호</h2>
                     </div>
                     <p className="text-xs font-medium text-ink-soft sm:text-sm">
@@ -58,8 +58,6 @@ function LottoResultsTab() {
                 ) : selectedDraw ? (
                     <DrawResultCard
                         draw={selectedDraw}
-                        chipLabel={selectedDraw.drwNo === latestDrawNo ? `최신 ${selectedDraw.drwNo}회` : `${selectedDraw.drwNo}회`}
-                        variant="latest"
                         onOlder={() => select((selected ?? 0) - 1)}
                         onNewer={() => select((selected ?? 0) + 1)}
                         canGoOlder={canGoOlder}
@@ -115,7 +113,7 @@ function LottoResultsTab() {
                                             <div>
                                                 <div className="text-sm font-semibold text-ink">
                                                     {draw.drwNo}회
-                                                    {draw.drwNo === selected && <span className="ml-2 font-mono text-[10px] font-bold uppercase">보는 중</span>}
+                                                    {draw.drwNo === selected && <span className="ml-2 font-mono text-2xs font-bold uppercase">보는 중</span>}
                                                 </div>
                                                 <div className="mt-1 text-xs text-ink-soft">{draw.drwNoDate}</div>
                                             </div>
@@ -175,11 +173,11 @@ function LottoResultsTab() {
                         {[1, 11, 21, 31, 41].map((n, i) => {
                             const label = ['1-10', '11-20', '21-30', '31-40', '41-45'][i];
                             return (
-                                <div key={label} className="border-2 border-ink bg-paper px-2.5 py-3 text-center sm:px-3 sm:py-3.5">
+                                <div key={label} className="border-2 border-ink bg-paper px-3 py-3 text-center sm:px-3 sm:py-3">
                                     <div className="flex justify-center">
                                         <Ball num={n} size="sm" />
                                     </div>
-                                    <div className="mt-2 text-[11px] font-medium text-ink-soft sm:text-xs">{label}</div>
+                                    <div className="mt-2 text-2xs font-medium text-ink-soft sm:text-xs">{label}</div>
                                 </div>
                             );
                         })}

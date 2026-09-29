@@ -5,16 +5,12 @@ import type { DrawResult, LottoSet } from '../types';
 
 export function DrawResultCard({
     draw,
-    chipLabel,
-    variant = 'default',
     onOlder,
     onNewer,
     canGoOlder = false,
     canGoNewer = false,
 }: {
     draw: DrawResult;
-    chipLabel: string;
-    variant?: 'default' | 'latest';
     onOlder?: () => void;
     onNewer?: () => void;
     canGoOlder?: boolean;
@@ -24,8 +20,7 @@ export function DrawResultCard({
     const oddCount = numbers.filter(num => num % 2 === 1).length;
     const sum = numbers.reduce((total, num) => total + num, 0);
 
-    if (variant === 'latest') {
-        return (
+    return (
             <div className="latest-feature-card px-5 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
                 <div className="text-center">
                     <img
@@ -47,8 +42,8 @@ export function DrawResultCard({
                         <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
                     </button>
                     <div className="text-center">
-                        <div className="text-[34px] font-extrabold tracking-[-0.05em] text-ink sm:text-[56px]">{draw.drwNo}회</div>
-                        <div className="mt-1 text-sm font-medium text-ink-soft sm:text-[20px]">{draw.drwNoDate}</div>
+                        <div className="text-3xl font-extrabold tracking-[-0.05em] text-ink sm:text-5xl">{draw.drwNo}회</div>
+                        <div className="mt-1 text-sm font-medium text-ink-soft sm:text-xl">{draw.drwNoDate}</div>
                     </div>
                     <button
                         type="button"
@@ -63,7 +58,7 @@ export function DrawResultCard({
 
                 <div className="result-divider mt-5 sm:mt-10" />
 
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:mt-9 sm:gap-4 lg:gap-5">
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:mt-8 sm:gap-4 lg:gap-5">
                     {numbers.map((num, i) => (
                         <Ball key={i} num={num} size="responsive" delay={i * 20} />
                     ))}
@@ -77,8 +72,8 @@ export function DrawResultCard({
                 </div>
 
                 <div className="mt-7 text-center sm:mt-12">
-                    <p className="text-[16px] font-medium text-ink-soft sm:text-[18px]">1등 당첨금</p>
-                    <p className="mt-3 text-[36px] font-extrabold tracking-[-0.05em] text-ink sm:text-[54px]">
+                    <p className="text-base font-medium text-ink-soft sm:text-lg">1등 당첨금</p>
+                    <p className="mt-3 text-4xl font-extrabold tracking-[-0.05em] text-ink sm:text-5xl">
                         {formatMoneyKRW(draw.firstWinamnt)}
                     </p>
                 </div>
@@ -92,83 +87,6 @@ export function DrawResultCard({
                 </div>
             </div>
         );
-    }
-
-    return (
-        <div className="latest-draw-card px-5 py-6 sm:px-8 sm:py-9 lg:px-12 lg:py-10">
-            <div className="relative text-center">
-                <div className="pointer-events-none absolute left-0 top-1/2 hidden -translate-y-1/2 lg:flex">
-                    <div className="result-arrow-shell">
-                        <ChevronLeft className="h-7 w-7" strokeWidth={1.5} />
-                    </div>
-                </div>
-                <div className="pointer-events-none absolute right-0 top-1/2 hidden -translate-y-1/2 lg:flex">
-                    <div className="result-arrow-shell">
-                        <ChevronRight className="h-7 w-7" strokeWidth={1.5} />
-                    </div>
-                </div>
-                <div className="chip">
-                    {chipLabel}
-                </div>
-                <h3 className="mt-4 text-[28px] font-extrabold tracking-[-0.04em] text-ink sm:text-[42px]">
-                    제 <span className="bg-lemon px-2">{draw.drwNo}</span>회 추첨 결과
-                </h3>
-                <p className="mt-3 text-base font-medium text-ink-soft sm:text-[18px]">{draw.drwNoDate} 추첨</p>
-                <div className="chip mt-5 text-sm">
-                    1등 당첨금 {formatMoneyKRW(draw.firstWinamnt)}
-                </div>
-            </div>
-
-            <div className="result-divider mt-8" />
-
-            <div className="mt-8 flex flex-col items-center gap-5 lg:flex-row lg:items-end lg:justify-center lg:gap-10">
-                <div className="result-number-group">
-                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-                        {numbers.map((num, i) => (
-                            <Ball key={i} num={num} size="md" delay={i * 20} />
-                        ))}
-                    </div>
-                    <div className="result-label-row mt-5">
-                        <span className="result-label-line" />
-                        <span className="result-label-text">당첨번호</span>
-                        <span className="result-label-line" />
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-center gap-4 lg:gap-8">
-                    <span className="font-mono text-3xl font-bold text-ink sm:text-4xl">+</span>
-                    <div className="result-number-group">
-                        <div className="flex justify-center">
-                            <div className="relative">
-                                <Ball num={draw.bnusNo} size="md" />
-                                <BonusBadge />
-                            </div>
-                        </div>
-                        <div className="result-label-row mt-5">
-                            <span className="result-label-line short" />
-                            <span className="result-label-text">보너스번호</span>
-                            <span className="result-label-line short" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-8 grid gap-2 sm:grid-cols-3">
-                <div className="latest-draw-stat px-3 py-3">
-                    <div className="text-[11px] font-medium text-ink-soft">보너스 번호</div>
-                    <div className="mt-1 text-lg font-semibold text-ink">{draw.bnusNo}</div>
-                </div>
-                <div className="latest-draw-stat px-3 py-3">
-                    <div className="text-[11px] font-medium text-ink-soft">번호 합계</div>
-                    <div className="mt-1 text-lg font-semibold text-ink">{sum}</div>
-                </div>
-                <div className="latest-draw-stat px-3 py-3">
-                    <div className="text-[11px] font-medium text-ink-soft">홀수 개수</div>
-                    <div className="mt-1 text-lg font-semibold text-ink">{oddCount}</div>
-                </div>
-            </div>
-        </div>
-    );
 }
 
 export function RecommendationCard({
@@ -190,7 +108,7 @@ export function RecommendationCard({
                 <div className={`chip ${index === 0 ? 'chip-lemon' : ''}`}>
                     {index === 0 ? '가장 추천 · Set 1' : `추천 Set ${index + 1}`}
                 </div>
-                <h3 className="mt-4 text-xl font-extrabold tracking-[-0.03em] text-ink sm:text-[28px]">
+                <h3 className="mt-4 text-xl font-extrabold tracking-[-0.03em] text-ink sm:text-3xl">
                     {set.label}
                 </h3>
                 {(set.meta?.ruleWeight || ruleName) && (

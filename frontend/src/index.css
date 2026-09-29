@@ -38,6 +38,11 @@
 
   --font-sans: 'SUIT', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  /* 타입 스케일 — Tailwind 기본(xs 12 … 5xl 48)에 캡션용 한 단만 더한다.
+     text-[42px] 같은 임의값을 쓰지 않는다. 화면 크기별 대비는 sm: 한 단계로만 준다. */
+  --text-2xs: 0.6875rem;      /* 11px — eyebrow, 각주 */
+  --text-2xs--line-height: 1.5;
 }
 
 @layer base {
@@ -169,7 +174,6 @@
   /* ── 패널 · 카드 ───────────────────────────────────── */
   .panel,
   .recommend-card,
-  .latest-draw-card,
   .latest-feature-card,
   .history-table {
     background: var(--color-card);
@@ -203,7 +207,6 @@
     background: var(--color-card);
   }
 
-  .latest-draw-stat,
   .stat-tile {
     border: 2px solid var(--color-ink);
     background: var(--color-paper);
@@ -420,10 +423,6 @@
   .result-divider {
     height: 3px;
     background: var(--color-ink);
-  }
-
-  .result-number-group {
-    min-width: 0;
   }
 
   .result-label-row {
