@@ -14,14 +14,14 @@
   --color-coral: #ff6b6b;
   --color-mint: #8ce99a;
 
-  /* 로또 공 5구간 — dhlottery.co.kr/lt645/result 의 .num-0n~.num-4n 실측값 (2026-09-26) */
+  /* 로또 공 5구간 — dhlottery.co.kr/lt645/result 의 .num-0n~.num-4n 실측 (2026-09-30 재확인) */
   --color-ball-1: #e08f00;  /* 1–10  */
   --color-ball-2: #0063cc;  /* 11–20 */
   --color-ball-3: #d8314f;  /* 21–30 */
   --color-ball-4: #6e7382;  /* 31–40 */
   --color-ball-5: #2c9e44;  /* 41–45 */
 
-  /* 연금복권 자릿수 6색 + 조 — dhlottery.co.kr/pt720/result 의 .wf-1n~.wf-6n 실측값 */
+  /* 연금복권 자릿수 6색 + 조 — dhlottery.co.kr/pt720/result 의 .wf-1n~.wf-6n, .pension-jo 실측 (2026-09-30 재확인) */
   --color-wf-1: #de4c0e;
   --color-wf-2: #f08200;
   --color-wf-3: #f3c00f;
