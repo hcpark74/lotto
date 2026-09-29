@@ -6,11 +6,12 @@ import type { PensionDrawResult, PensionRecommendationSet } from '../types';
 export function PensionDigitBall({ value, color, compact = false }: { value: string; color: string; compact?: boolean }) {
     const size = compact
         ? 'h-8 w-7 text-base'
-        : 'h-[clamp(42px,8.6vw,72px)] w-[clamp(36px,7.6vw,64px)] text-[clamp(18px,3.6vw,34px)]';
+        // 360px 에서 조 + 6자리가 카드 안쪽 폭을 넘지 않도록 하한을 낮춘다
+        : 'h-[clamp(36px,8.6vw,72px)] w-[clamp(30px,7.6vw,64px)] text-[clamp(16px,3.6vw,34px)]';
 
     return (
         <div
-            className={`flex shrink-0 items-center justify-center rounded-[4px] border-2 border-ink font-mono font-bold text-ink shadow-brutal-sm ${size}`}
+            className={`flex shrink-0 items-center justify-center rounded-[4px] border-2 border-ink font-mono font-bold text-ink ${compact ? 'shadow-brutal-sm' : 'shadow-brutal'} ${size}`}
             style={{ background: color }}
         >
             {value}
@@ -107,10 +108,12 @@ export function PensionResultCard({
                     <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
                 </button>
                 <div className="text-center">
-                    <h2 className="text-[30px] font-extrabold tracking-[-0.05em] text-ink sm:text-[48px] lg:text-[56px]">
-                    제 <span className="bg-lemon px-2">{draw.draw_no}</span>회 추첨 결과
+                    {/* 좁은 화면에서는 화살표가 양옆을 차지한다. 카드 위 제목이 "회차별 당첨번호"라
+                        "추첨 결과"는 중복이므로 회차만 남겨 한 줄에 들어가게 한다. */}
+                    <h2 className="text-[26px] font-extrabold tracking-[-0.05em] text-ink sm:text-[44px] lg:text-[52px]">
+                        제 <span className="bg-lemon px-2">{draw.draw_no}</span>회
                     </h2>
-                    <p className="mt-3 text-base font-medium text-ink-soft sm:text-[18px]">{draw.draw_date} 추첨</p>
+                    <p className="mt-2 text-sm font-medium text-ink-soft sm:mt-3 sm:text-[18px]">{draw.draw_date} 추첨</p>
                 </div>
                 <button
                     type="button"

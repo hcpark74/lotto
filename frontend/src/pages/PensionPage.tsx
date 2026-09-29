@@ -48,7 +48,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                         <button
                             onClick={onPensionGenerate}
                             disabled={pensionGenerateLoading}
-                            className="btn-primary inline-flex h-10 items-center justify-center px-4 text-sm font-semibold transition"
+                            className="btn-primary inline-flex h-11 items-center justify-center px-4 text-sm font-semibold transition"
                         >
                             {pensionGenerateLoading ? '생성 중...' : '추천번호 생성'}
                         </button>
@@ -118,7 +118,7 @@ function PensionResultsTab() {
                 </div>
 
                 {loading ? (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
+                    <div className="panel flex min-h-[540px] sm:min-h-[560px] items-center justify-center px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
                 ) : selectedDraw ? (
                     <PensionResultCard
                         draw={selectedDraw}
@@ -150,9 +150,9 @@ function PensionResultsTab() {
                                 onKeyDown={e => e.key === 'Enter' && search()}
                                 placeholder={latestDrawNo ? `예: ${latestDrawNo}` : '회차'}
                                 aria-label="회차 검색"
-                                className="input-brutal h-10 w-full px-3 text-sm sm:w-28"
+                                className="input-brutal h-11 w-full px-3 text-sm sm:w-28"
                             />
-                            <button onClick={search} className="btn-primary inline-flex h-10 shrink-0 items-center justify-center px-4 text-sm font-semibold transition">
+                            <button onClick={search} className="btn-primary inline-flex h-11 shrink-0 items-center justify-center px-4 text-sm font-semibold transition">
                                 이동
                             </button>
                         </div>

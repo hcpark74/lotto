@@ -43,18 +43,23 @@ function LottoResultsTab() {
     return (
         <>
             <section ref={viewerRef}>
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-2 sm:mb-5">
+                    <div>
+                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-soft">로또6/45</p>
+                        <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-ink sm:text-3xl">회차별 당첨번호</h2>
+                    </div>
+                    <p className="text-xs font-medium text-ink-soft sm:text-sm">
+                        {selected === latestDrawNo ? '최신 회차입니다. 당첨 결과는 매주 자동으로 갱신됩니다.' : `최신은 ${latestDrawNo}회입니다.`}
+                    </p>
+                </div>
+
                 {loading ? (
-                    <div className="panel px-4 py-8 text-sm text-ink-soft">데이터를 불러오는 중입니다...</div>
+                    <div className="panel flex min-h-[460px] sm:min-h-[620px] items-center justify-center px-4 py-8 text-sm text-ink-soft">데이터를 불러오는 중입니다...</div>
                 ) : selectedDraw ? (
                     <DrawResultCard
                         draw={selectedDraw}
                         chipLabel={selectedDraw.drwNo === latestDrawNo ? `최신 ${selectedDraw.drwNo}회` : `${selectedDraw.drwNo}회`}
                         variant="latest"
-                        statusText={
-                            selectedDraw.drwNo === latestDrawNo
-                                ? '최신 회차입니다. 당첨 결과는 매주 자동으로 갱신됩니다.'
-                                : `최신은 ${latestDrawNo}회입니다.`
-                        }
                         onOlder={() => select((selected ?? 0) - 1)}
                         onNewer={() => select((selected ?? 0) + 1)}
                         canGoOlder={canGoOlder}
@@ -83,9 +88,9 @@ function LottoResultsTab() {
                                 onKeyDown={e => e.key === 'Enter' && search()}
                                 placeholder={latestDrawNo ? `예: ${latestDrawNo}` : '회차'}
                                 aria-label="회차 검색"
-                                className="input-brutal h-10 w-full px-3 text-sm sm:w-28"
+                                className="input-brutal h-11 w-full px-3 text-sm sm:w-28"
                             />
-                            <button onClick={search} className="btn-primary inline-flex h-10 shrink-0 items-center justify-center px-4 text-sm font-semibold transition">
+                            <button onClick={search} className="btn-primary inline-flex h-11 shrink-0 items-center justify-center px-4 text-sm font-semibold transition">
                                 이동
                             </button>
                         </div>
@@ -210,7 +215,7 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                     <button
                         onClick={generateNumbers}
                         disabled={loading}
-                        className="btn-primary inline-flex h-10 items-center justify-center gap-2 px-4 text-sm font-semibold transition"
+                        className="btn-primary inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-semibold transition"
                     >
                         {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" /> : <Sparkles className="h-4 w-4" />}
                         {loading ? '번호 생성 중...' : '추천 번호 생성'}

@@ -7,7 +7,6 @@ export function DrawResultCard({
     draw,
     chipLabel,
     variant = 'default',
-    statusText,
     onOlder,
     onNewer,
     canGoOlder = false,
@@ -16,7 +15,6 @@ export function DrawResultCard({
     draw: DrawResult;
     chipLabel: string;
     variant?: 'default' | 'latest';
-    statusText?: string;
     onOlder?: () => void;
     onNewer?: () => void;
     canGoOlder?: boolean;
@@ -28,13 +26,7 @@ export function DrawResultCard({
 
     if (variant === 'latest') {
         return (
-            <div className="latest-feature-card px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
-                {statusText && (
-                    <div className="latest-feature-status mb-5 px-4 py-3 text-center sm:mb-7">
-                        <p className="text-xs font-medium tracking-[-0.01em] text-ink-soft sm:text-sm">{statusText}</p>
-                    </div>
-                )}
-
+            <div className="latest-feature-card px-5 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
                 <div className="text-center">
                     <img
                         src="/images/img-mainLt645.svg"
@@ -44,7 +36,7 @@ export function DrawResultCard({
                 </div>
 
                 {/* 좌: 과거(회차 −1), 우: 최신 방향(회차 +1). 양 끝에서는 비활성. */}
-                <div className="latest-feature-heading mt-8 sm:mt-10">
+                <div className="latest-feature-heading mt-4 sm:mt-10">
                     <button
                         type="button"
                         onClick={onOlder}
@@ -55,8 +47,8 @@ export function DrawResultCard({
                         <ChevronLeft className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2} />
                     </button>
                     <div className="text-center">
-                        <div className="text-[42px] font-extrabold tracking-[-0.05em] text-ink sm:text-[56px]">{draw.drwNo}회</div>
-                        <div className="mt-1 text-[18px] font-medium text-ink-soft sm:text-[20px]">{draw.drwNoDate}</div>
+                        <div className="text-[34px] font-extrabold tracking-[-0.05em] text-ink sm:text-[56px]">{draw.drwNo}회</div>
+                        <div className="mt-1 text-sm font-medium text-ink-soft sm:text-[20px]">{draw.drwNoDate}</div>
                     </div>
                     <button
                         type="button"
@@ -69,9 +61,9 @@ export function DrawResultCard({
                     </button>
                 </div>
 
-                <div className="result-divider mt-8 sm:mt-10" />
+                <div className="result-divider mt-5 sm:mt-10" />
 
-                <div className="mt-9 flex flex-wrap items-center justify-center gap-2 sm:gap-4 lg:gap-5">
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:mt-9 sm:gap-4 lg:gap-5">
                     {numbers.map((num, i) => (
                         <Ball key={i} num={num} size="responsive" delay={i * 20} />
                     ))}
@@ -84,14 +76,14 @@ export function DrawResultCard({
                     </div>
                 </div>
 
-                <div className="mt-12 text-center">
+                <div className="mt-7 text-center sm:mt-12">
                     <p className="text-[16px] font-medium text-ink-soft sm:text-[18px]">1등 당첨금</p>
                     <p className="mt-3 text-[36px] font-extrabold tracking-[-0.05em] text-ink sm:text-[54px]">
                         {formatMoneyKRW(draw.firstWinamnt)}
                     </p>
                 </div>
 
-                <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-soft sm:mt-8 sm:text-base">
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-soft sm:mt-8 sm:text-base">
                     <span>보너스 {draw.bnusNo}</span>
                     <span className="text-ink-soft">/</span>
                     <span>번호 합계 {sum}</span>

@@ -38,7 +38,7 @@ export function Ball({ num, size = 'md', delay = 0 }: { num: number; size?: 'sm'
                 flexShrink: 0,
                 border: '2px solid var(--color-ink)',
                 background: band.bg,
-                boxShadow: size === 'sm' ? 'var(--shadow-brutal-sm)' : '3px 3px 0 0 var(--color-ink)',
+                boxShadow: size === 'sm' ? 'var(--shadow-brutal-sm)' : 'var(--shadow-brutal)',
             }}
         >
             {num}
