@@ -408,6 +408,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* 화살표는 이 상자의 좌우 끝에 절대배치된다. 카드 전체 폭을 기준으로 하면
+       1280px 에서 숫자와 435px 떨어져 조작 대상과의 관계가 끊긴다.
+       상자를 좁혀 96px 로 붙이되, 폭을 고정해 회차를 넘겨도 버튼이 움직이지 않게 한다
+       (가운데 정렬 flex 로 붙이면 숫자 자릿수에 따라 버튼이 22px 씩 밀린다).
+       모바일은 카드 안쪽이 이 값보다 좁아 영향이 없다. */
+    max-width: 420px;
+    margin-inline: auto;
   }
 
   .result-arrow-left,
