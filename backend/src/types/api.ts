@@ -154,7 +154,10 @@ export type LottoSyncSummary = {
 }
 
 // POST /api/sync (성공). 실패는 SyncErrorResponse
-export type LottoSyncResponse = LottoSyncSummary & { success: true }
+// 동기화 직후 저장된 번호를 몇 개 채점했는지 함께 돌려준다
+export type SavedPickCheckResult = { checked: number; won: number }
+
+export type LottoSyncResponse = LottoSyncSummary & { success: true; savedPickCheck: SavedPickCheckResult }
 
 // ── 연금복권 720+ ──────────────────────────────────────
 
@@ -288,4 +291,4 @@ export type PensionSyncSummary = {
 }
 
 // POST /api/pension/sync (성공). 실패는 SyncErrorResponse
-export type PensionSyncResponse = PensionSyncSummary & { success: true }
+export type PensionSyncResponse = PensionSyncSummary & { success: true; savedPickCheck: SavedPickCheckResult }

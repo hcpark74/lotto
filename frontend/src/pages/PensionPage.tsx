@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Search, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bookmark, ChevronLeft, ChevronRight, Search, Sparkles } from 'lucide-react';
 import { PensionHonestyPanel } from '../components/diagnostics';
 import { pensionBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
+import { useSavedPicks } from '../hooks/useSavedPicks';
+import { SavedPicksList } from '../components/saved-picks';
 import { FeaturedPensionRecommendationCard, PensionNumberStrip, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
@@ -33,10 +35,16 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
     }, [tab]);
 
     const featuredRecommendation = pensionRecommendations[0] ?? null;
+    const saved = useSavedPicks('pension');
+    // 세트를 새로 생성하면 저장 표시를 초기화한다
+    const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+    useEffect(() => { setSavedKeys(new Set()); }, [pensionRecommendations]);
 
     return (
         <div className="space-y-6 lg:space-y-8">
             {tab === 'results' && <PensionResultsTab />}
+
+            {tab === 'mine' && <PensionMineTab />}
 
             {tab === 'picks' && (
             <section>
@@ -64,12 +72,24 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                         </div>
                     )}
 
+                    {saved.error && <p className="mb-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{saved.error}</p>}
+
                     {pensionGenerateError ? (
                         <div className="panel bg-coral px-4 py-8 text-center text-sm font-medium">{pensionGenerateError}</div>
                     ) : pensionRecommendations.length > 0 ? (
                         <div className="grid gap-3 lg:grid-cols-2">
                             {pensionRecommendations.map((set) => (
-                                <PensionRecommendationCard key={`${set.label}-${set.number}`} set={set} />
+                                <PensionRecommendationCard
+                                            key={`${set.label}-${set.number}`}
+                                            set={set}
+                                            saving={saved.savingKey === set.number}
+                                            saved={savedKeys.has(set.number)}
+                                            onSave={async () => {
+                                                if (await saved.save(set.number, set.number, set.label)) {
+                                                    setSavedKeys(prev => new Set(prev).add(set.number));
+                                                }
+                                            }}
+                                        />
                             ))}
                         </div>
                     ) : (
@@ -217,5 +237,24 @@ function PensionResultsTab() {
                 </SectionCard>
             </section>
         </>
+    );
+}
+
+function PensionMineTab() {
+    const saved = useSavedPicks('pension');
+
+    useEffect(() => { saved.ensure(); }, []);
+
+    return (
+        <section>
+            <SectionCard title="내 번호" eyebrow="저장한 추천" icon={<Bookmark className="h-5 w-5" />}>
+                <p className="mb-4 text-sm text-ink-soft">
+                    추천 탭에서 저장한 번호입니다. 추첨 결과가 들어오면 자동으로 채점됩니다.
+                    로그인이 없어 이 브라우저가 만든 식별자로 묶어 두므로, 브라우저나 기기를 바꾸거나
+                    저장소를 비우면 다시 볼 수 없습니다.
+                </p>
+                <SavedPicksList lottery="pension" state={saved} />
+            </SectionCard>
+        </section>
     );
 }

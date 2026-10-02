@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Info, Search, Sparkles, Waves } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bookmark, ChevronLeft, ChevronRight, Info, Search, Sparkles, Waves } from 'lucide-react';
 import { Ball, BonusBadge } from '../components/Ball';
 import { LottoHonestyPanel } from '../components/diagnostics';
 import { DrawResultCard, RecommendationCard } from '../components/lotto';
@@ -7,6 +7,8 @@ import { SectionCard } from '../components/SectionCard';
 import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import { lottoBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
+import { useSavedPicks } from '../hooks/useSavedPicks';
+import { SavedPicksList } from '../components/saved-picks';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 
@@ -20,7 +22,27 @@ const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
 
 export function LottoPage({ lotto, tab }: { lotto: LottoState; tab: TabKey }) {
     if (tab === 'picks') return <LottoPicksTab lotto={lotto} />;
+    if (tab === 'mine') return <LottoMineTab />;
     return <LottoResultsTab />;
+}
+
+function LottoMineTab() {
+    const saved = useSavedPicks('lotto');
+
+    useEffect(() => { saved.ensure(); }, []);
+
+    return (
+        <section>
+            <SectionCard title="내 번호" eyebrow="저장한 추천" icon={<Bookmark className="h-5 w-5" />}>
+                <p className="mb-4 text-sm text-ink-soft">
+                    추천 탭에서 저장한 번호입니다. 추첨 결과가 들어오면 자동으로 채점됩니다.
+                    로그인이 없어 이 브라우저가 만든 식별자로 묶어 두므로, 브라우저나 기기를 바꾸거나
+                    저장소를 비우면 다시 볼 수 없습니다.
+                </p>
+                <SavedPicksList lottery="lotto" state={saved} />
+            </SectionCard>
+        </section>
+    );
 }
 
 function LottoResultsTab() {
@@ -197,6 +219,10 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
         backtest,
         ensureBacktest,
     } = lotto;
+    const saved = useSavedPicks('lotto');
+    // 세트를 새로 생성하면 저장 표시를 초기화한다
+    const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+    useEffect(() => { setSavedKeys(new Set()); }, [sets]);
 
     // 하단 고지 패널에 쓸 백테스트는 추천 탭에 들어올 때만 불러온다
     useEffect(() => {
@@ -226,12 +252,25 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                     한 번에 <span className="font-semibold text-ink">5개 조합</span>을 만듭니다.
                 </p>
 
+                {saved.error && <p className="mb-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{saved.error}</p>}
+
                 {generateError ? (
                     <div className="panel bg-coral px-4 py-8 text-center text-sm font-medium">{generateError}</div>
                 ) : sets.length > 0 ? (
                     <div className="space-y-3">
                         {sets.map((set, si) => (
-                            <RecommendationCard key={si} set={set} index={si} />
+                            <RecommendationCard
+                                key={si}
+                                set={set}
+                                index={si}
+                                saving={saved.savingKey === String(si)}
+                                saved={savedKeys.has(String(si))}
+                                onSave={async () => {
+                                    if (await saved.save(String(si), set.numbers, set.label)) {
+                                        setSavedKeys(prev => new Set(prev).add(String(si)));
+                                    }
+                                }}
+                            />
                         ))}
                     </div>
                 ) : (

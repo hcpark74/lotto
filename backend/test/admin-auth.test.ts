@@ -8,6 +8,9 @@ vi.mock('../src/services/lotto', () => ({
   getRecentLottoResults: vi.fn(),
   runLottoBacktestFromDb: vi.fn(),
 }))
+vi.mock('../src/services/saved-picks', () => ({
+  checkSavedPicks: vi.fn(async () => ({ checked: 0, won: 0 })),
+}))
 vi.mock('../src/services/pension', () => ({
   syncPensionResults: vi.fn(async () => ({ syncedCount: 0, latestDraw: 1, nextDrawNo: 2, pendingPrizeDrawNos: [] })),
   generatePensionSets: vi.fn(),

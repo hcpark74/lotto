@@ -92,9 +92,15 @@ export function DrawResultCard({
 export function RecommendationCard({
     set,
     index,
+    onSave,
+    saving = false,
+    saved = false,
 }: {
     set: LottoSet;
     index: number;
+    onSave?: () => void;
+    saving?: boolean;
+    saved?: boolean;
 }) {
     const sum = set.numbers.reduce((total, num) => total + num, 0);
     const oddCount = set.numbers.filter(num => num % 2 === 1).length;
@@ -149,6 +155,19 @@ export function RecommendationCard({
                 <span className="text-ink-soft">/</span>
                 <span>최대 간격 {spread}</span>
             </div>
+
+            {onSave && (
+                <div className="mt-5 flex justify-center">
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={saving || saved}
+                        className="btn-secondary inline-flex min-h-11 items-center justify-center px-5 text-sm"
+                    >
+                        {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

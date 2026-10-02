@@ -9,6 +9,7 @@ import {
 } from '../services/pension'
 import type { PensionSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
+import { checkSavedPicks } from '../services/saved-picks'
 import { requireAdminToken } from '../utils/admin-auth'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
@@ -19,7 +20,9 @@ export function createPensionRoutes() {
       // 0 = 제한 없음
       const limit = parseIntQuery(c.req.query('limit'), 0, 0, 100)
       const result = await syncPensionResults(c.env.DB, limit)
-      return c.json({ success: true, ...result } satisfies PensionSyncResponse)
+      // cron 과 같은 채점을 수동 동기화에서도 돌린다
+      const checked = await checkSavedPicks(c.env.DB, 'pension')
+      return c.json({ success: true, ...result, savedPickCheck: checked } satisfies PensionSyncResponse)
     }, {
       logLabel: 'Error in /api/pension/sync',
       errorBody: (message) => ({ success: false, error: message } satisfies SyncErrorResponse),

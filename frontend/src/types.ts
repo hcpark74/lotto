@@ -29,3 +29,7 @@ export type LottoBacktestDiagnostics = LottoBacktestResponse;
 export type PensionDrawResult = PensionDrawSummary & Partial<Pick<PensionDrawDetail, 'prize_counts'>>;
 export type PensionRuleWeight = RuleWeight;
 export type PensionBacktestDiagnostics = PensionBacktestResponse;
+
+export type { SavedPick } from '../../backend/src/types/saved-picks';
+// 라우팅의 PageKey 와 같은 값이지만, api.ts 가 routing.ts 에 의존하지 않도록 따로 둔다
+export type PageLottery = 'lotto' | 'pension';

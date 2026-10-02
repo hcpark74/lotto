@@ -3,8 +3,10 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { createLottoRoutes } from './routes/lotto'
 import { createPensionRoutes } from './routes/pension'
+import { createSavedPickRoutes } from './routes/saved-picks'
 import { syncLatestLottoResults } from './services/lotto'
 import { syncPensionResults } from './services/pension'
+import { checkSavedPicks } from './services/saved-picks'
 import type { Bindings } from './types/app'
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -15,15 +17,21 @@ app.get('/', (c) => c.text('Lotto Analysis API'))
 
 app.route('/api', createLottoRoutes())
 app.route('/api/pension', createPensionRoutes())
+app.route('/api/picks', createSavedPickRoutes())
 
 async function runLottoCron(db: D1Database) {
   const result = await syncLatestLottoResults(db, Number.POSITIVE_INFINITY)
   console.log(`Cron(lotto): synced ${result.syncedCount} draw(s), latest drwNo=${result.latestDraw}`)
+  // 새 회차가 들어왔으면 저장된 번호를 채점한다. 결과가 없는 회차는 건너뛰므로 매번 돌려도 된다.
+  const checked = await checkSavedPicks(db, 'lotto')
+  console.log(`Cron(lotto): checked ${checked.checked} saved pick(s), ${checked.won} won`)
 }
 
 async function runPensionCron(db: D1Database) {
   const result = await syncPensionResults(db)
   console.log(`Cron(pension): synced ${result.syncedCount} draw(s), latest drawNo=${result.latestDraw}, pending prize=${result.pendingPrizeDrawNos.join(',') || '-'}`)
+  const checked = await checkSavedPicks(db, 'pension')
+  console.log(`Cron(pension): checked ${checked.checked} saved pick(s), ${checked.won} won`)
 }
 
 export default {

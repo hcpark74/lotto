@@ -51,3 +51,24 @@ CREATE TABLE IF NOT EXISTS backtest_cache_v2 (
   payload TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+
+-- 사용자가 저장한 추천 번호. 로그인이 없으므로 브라우저가 만든 익명 ID(client_id)로 묶는다.
+-- client_id 는 사실상 베어러 토큰이라 추측 불가능한 UUID 여야 하고, 서버는 이 값으로만 행을 찾는다.
+-- 채점 결과(matched_count·rank_no·checked_at)는 동기화 직후 서버가 채운다.
+CREATE TABLE IF NOT EXISTS saved_picks (
+  id TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  lottery TEXT NOT NULL,
+  draw_no INTEGER NOT NULL,
+  numbers TEXT NOT NULL,
+  label TEXT,
+  saved_at TEXT NOT NULL,
+  matched_count INTEGER,
+  bonus_matched INTEGER,
+  rank_no INTEGER,
+  checked_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_picks_client ON saved_picks (client_id, saved_at DESC);
+-- 동기화 후 채점 대상(아직 안 매긴 것)을 복권·회차로 찾는다
+CREATE INDEX IF NOT EXISTS idx_saved_picks_pending ON saved_picks (lottery, draw_no, checked_at);

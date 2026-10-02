@@ -1,3 +1,4 @@
+import { getClientId } from './clientId';
 import type {
     DrawResult,
     LottoBacktestDiagnostics,
@@ -9,6 +10,8 @@ import type {
     PensionGenerateResponse,
     PensionRecommendationSet,
     PensionRuleWeight,
+    PageLottery,
+    SavedPick,
 } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8787';
@@ -77,3 +80,25 @@ export const generatePension = () =>
 
 export const fetchPensionBacktest = (draws: number) =>
     request<PensionBacktestDiagnostics>(`/api/pension/generate/backtest?draws=${draws}`);
+
+// ── 저장한 번호 ──
+// 익명 ID 는 헤더로만 보낸다. URL 에 넣으면 로그·리퍼러에 남는다.
+function clientHeaders(extra?: HeadersInit): HeadersInit {
+    return { 'X-Client-Id': getClientId(), ...extra };
+}
+
+export const fetchSavedPicks = (lottery: PageLottery) =>
+    request<unknown>(`/api/picks?lottery=${lottery}`, { headers: clientHeaders() }).then(data => toArray<SavedPick>(data));
+
+export const fetchNextDrawNo = (lottery: PageLottery) =>
+    request<{ lottery: PageLottery; drawNo: number }>(`/api/picks/next-draw?lottery=${lottery}`);
+
+export const createSavedPick = (lottery: PageLottery, numbers: number[] | string, label: string | null) =>
+    request<SavedPick>('/api/picks', {
+        method: 'POST',
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ lottery, numbers, label }),
+    });
+
+export const deleteSavedPick = (id: string) =>
+    request<{ success: true }>(`/api/picks/${id}`, { method: 'DELETE', headers: clientHeaders() });

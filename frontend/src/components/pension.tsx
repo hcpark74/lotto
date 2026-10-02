@@ -141,7 +141,17 @@ export function PensionResultCard({
     );
 }
 
-export function PensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
+export function PensionRecommendationCard({
+    set,
+    onSave,
+    saving = false,
+    saved = false,
+}: {
+    set: PensionRecommendationSet;
+    onSave?: () => void;
+    saving?: boolean;
+    saved?: boolean;
+}) {
     const ruleName = set.meta.ruleId ? set.label : null;
 
     return (
@@ -194,6 +204,19 @@ export function PensionRecommendationCard({ set }: { set: PensionRecommendationS
                 <span className="text-ink-soft">/</span>
                 <span>최대 중복 {set.meta.maxDuplicateCount}개</span>
             </div>
+
+            {onSave && (
+                <div className="mt-5 flex justify-center">
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={saving || saved}
+                        className="btn-secondary inline-flex min-h-11 items-center justify-center px-5 text-sm"
+                    >
+                        {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -11,6 +11,7 @@ import {
 import type { LottoSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
 import { requireAdminToken } from '../utils/admin-auth'
+import { checkSavedPicks } from '../services/saved-picks'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
 export function createLottoRoutes() {
@@ -18,7 +19,9 @@ export function createLottoRoutes() {
 
   app.post('/sync', requireAdminToken, withRouteErrorHandling(async (c) => {
       const result = await syncLatestLottoResults(c.env.DB)
-      return c.json({ success: true, ...result } satisfies LottoSyncResponse)
+      // cron 과 같은 채점을 수동 동기화에서도 돌린다
+      const checked = await checkSavedPicks(c.env.DB, 'lotto')
+      return c.json({ success: true, ...result, savedPickCheck: checked } satisfies LottoSyncResponse)
     }, {
       errorBody: (message) => ({ success: false, error: message } satisfies SyncErrorResponse),
     }))

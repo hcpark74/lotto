@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 
 export type PageKey = 'lotto' | 'pension';
-export type TabKey = 'results' | 'picks';
+export type TabKey = 'results' | 'picks' | 'mine';
 export type Route = { page: PageKey; tab: TabKey };
 
 export const TABS: { key: TabKey; label: string }[] = [
     { key: 'results', label: '결과' },
     { key: 'picks', label: '추천' },
+    { key: 'mine', label: '내 번호' },
 ];
 
 // /lotto, /lotto/results, /pension/picks … — 알 수 없는 경로는 /lotto/results 로 취급
