@@ -109,7 +109,7 @@ describe('toSavedPick', () => {
   const base: SavedPickRow = {
     id: 'x', client_id: 'c', lottery: 'lotto', draw_no: 1243, numbers: '1,2,3,4,5,6',
     label: '구간 분포형', saved_at: '2026-09-26T00:00:00.000Z',
-    matched_count: null, bonus_matched: null, rank_no: null, checked_at: null,
+    matched_count: null, bonus_matched: null, rank_no: null, checked_at: null, winning_band: null,
   }
 
   it('client_id 는 응답에 넣지 않는다', () => {
@@ -122,6 +122,24 @@ describe('toSavedPick', () => {
 
   it('채점 후에는 result 를 채운다', () => {
     const graded = toSavedPick({ ...base, matched_count: 3, bonus_matched: 0, rank_no: 5, checked_at: '2026-09-27T00:00:00.000Z' })
-    expect(graded.result).toEqual({ matchedCount: 3, bonusMatched: false, rankNo: 5, checkedAt: '2026-09-27T00:00:00.000Z' })
+    expect(graded.result).toEqual({ matchedCount: 3, bonusMatched: false, rankNo: 5, checkedAt: '2026-09-27T00:00:00.000Z', winningBand: null })
+  })
+
+  // 연금은 같은 6자리가 1~5조에 모두 있어 조에 따라 1등과 2등이 갈린다.
+  // 조별 등위를 보여주려면 추첨된 조가 결과에 들어 있어야 한다.
+  it('연금은 당첨 조를 함께 돌려준다', () => {
+    const graded = toSavedPick({
+      ...base, lottery: 'pension', numbers: '259311',
+      matched_count: 6, bonus_matched: 0, rank_no: 2,
+      checked_at: '2026-10-02T00:00:00.000Z', winning_band: '4',
+    })
+    expect(graded.result?.winningBand).toBe('4')
+  })
+
+  // 운영 테이블에 열이 생기기 전 행은 undefined 로 읽힌다
+  it('당첨 조 열이 없던 행은 null 로 돌려준다', () => {
+    const row = { ...base, matched_count: 3, bonus_matched: 0, rank_no: 5, checked_at: '2026-09-27T00:00:00.000Z' }
+    delete (row as { winning_band?: unknown }).winning_band
+    expect(toSavedPick(row).result?.winningBand).toBeNull()
   })
 })

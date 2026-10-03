@@ -83,7 +83,10 @@ CREATE TABLE IF NOT EXISTS saved_picks (
   matched_count INTEGER,
   bonus_matched INTEGER,
   rank_no INTEGER,
-  checked_at TEXT
+  checked_at TEXT,
+  -- 연금복권 당첨 조(1~5). 같은 6자리가 조마다 있어서, 조에 따라 1등과 2등이 갈린다.
+  -- 저장분은 번호만 담으므로 조별 등위를 보여주려면 추첨된 조를 함께 기억해야 한다.
+  winning_band TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_saved_picks_client ON saved_picks (client_id, saved_at DESC);

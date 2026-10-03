@@ -57,6 +57,7 @@ export function toSavedPick(row: SavedPickRow): SavedPick {
       bonusMatched: row.bonus_matched === 1,
       rankNo: row.rank_no,
       checkedAt: row.checked_at,
+      winningBand: row.winning_band ?? null,
     },
   }
 }
@@ -101,6 +102,7 @@ function buildPickRow(input: SavePickInput): SavedPickRow {
     bonus_matched: null,
     rank_no: null,
     checked_at: null,
+    winning_band: null,
   }
 }
 
@@ -199,7 +201,9 @@ export async function checkSavedPicks(db: D1Database, lottery: Lottery): Promise
     const draw = await getPensionResultByDrawNoQuery(db, drawNo)
     if (!draw) continue
     for (const row of rows) {
-      const grade = gradePensionPick(row.numbers, draw.winning_number, draw.bonus_number)
+      // 저장분은 번호만 담는다. 같은 6자리가 1~5조에 모두 있으므로 조별 등위를 보여주려면
+      // 추첨된 조를 함께 기억해야 한다 (전 조를 사면 1등 1매 + 2등 4매).
+      const grade = { ...gradePensionPick(row.numbers, draw.winning_number, draw.bonus_number), winningBand: draw.winning_band }
       await markSavedPickCheckedQuery(db, row.id, grade, checkedAt)
       checked += 1
       if (grade.rankNo != null) won += 1

@@ -5,7 +5,13 @@ import { PensionDigitBall } from './pension';
 import type { PageLottery, SavedPick } from '../types';
 import type { SavedPicksState } from '../hooks/useSavedPicks';
 
-// 등위 이름. 연금 8 은 보너스 등위다 (추천은 조를 고르지 않아 1등은 판정하지 않는다).
+// 연금복권720+ 는 조(1~5) + 6자리다. 같은 6자리가 다섯 조에 모두 있어서
+// 1등은 조까지 맞아야 하고, 나머지 네 조는 2등이 된다.
+// (동행복권 pt720/intro: "1등 당첨번호 2조 123456 일때 2등은 1조·3조·4조·5조 123456")
+const PENSION_BANDS = ['1', '2', '3', '4', '5'];
+const PENSION_DIGIT_COUNT = 6;
+
+// 등위 이름. 연금 8 은 보너스 등위다.
 function rankLabel(lottery: PageLottery, rankNo: number | null) {
     if (rankNo == null) return '낙첨';
     if (lottery === 'pension' && rankNo === 8) return '보너스 당첨';
@@ -20,9 +26,13 @@ function ResultChip({ lottery, pick }: { lottery: PageLottery; pick: SavedPick }
         ? `${matchedCount}개 일치${bonusMatched ? ' + 보너스' : ''}`
         : `끝 ${matchedCount}자리`;
 
+    // 연금은 6자리가 맞으면 조에 따라 1등과 2등이 갈린다. 저장분은 번호만 담으므로
+    // 어느 쪽이라고 단정할 수 없다 — 조별 등위는 아래 다섯 줄이 보여준다.
+    const bandSplit = lottery === 'pension' && matchedCount === PENSION_DIGIT_COUNT;
+
     return (
-        <span className={`chip ${rankNo == null ? '' : 'chip-mint'}`}>
-            {detail} · {rankLabel(lottery, rankNo)}
+        <span className={`chip ${rankNo == null ? '' : bandSplit ? 'chip-lemon' : 'chip-mint'}`}>
+            {detail} · {bandSplit ? '조에 따라 1·2등' : rankLabel(lottery, rankNo)}
         </span>
     );
 }
@@ -44,15 +54,60 @@ function PickNumbers({ lottery, numbers }: { lottery: PageLottery; numbers: stri
     );
 }
 
-function PickRow({ lottery, pick, onRemove }: { lottery: PageLottery; pick: SavedPick; onRemove: (id: string) => void }) {
+// 저장한 6자리를 조마다 한 줄씩 펼친다. 전 조를 사면 번호가 맞았을 때
+// 1등 1매 + 2등 4매가 함께 나오므로, 어느 조가 1등인지 보이는 편이 낫다.
+function PensionBandRows({ pick }: { pick: SavedPick }) {
+    const result = pick.result;
+    const digitsHit = result != null && result.matchedCount === 6;
+    const winningBand = result?.winningBand ?? null;
+
     return (
-        <div className="flex flex-col gap-3 border-2 border-ink bg-card px-4 py-4 lg:grid lg:grid-cols-[88px_1fr_auto_44px] lg:items-center">
+        <div className="mt-3 grid gap-1.5">
+            {PENSION_BANDS.map(band => {
+                // 번호가 맞았을 때만 조가 등위를 가른다. 그 전에는 다섯 줄이 모두 같은 번호다.
+                const isFirst = digitsHit && winningBand === band;
+                const rank = !digitsHit ? null : winningBand == null ? null : isFirst ? 1 : 2;
+
+                return (
+                    <div
+                        key={band}
+                        // 360px 에서 조 라벨 + 숫자 6개 + 등위 칩이 한 줄에 들어가지 않는다.
+                        // 칩을 다음 줄로 흘려보낸다 (숫자 줄은 그대로 유지된다).
+                        className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-2 border-ink px-2 py-2 ${isFirst ? 'bg-lemon' : 'bg-paper'}`}
+                    >
+                        <div className="flex items-center gap-1">
+                            <span className="shrink-0 pr-0.5 font-mono text-2xs font-bold text-ink">{band}조</span>
+                            {pick.numbers.split('').map((d, i) => (
+                                <PensionDigitBall key={i} value={d} color={PENSION_DIGIT_COLORS[i]} compact />
+                            ))}
+                        </div>
+                        {rank != null && (
+                            <span className={`chip shrink-0 ${rank === 1 ? 'chip-lemon' : 'chip-mint'}`}>{rank}등</span>
+                        )}
+                    </div>
+                );
+            })}
+            <p className="mt-1 text-2xs leading-relaxed text-ink-soft">
+                {digitsHit && winningBand != null
+                    ? `${winningBand}조 추첨. 다섯 조를 모두 샀다면 1등 1매 + 2등 4매입니다.`
+                    : '같은 번호가 다섯 조에 모두 있습니다. 전 조(5,000원)를 사면 번호가 맞았을 때 1등을 반드시 받습니다.'}
+            </p>
+        </div>
+    );
+}
+
+function PickRow({ lottery, pick, onRemove }: { lottery: PageLottery; pick: SavedPick; onRemove: (id: string) => void }) {
+    // 연금은 같은 번호를 다섯 조로 펼쳐 보여주므로 번호를 한 줄에 끼워 넣지 않는다
+    const byBand = lottery === 'pension';
+
+    const head = (
+        <>
             <div>
                 <div className="text-sm font-semibold text-ink">{pick.drawNo}회</div>
                 {pick.label && <div className="mt-1 text-xs text-ink-soft">{pick.label}</div>}
             </div>
 
-            <PickNumbers lottery={lottery} numbers={pick.numbers} />
+            {!byBand && <PickNumbers lottery={lottery} numbers={pick.numbers} />}
 
             <div className="lg:text-right">
                 <ResultChip lottery={lottery} pick={pick} />
@@ -66,6 +121,21 @@ function PickRow({ lottery, pick, onRemove }: { lottery: PageLottery; pick: Save
             >
                 <Trash2 className="h-4 w-4" />
             </button>
+        </>
+    );
+
+    if (byBand) {
+        return (
+            <div className="border-2 border-ink bg-card px-4 py-4">
+                <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[88px_1fr_44px] lg:items-center">{head}</div>
+                <PensionBandRows pick={pick} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-3 border-2 border-ink bg-card px-4 py-4 lg:grid lg:grid-cols-[88px_1fr_auto_44px] lg:items-center">
+            {head}
         </div>
     );
 }
