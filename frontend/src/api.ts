@@ -100,6 +100,14 @@ export const createSavedPick = (lottery: PageLottery, numbers: number[] | string
         body: JSON.stringify({ lottery, numbers, label }),
     });
 
+// 추천은 5세트가 한 번에 나오므로 저장도 한 번에 보낸다 (요청 1번, 한도 검사 1번)
+export const createSavedPicks = (lottery: PageLottery, picks: { numbers: number[] | string; label: string | null }[]) =>
+    request<SavedPick[]>('/api/picks/bulk', {
+        method: 'POST',
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ lottery, picks }),
+    });
+
 export const deleteSavedPick = (id: string) =>
     request<{ success: true }>(`/api/picks/${id}`, { method: 'DELETE', headers: clientHeaders() });
 

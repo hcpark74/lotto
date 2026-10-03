@@ -56,6 +56,20 @@ export async function insertSavedPickQuery(db: D1Database, row: SavedPickRow) {
   })
 }
 
+// 한 번에 생성된 세트를 한 번에 넣는다. D1 batch 는 한 트랜잭션이라 중간에 끊기지 않는다.
+export async function insertSavedPicksQuery(db: D1Database, rows: SavedPickRow[]) {
+  if (rows.length === 0) return rows
+
+  return withTable(db, async () => {
+    const statement = db.prepare(`INSERT INTO saved_picks (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    await db.batch(rows.map((row) => statement.bind(
+      row.id, row.client_id, row.lottery, row.draw_no, row.numbers, row.label, row.saved_at,
+      row.matched_count, row.bonus_matched, row.rank_no, row.checked_at,
+    )))
+    return rows
+  })
+}
+
 export async function getSavedPicksByClientQuery(db: D1Database, clientId: string, lottery: string, limit: number) {
   return withTable(db, async () => {
     const { results } = await db

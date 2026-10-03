@@ -8,6 +8,7 @@ import {
   listSavedPicks,
   normalizeNumbers,
   savePick,
+  savePicks,
 } from '../services/saved-picks'
 import type { Lottery } from '../types/saved-picks'
 import type { Bindings } from '../types/app'
@@ -69,6 +70,41 @@ export function createSavedPickRoutes() {
         return badRequest(c, error instanceof Error ? error.message : '저장에 실패했습니다.')
       }
     }, { logLabel: 'Error in POST /api/picks' }))
+
+  // 추천은 5세트가 한 번에 나오므로 저장도 한 번에 받는다.
+  // 한도 검사가 한 번이라 낱개 저장처럼 일부만 들어가는 일이 없다.
+  app.post('/bulk', withRouteErrorHandling(async (c) => {
+      const clientId = c.req.header(CLIENT_ID_HEADER)
+      if (!isValidClientId(clientId)) return badRequest(c, `${CLIENT_ID_HEADER} 헤더가 필요합니다.`)
+
+      const body = await c.req.json().catch(() => null) as { lottery?: string; picks?: unknown } | null
+      if (!body) return badRequest(c, '요청 본문이 올바르지 않습니다.')
+
+      const lottery = parseLottery(body.lottery)
+      if (!lottery) return badRequest(c, 'lottery 는 lotto 또는 pension 이어야 합니다.')
+
+      if (!Array.isArray(body.picks) || body.picks.length === 0) {
+        return badRequest(c, 'picks 는 비어 있지 않은 배열이어야 합니다.')
+      }
+
+      const entries: { numbers: string; label: string | null }[] = []
+      for (const raw of body.picks) {
+        const item = raw as { numbers?: unknown; label?: unknown } | null
+        const numbers = normalizeNumbers(lottery, item?.numbers)
+        if (!numbers) return badRequest(c, '번호 형식이 올바르지 않습니다.')
+        entries.push({ numbers, label: typeof item?.label === 'string' ? item.label.slice(0, 40) : null })
+      }
+
+      // 대상 회차는 서버가 정한다 — 지난 회차에 저장해 결과를 맞춘 것처럼 만들 수 없게.
+      const drawNo = await getNextDrawNo(c.env.DB, lottery)
+      if (drawNo == null) return notFound(c, '아직 회차 데이터가 없어 저장할 수 없습니다.')
+
+      try {
+        return c.json(await savePicks(c.env.DB, clientId, lottery, drawNo, entries), 201)
+      } catch (error) {
+        return badRequest(c, error instanceof Error ? error.message : '저장에 실패했습니다.')
+      }
+    }, { logLabel: 'Error in POST /api/picks/bulk' }))
 
   // 다른 기기에서 이어 보기 위한 일회용 코드를 발급한다
   app.post('/transfer-code', withRouteErrorHandling(async (c) => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, createSavedPick, deleteSavedPick, fetchSavedPicks } from '../api';
+import { ApiError, createSavedPick, createSavedPicks, deleteSavedPick, fetchSavedPicks } from '../api';
 import type { PageLottery, SavedPick } from '../types';
 
 export function useSavedPicks(lottery: PageLottery) {
@@ -50,6 +50,23 @@ export function useSavedPicks(lottery: PageLottery) {
         }
     }, [lottery]);
 
+    // 추천 세트 전체를 한 번에 저장한다. 요청 1번이라 일부만 저장되는 중간 상태가 없다.
+    const saveAll = useCallback(async (key: string, entries: { numbers: number[] | string; label: string | null }[]) => {
+        setSavingKey(key);
+        setError('');
+
+        try {
+            const created = await createSavedPicks(lottery, entries);
+            setPicks(prev => [...created, ...prev]);
+            return true;
+        } catch (err) {
+            setError(err instanceof ApiError && err.message ? err.message : '저장에 실패했습니다.');
+            return false;
+        } finally {
+            setSavingKey(null);
+        }
+    }, [lottery]);
+
     const remove = useCallback(async (id: string) => {
         const before = picks;
         setPicks(prev => prev.filter(p => p.id !== id));
@@ -62,7 +79,7 @@ export function useSavedPicks(lottery: PageLottery) {
         }
     }, [picks]);
 
-    return { picks, loading, error, savingKey, load, ensure, save, remove };
+    return { picks, loading, error, savingKey, load, ensure, save, saveAll, remove };
 }
 
 export type SavedPicksState = ReturnType<typeof useSavedPicks>;

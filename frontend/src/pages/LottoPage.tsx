@@ -9,6 +9,7 @@ import type { BacktestStatus } from '../hooks/useBacktest';
 import { lottoBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import { useSavedPicks } from '../hooks/useSavedPicks';
 import { SavedPicksList } from '../components/saved-picks';
+import { SaveAllBar } from '../components/save-all-bar';
 import { DeviceLink } from '../components/device-link';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
@@ -261,6 +262,12 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                     <div className="panel bg-coral px-4 py-8 text-center text-sm font-medium">{generateError}</div>
                 ) : sets.length > 0 ? (
                     <div className="space-y-3">
+                        <SaveAllBar
+                            entries={sets.map((set, si) => ({ key: String(si), numbers: set.numbers, label: set.label }))}
+                            state={saved}
+                            savedKeys={savedKeys}
+                            onSaved={keys => setSavedKeys(prev => new Set([...prev, ...keys]))}
+                        />
                         {sets.map((set, si) => (
                             <RecommendationCard
                                 key={si}

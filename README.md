@@ -273,7 +273,8 @@ Phase 0 측정으로 **어떤 선택 규칙을 써도 세트당 기대 일치 �
 | `POST` | `/api/sync/prizes` | 등위별 당첨자 수·판매액 백필 (관리자 토큰, `?limit=` 은 요청 수, 1요청 = 10회차) |
 | `GET` | `/api/picks` | 저장한 번호 조회 (`?lottery=`, `X-Client-Id` 헤더) |
 | `GET` | `/api/picks/next-draw` | 저장 대상 회차 조회 (`?lottery=`) |
-| `POST` | `/api/picks` | 추천 번호를 다음 회차로 저장 |
+| `POST` | `/api/picks` | 추천 번호 한 세트를 다음 회차로 저장 |
+| `POST` | `/api/picks/bulk` | 생성된 세트를 한 번에 저장 (최대 10세트, 한도 검사 1회) |
 | `DELETE` | `/api/picks/:id` | 저장한 번호 삭제 |
 | `POST` | `/api/picks/transfer-code` | 기기 연동용 일회용 코드 발급 (10분, 1회용) |
 | `POST` | `/api/picks/claim` | 다른 기기의 코드로 보관함 이어받기 |

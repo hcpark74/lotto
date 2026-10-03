@@ -6,6 +6,7 @@ import { useSavedPicks } from '../hooks/useSavedPicks';
 import { SavedPicksList } from '../components/saved-picks';
 import { DeviceLink } from '../components/device-link';
 import { FeaturedPensionRecommendationCard, PensionNumberStrip, PensionRecommendationCard, PensionResultCard } from '../components/pension';
+import { SaveAllBar } from '../components/save-all-bar';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
@@ -78,6 +79,13 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                     {pensionGenerateError ? (
                         <div className="panel bg-coral px-4 py-8 text-center text-sm font-medium">{pensionGenerateError}</div>
                     ) : pensionRecommendations.length > 0 ? (
+                        <>
+                        <SaveAllBar
+                            entries={pensionRecommendations.map(set => ({ key: set.number, numbers: set.number, label: set.label }))}
+                            state={saved}
+                            savedKeys={savedKeys}
+                            onSaved={keys => setSavedKeys(prev => new Set([...prev, ...keys]))}
+                        />
                         <div className="grid gap-3 lg:grid-cols-2">
                             {pensionRecommendations.map((set) => (
                                 <PensionRecommendationCard
@@ -93,6 +101,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                         />
                             ))}
                         </div>
+                        </>
                     ) : (
                         <div className="empty-state px-4 py-8 text-center text-sm text-ink-soft">
                             버튼을 눌러 연금복권 추천번호 세트를 생성해 보세요.

@@ -21,6 +21,7 @@ import {
   getSavedPicksByClientQuery,
   getUncheckedSavedPicksQuery,
   insertSavedPickQuery,
+  insertSavedPicksQuery,
   markSavedPickCheckedQuery,
 } from '../queries/saved-picks'
 import { getLottoResultByDrawNoQuery, getRecentLottoResultsQuery } from '../queries/lotto'
@@ -29,6 +30,9 @@ import type { Lottery, SavedPick, SavedPickCheckSummary, SavedPickRow } from '..
 
 // 한 브라우저가 쌓을 수 있는 최대 저장 수. 서버 저장이라 상한이 없으면 한 명이 테이블을 채울 수 있다.
 export const MAX_PICKS_PER_CLIENT = 200
+
+// 한 번에 저장할 수 있는 세트 수. 로또 5세트·연금 4세트가 한 번에 생성되므로 그보다 넉넉하게 둔다.
+export const MAX_PICKS_PER_REQUEST = 10
 export const PICK_LIST_LIMIT = 60
 // 한 번의 동기화에서 채점할 최대 행 수. Workers CPU 한도를 넘기지 않도록 끊는다.
 const CHECK_BATCH_LIMIT = 500
@@ -84,13 +88,8 @@ export type SavePickInput = {
   label: string | null
 }
 
-export async function savePick(db: D1Database, input: SavePickInput): Promise<SavedPick> {
-  const count = await countSavedPicksByClientQuery(db, input.clientId)
-  if (count >= MAX_PICKS_PER_CLIENT) {
-    throw new Error(`저장은 최대 ${MAX_PICKS_PER_CLIENT}개까지 가능합니다. 오래된 번호를 지우고 다시 시도해 주세요.`)
-  }
-
-  const row: SavedPickRow = {
+function buildPickRow(input: SavePickInput): SavedPickRow {
+  return {
     id: crypto.randomUUID(),
     client_id: input.clientId,
     lottery: input.lottery,
@@ -103,6 +102,42 @@ export async function savePick(db: D1Database, input: SavePickInput): Promise<Sa
     rank_no: null,
     checked_at: null,
   }
+}
+
+// 한 번에 생성된 세트를 한 번에 저장한다. 한도는 합쳐서 한 번만 검사한다 —
+// 낱개로 저장할 때처럼 중간에 한도에 걸려 일부만 들어가는 일이 없다.
+export async function savePicks(
+  db: D1Database,
+  clientId: string,
+  lottery: Lottery,
+  drawNo: number,
+  entries: { numbers: string; label: string | null }[],
+): Promise<SavedPick[]> {
+  if (entries.length === 0) throw new Error('저장할 번호가 없습니다.')
+  if (entries.length > MAX_PICKS_PER_REQUEST) {
+    throw new Error(`한 번에 ${MAX_PICKS_PER_REQUEST}개까지 저장할 수 있습니다.`)
+  }
+
+  const count = await countSavedPicksByClientQuery(db, clientId)
+  if (count + entries.length > MAX_PICKS_PER_CLIENT) {
+    throw new Error(`저장은 최대 ${MAX_PICKS_PER_CLIENT}개까지 가능합니다. 오래된 번호를 지우고 다시 시도해 주세요.`)
+  }
+
+  const rows = entries.map((entry) => buildPickRow({
+    clientId, lottery, drawNo, numbers: entry.numbers, label: entry.label,
+  }))
+
+  await insertSavedPicksQuery(db, rows)
+  return rows.map(toSavedPick)
+}
+
+export async function savePick(db: D1Database, input: SavePickInput): Promise<SavedPick> {
+  const count = await countSavedPicksByClientQuery(db, input.clientId)
+  if (count >= MAX_PICKS_PER_CLIENT) {
+    throw new Error(`저장은 최대 ${MAX_PICKS_PER_CLIENT}개까지 가능합니다. 오래된 번호를 지우고 다시 시도해 주세요.`)
+  }
+
+  const row = buildPickRow(input)
 
   await insertSavedPickQuery(db, row)
   return toSavedPick(row)
