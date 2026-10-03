@@ -1,4 +1,5 @@
 import type { SavedPickRow } from '../types/saved-picks'
+import { isMissingColumnError } from './missing-column'
 
 // schema.sql 과 같은 정의. 운영 DB 에 아직 테이블이 없으면 첫 저장 때 만든다.
 const CREATE_SAVED_PICKS_TABLE = `CREATE TABLE IF NOT EXISTS saved_picks (
@@ -132,8 +133,7 @@ export async function markSavedPickCheckedQuery(
       await run()
     } catch (error) {
       // 운영 테이블에 열이 없으면 추가하고 다시 시도한다
-      const message = error instanceof Error ? `${error.message} ${String((error as { cause?: unknown }).cause ?? '')}` : String(error)
-      if (!/no such column/i.test(message)) throw error
+      if (!isMissingColumnError(error)) throw error
       await db.prepare('ALTER TABLE saved_picks ADD COLUMN winning_band TEXT').run()
       await run()
     }

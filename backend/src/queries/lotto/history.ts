@@ -1,4 +1,5 @@
 import type { LottoResultRecord } from '../../types/lotto'
+import { isMissingColumnError } from '../missing-column'
 
 export async function getLatestStoredLottoDrawNo(db: D1Database) {
   const row = await db.prepare('SELECT drwNo FROM lotto_history ORDER BY drwNo DESC LIMIT 1').first<{ drwNo: number }>()
@@ -22,11 +23,6 @@ export async function ensureLottoPrizeColumns(db: D1Database) {
       if (!/duplicate column name/i.test(message)) throw error
     }
   }
-}
-
-function isMissingColumnError(error: unknown) {
-  const message = error instanceof Error ? `${error.message} ${String((error as { cause?: unknown }).cause ?? '')}` : String(error)
-  return /no such column/i.test(message)
 }
 
 // 당첨 번호는 한 번 확정되면 바뀌지 않으므로 그대로 두고, 등위 집계만 나중에 채운다.
