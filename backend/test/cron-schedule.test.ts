@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+// Vite 의 ?raw 임포트로 wrangler.toml 원문을 읽는다. node:fs 를 쓰면
+// Workers tsconfig(types: @cloudflare/workers-types)에 node 타입이 없어 typecheck 가 깨진다.
+// @ts-expect-error — ?raw 는 Vite 가 처리한다
+import toml from '../wrangler.toml?raw'
 
 // Cloudflare 는 요일을 1=일 ~ 7=토 로 센다. 표준 cron(0=일, 6=토)의 숫자를 그대로 쓰면
 // 하루씩 밀린다 — 실제로 "6"(토 의도)이 금요일에, "4"(목 의도)가 수요일에 돌았다.
@@ -7,8 +10,7 @@ import { readFileSync } from 'node:fs'
 // 출처: developers.cloudflare.com/workers/configuration/cron-triggers/
 //   "Days of the week go from 1 = Sunday to 7 = Saturday, which is different on
 //    some other cron systems (where 0 = Sunday and 6 = Saturday)."
-const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8')
-const crons = JSON.parse(/crons = (\[[^\]]*\])/.exec(toml)![1].replace(/'/g, '"')) as string[]
+const crons = JSON.parse(/crons = (\[[^\]]*\])/.exec(toml as string)![1].replace(/'/g, '"')) as string[]
 
 const dayField = (cron: string) => cron.trim().split(/\s+/)[4]
 
