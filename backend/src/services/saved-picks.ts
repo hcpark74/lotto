@@ -1,4 +1,19 @@
 import { gradeLottoPick, gradePensionPick } from '../algorithms/saved-picks'
+import {
+  CODE_LENGTH,
+  CODE_TTL_MINUTES,
+  createTransferCode,
+  formatTransferCode,
+  hashTransferCode,
+  normalizeTransferCode,
+} from '../algorithms/transfer-code'
+import {
+  deleteExpiredTransferCodesQuery,
+  deleteTransferCodeQuery,
+  findTransferCodeQuery,
+  reassignSavedPicksQuery,
+  replaceTransferCodeQuery,
+} from '../queries/transfer-codes'
 import { PENSION_DIGIT_COUNT } from '../algorithms/pension-baseline'
 import {
   countSavedPicksByClientQuery,
@@ -157,4 +172,52 @@ export async function checkSavedPicks(db: D1Database, lottery: Lottery): Promise
   }
 
   return { checked, won }
+}
+
+// ── 기기 간 연동 ──
+// 로그인이 없어 저장분은 브라우저가 만든 식별자에 묶인다. 다른 기기에서 이어 보려면
+// 그 식별자를 옮겨야 하는데, 식별자 자체를 보여주면 받아 적다 틀리기 쉽고 수명도 없다.
+// 대신 짧은 일회용 코드를 발급해 교환한다.
+
+export async function issueTransferCode(db: D1Database, clientId: string) {
+  const bytes = new Uint8Array(CODE_LENGTH)
+  crypto.getRandomValues(bytes)
+  const code = createTransferCode(bytes)
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + CODE_TTL_MINUTES * 60_000)
+
+  await deleteExpiredTransferCodesQuery(db, now.toISOString())
+  await replaceTransferCodeQuery(db, {
+    code_hash: await hashTransferCode(code),
+    client_id: clientId,
+    created_at: now.toISOString(),
+    expires_at: expiresAt.toISOString(),
+  })
+
+  return { code: formatTransferCode(code), expiresAt: expiresAt.toISOString(), ttlMinutes: CODE_TTL_MINUTES }
+}
+
+export type ClaimResult =
+  | { ok: true; clientId: string; movedCount: number }
+  | { ok: false; reason: 'invalid' | 'same-device' }
+
+// 코드를 쓴 기기가 원래 기기의 식별자를 이어받는다. 그래야 두 기기가 같은 보관함을 본다.
+// 쓴 기기에 이미 저장분이 있으면 잃지 않도록 먼저 옮겨 붙인다.
+export async function claimTransferCode(db: D1Database, clientId: string, rawCode: string): Promise<ClaimResult> {
+  const code = normalizeTransferCode(rawCode)
+  if (!code) return { ok: false, reason: 'invalid' }
+
+  const row = await findTransferCodeQuery(db, await hashTransferCode(code), new Date().toISOString())
+  if (!row) return { ok: false, reason: 'invalid' }
+
+  if (row.client_id === clientId) {
+    await deleteTransferCodeQuery(db, row.code_hash)
+    return { ok: false, reason: 'same-device' }
+  }
+
+  const movedCount = await reassignSavedPicksQuery(db, clientId, row.client_id)
+  // 한 번 쓰면 끝. 실패하더라도 코드가 남지 않도록 합친 뒤 바로 지운다.
+  await deleteTransferCodeQuery(db, row.code_hash)
+
+  return { ok: true, clientId: row.client_id, movedCount }
 }

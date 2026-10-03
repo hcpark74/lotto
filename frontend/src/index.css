@@ -228,6 +228,7 @@
 
   /* ── 버튼 ─────────────────────────────────────────── */
   .btn-primary,
+  .btn-secondary,
   .btn-icon {
     border: 2px solid var(--color-ink);
     border-radius: var(--radius-ctl);
@@ -239,9 +240,15 @@
   }
 
   .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+  }
 
-  .btn-primary,
+  .btn-primary {
+    background: var(--color-lemon);
+  }
 
+  .btn-secondary,
   .btn-icon {
     background: var(--color-card);
   }
@@ -255,7 +262,8 @@
     box-shadow: var(--shadow-brutal-sm);
   }
 
-  .btn-primary:hover:not(:disabled) {
+  .btn-primary:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled) {
     transform: translate(-2px, -2px);
     box-shadow: var(--shadow-brutal-lg);
   }
@@ -265,7 +273,8 @@
     box-shadow: 3px 3px 0 0 var(--color-ink);
   }
 
-  .btn-primary:active:not(:disabled) {
+  .btn-primary:active:not(:disabled),
+  .btn-secondary:active:not(:disabled) {
     transform: translate(4px, 4px);
     box-shadow: none;
   }
@@ -276,6 +285,7 @@
   }
 
   .btn-primary:disabled,
+  .btn-secondary:disabled,
   .btn-icon:disabled {
     background: var(--color-paper);
     color: var(--color-ink-soft);
@@ -480,6 +490,7 @@
   }
 
   .btn-primary,
+  .btn-secondary,
   .btn-icon,
   .result-arrow-shell,
   .history-row {

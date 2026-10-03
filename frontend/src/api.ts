@@ -102,3 +102,16 @@ export const createSavedPick = (lottery: PageLottery, numbers: number[] | string
 
 export const deleteSavedPick = (id: string) =>
     request<{ success: true }>(`/api/picks/${id}`, { method: 'DELETE', headers: clientHeaders() });
+
+export const issueTransferCode = () =>
+    request<{ code: string; expiresAt: string; ttlMinutes: number }>('/api/picks/transfer-code', {
+        method: 'POST',
+        headers: clientHeaders(),
+    });
+
+export const claimTransferCode = (code: string) =>
+    request<{ clientId: string; movedCount: number }>('/api/picks/claim', {
+        method: 'POST',
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ code }),
+    });

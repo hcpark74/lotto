@@ -72,3 +72,15 @@ CREATE TABLE IF NOT EXISTS saved_picks (
 CREATE INDEX IF NOT EXISTS idx_saved_picks_client ON saved_picks (client_id, saved_at DESC);
 -- 동기화 후 채점 대상(아직 안 매긴 것)을 복권·회차로 찾는다
 CREATE INDEX IF NOT EXISTS idx_saved_picks_pending ON saved_picks (lottery, draw_no, checked_at);
+
+-- 저장한 번호를 다른 기기에서 이어 보기 위한 일회용 코드.
+-- 코드 자체가 그 보관함의 열쇠라 원문을 저장하지 않고 SHA-256 해시만 둔다.
+-- 수명이 짧고(10분) 한 번 쓰면 지운다.
+CREATE TABLE IF NOT EXISTS pick_transfer_codes (
+  code_hash TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pick_transfer_codes_expiry ON pick_transfer_codes (expires_at);

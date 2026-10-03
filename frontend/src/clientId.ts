@@ -28,3 +28,13 @@ export function getClientId() {
         return (cached = createId());
     }
 }
+
+// 다른 기기의 코드를 받아 그 보관함을 이어받을 때, 이 브라우저의 식별자를 교체한다.
+export function adoptClientId(id: string) {
+    cached = id;
+    try {
+        localStorage.setItem(KEY, id);
+    } catch {
+        // 저장소가 막힌 환경에서는 세션 동안만 유지된다
+    }
+}

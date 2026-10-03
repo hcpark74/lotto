@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
 import {
+  claimTransferCode,
   deleteSavedPick,
   getNextDrawNo,
   isValidClientId,
+  issueTransferCode,
   listSavedPicks,
   normalizeNumbers,
   savePick,
@@ -67,6 +69,32 @@ export function createSavedPickRoutes() {
         return badRequest(c, error instanceof Error ? error.message : '저장에 실패했습니다.')
       }
     }, { logLabel: 'Error in POST /api/picks' }))
+
+  // 다른 기기에서 이어 보기 위한 일회용 코드를 발급한다
+  app.post('/transfer-code', withRouteErrorHandling(async (c) => {
+      const clientId = c.req.header(CLIENT_ID_HEADER)
+      if (!isValidClientId(clientId)) return badRequest(c, `${CLIENT_ID_HEADER} 헤더가 필요합니다.`)
+
+      return c.json(await issueTransferCode(c.env.DB, clientId))
+    }, { logLabel: 'Error in POST /api/picks/transfer-code' }))
+
+  // 코드를 쓴 기기가 원래 기기의 보관함을 이어받는다
+  app.post('/claim', withRouteErrorHandling(async (c) => {
+      const clientId = c.req.header(CLIENT_ID_HEADER)
+      if (!isValidClientId(clientId)) return badRequest(c, `${CLIENT_ID_HEADER} 헤더가 필요합니다.`)
+
+      const body = await c.req.json().catch(() => null) as { code?: unknown } | null
+      const rawCode = typeof body?.code === 'string' ? body.code : ''
+
+      const result = await claimTransferCode(c.env.DB, clientId, rawCode)
+      if (!result.ok) {
+        return badRequest(c, result.reason === 'same-device'
+          ? '같은 기기에서 만든 코드입니다. 다른 기기에서 입력해 주세요.'
+          : '코드가 올바르지 않거나 만료됐습니다.')
+      }
+
+      return c.json({ clientId: result.clientId, movedCount: result.movedCount })
+    }, { logLabel: 'Error in POST /api/picks/claim' }))
 
   app.delete('/:id', withRouteErrorHandling(async (c) => {
       const clientId = c.req.header(CLIENT_ID_HEADER)

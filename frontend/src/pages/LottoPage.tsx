@@ -9,6 +9,7 @@ import type { BacktestStatus } from '../hooks/useBacktest';
 import { lottoBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import { useSavedPicks } from '../hooks/useSavedPicks';
 import { SavedPicksList } from '../components/saved-picks';
+import { DeviceLink } from '../components/device-link';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 
@@ -41,6 +42,8 @@ function LottoMineTab() {
                 </p>
                 <SavedPicksList lottery="lotto" state={saved} />
             </SectionCard>
+
+            <DeviceLink onLinked={saved.load} />
         </section>
     );
 }
