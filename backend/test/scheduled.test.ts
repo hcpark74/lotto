@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../src/services/lotto', () => ({
   syncLatestLottoResults: vi.fn(),
+  backfillLottoPrizeStats: vi.fn(async () => ({ scanned: 0, filled: 0, requests: 0, remaining: 0 })),
 }))
 vi.mock('../src/services/saved-picks', () => ({
   checkSavedPicks: vi.fn(async () => ({ checked: 0, won: 0 })),
@@ -11,13 +12,14 @@ vi.mock('../src/services/pension', () => ({
 }))
 
 const { default: worker } = await import('../src/index')
-const { syncLatestLottoResults } = await import('../src/services/lotto')
+const { syncLatestLottoResults, backfillLottoPrizeStats } = await import('../src/services/lotto')
 const { syncPensionResults } = await import('../src/services/pension')
 const { checkSavedPicks } = await import('../src/services/saved-picks')
 
 const lottoSync = vi.mocked(syncLatestLottoResults)
 const pensionSync = vi.mocked(syncPensionResults)
 const pickCheck = vi.mocked(checkSavedPicks)
+const prizeBackfill = vi.mocked(backfillLottoPrizeStats)
 const env = { DB: {} as D1Database }
 const ctx = {} as ExecutionContext
 
@@ -32,6 +34,7 @@ describe('scheduled', () => {
     lottoSync.mockReset().mockResolvedValue({ syncedCount: 1, nextDrwNo: 2, latestDraw: 1 })
     pensionSync.mockReset().mockResolvedValue({ syncedCount: 1, latestDraw: 1, nextDrawNo: 2, pendingPrizeDrawNos: [] })
     pickCheck.mockReset().mockResolvedValue({ checked: 0, won: 0 })
+    prizeBackfill.mockReset().mockResolvedValue({ scanned: 0, filled: 0, requests: 0, remaining: 0 })
   })
 
   it('매일 cron 은 로또·연금을 모두 동기화', async () => {
@@ -46,6 +49,13 @@ describe('scheduled', () => {
     expect(pickCheck).toHaveBeenCalledTimes(2)
     expect(pickCheck).toHaveBeenCalledWith(env.DB, 'lotto')
     expect(pickCheck).toHaveBeenCalledWith(env.DB, 'pension')
+  })
+
+  // 등위별 당첨자 수는 추첨 직후 비어 있어 cron 이 조금씩 메워야 한다 (docs/PLAN.md Phase 1)
+  it('로또 동기화 뒤 등위 집계를 백필한다', async () => {
+    await run()
+    expect(prizeBackfill).toHaveBeenCalledOnce()
+    expect(prizeBackfill).toHaveBeenCalledWith(env.DB, expect.any(Number))
   })
 
   it('동기화가 실패하면 그 복권은 채점하지 않는다', async () => {

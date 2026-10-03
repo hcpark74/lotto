@@ -1,5 +1,11 @@
-import { fetchLottoResult, getLatestDrawNo } from '../clients/lotto'
-import { getLatestStoredLottoDrawNo, insertLottoResult } from '../queries/lotto'
+import { fetchLottoResult, fetchLottoResultWindow, getLatestDrawNo, LOTTO_WINDOW_SIZE } from '../clients/lotto'
+import {
+  countLottoDrawsMissingPrizeStatsQuery,
+  ensureLottoPrizeColumns,
+  getLatestStoredLottoDrawNo,
+  getLottoDrawsMissingPrizeStatsQuery,
+  insertLottoResult,
+} from '../queries/lotto'
 import type { LottoSyncSummary } from '../types/lotto'
 
 export async function syncLatestLottoResults(db: D1Database, maxSyncPerRequest = 10): Promise<LottoSyncSummary> {
@@ -27,5 +33,57 @@ export async function syncLatestLottoResults(db: D1Database, maxSyncPerRequest =
     syncedCount,
     nextDrwNo: currentDrwNo,
     latestDraw,
+  }
+}
+
+// 등위별 당첨자 수·판매액 백필. 추첨 직후에는 집계가 없어 NULL 로 들어가므로
+// 나중에 다시 받아 채워야 한다 (docs/PLAN.md Phase 1).
+// 한 호출이 10회차를 돌려주므로 창 단위로 받아 호출 수를 줄인다.
+export type LottoPrizeBackfillSummary = {
+  scanned: number
+  filled: number
+  requests: number
+  remaining: number
+}
+
+export async function backfillLottoPrizeStats(
+  db: D1Database,
+  maxRequests: number,
+): Promise<LottoPrizeBackfillSummary> {
+  await ensureLottoPrizeColumns(db)
+
+  // 한 번에 처리할 회차 수. 창 하나가 10회차라 요청 수 × 10 만큼만 집어 온다.
+  const missing = await getLottoDrawsMissingPrizeStatsQuery(db, maxRequests * LOTTO_WINDOW_SIZE)
+  if (missing.length === 0) return { scanned: 0, filled: 0, requests: 0, remaining: 0 }
+
+  const pending = new Set(missing)
+  let requests = 0
+  let filled = 0
+
+  // 내림차순이라 앞에서부터 창을 잡으면 겹치는 회차가 한 번에 정리된다
+  for (const drwNo of missing) {
+    if (requests >= maxRequests) break
+    if (!pending.has(drwNo)) continue
+
+    requests += 1
+    // 창은 요청 회차를 가운데(앞 4 + 요청 + 뒤 5) 두므로, 남은 최대 회차를 창의 위쪽 끝에
+    // 맞추려면 4 를 빼고 요청해야 한다. 그대로 요청하면 위쪽 4개가 이미 채운 회차라 낭비된다.
+    const window = await fetchLottoResultWindow(Math.max(drwNo - 4, 1))
+
+    for (const record of window) {
+      if (!record.prizeStats) continue
+      await insertLottoResult(db, record)
+      if (pending.delete(record.drwNo)) filled += 1
+    }
+
+    // 창에 없었거나 아직 집계 전이면 이번 회차는 비워 둔 채 넘어간다
+    pending.delete(drwNo)
+  }
+
+  return {
+    scanned: missing.length,
+    filled,
+    requests,
+    remaining: await countLottoDrawsMissingPrizeStatsQuery(db),
   }
 }

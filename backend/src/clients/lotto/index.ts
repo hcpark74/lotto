@@ -1,2 +1,2 @@
 export { getLatestDrawNo } from './history'
-export { fetchLottoResult } from './results'
+export { fetchLottoResult, fetchLottoResultWindow, LOTTO_WINDOW_SIZE } from './results'

@@ -1,4 +1,4 @@
-import type { LottoHistoryItem, LottoResultRecord } from '../../types/lotto'
+import type { LottoHistoryItem, LottoPrizeStats, LottoResultRecord } from '../../types/lotto'
 import { LOTTO_HEADERS } from '../dhlottery'
 
 function isValidLottoNumber(value: unknown): value is number {
@@ -10,6 +10,35 @@ export function parseFirstPrizeAmount(value: unknown) {
   if (value == null || value === '') return null
   const amount = Number(value)
   return Number.isFinite(amount) && amount >= 0 ? amount : null
+}
+
+function toCount(value: unknown) {
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
+// 추첨 직후에는 등위별 집계가 아직 없다. 판매액이 비어 있으면 집계 전으로 보고 통째로 null 을 돌려준다.
+// (0 인 등위는 실제로 있을 수 있어 개별 값만으로는 집계 전인지 구분할 수 없다.)
+export function parsePrizeStats(item: LottoHistoryItem): LottoPrizeStats | null {
+  const salesAmount = Number(item.rlvtEpsdSumNtslAmt)
+  if (!Number.isFinite(salesAmount) || salesAmount <= 0) return null
+
+  return {
+    rnk1WnNope: toCount(item.rnk1WnNope),
+    rnk2WnNope: toCount(item.rnk2WnNope),
+    rnk3WnNope: toCount(item.rnk3WnNope),
+    rnk4WnNope: toCount(item.rnk4WnNope),
+    rnk5WnNope: toCount(item.rnk5WnNope),
+    rnk1SumWnAmt: toCount(item.rnk1SumWnAmt),
+    rnk2SumWnAmt: toCount(item.rnk2SumWnAmt),
+    rnk3SumWnAmt: toCount(item.rnk3SumWnAmt),
+    rnk4SumWnAmt: toCount(item.rnk4SumWnAmt),
+    rnk5SumWnAmt: toCount(item.rnk5SumWnAmt),
+    salesAmount,
+    winType1: toCount(item.winType1),
+    winType2: toCount(item.winType2),
+    winType3: toCount(item.winType3),
+  }
 }
 
 // 저장 후에는 다시 받지 않으므로 여기서 걸러야 잘못된 행이 영구히 남지 않는다
@@ -50,6 +79,11 @@ export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord
 
   if (!item) return null
 
+  return toLottoResultRecord(item)
+}
+
+// 응답 한 건 → 저장 레코드. 날짜 형식이나 번호 검증에 실패하면 null (그 회차만 건너뛴다).
+export function toLottoResultRecord(item: LottoHistoryItem): LottoResultRecord | null {
   const date = String(item.ltRflYmd)
   if (!/^\d{8}$/.test(date)) {
     console.warn(`Invalid date format for draw ${item.ltEpsd}: ${date}`)
@@ -67,12 +101,28 @@ export async function fetchLottoResult(drwNo: number): Promise<LottoResultRecord
     drwtNo6: item.tm6WnNo,
     bnusNo: item.bnsWnNo,
     firstWinamnt: parseFirstPrizeAmount(item.rnk1WnAmt),
+    prizeStats: parsePrizeStats(item),
   }
 
   if (!isValidLottoRecord(record)) {
-    console.warn(`Invalid lotto result for draw ${drwNo}:`, JSON.stringify(item))
+    console.warn(`Invalid lotto result for draw ${item.ltEpsd}:`, JSON.stringify(item))
     return null
   }
 
   return record
+}
+
+// 한 호출이 요청 회차를 가운데 두고 10회차를 돌려준다 (앞 4 + 요청 + 뒤 5).
+// 백필은 이 창을 그대로 받아 호출 수를 1/10 로 줄인다.
+export const LOTTO_WINDOW_SIZE = 10
+
+export async function fetchLottoResultWindow(cursorDrwNo: number): Promise<LottoResultRecord[]> {
+  const url = `https://www.dhlottery.co.kr/lt645/selectPstLt645InfoNew.do?srchDir=center&srchLtEpsd=${cursorDrwNo}&srchCursorLtEpsd=${cursorDrwNo}`
+  const response = await fetch(url, { headers: LOTTO_HEADERS })
+  if (!response.ok) throw new Error(`로또 ${cursorDrwNo}회 주변 조회 실패 (${response.status})`)
+
+  const data = await response.json() as { data?: { list?: LottoHistoryItem[] } }
+  const list = data?.data?.list ?? []
+
+  return list.map(toLottoResultRecord).filter((row): row is LottoResultRecord => row !== null)
 }

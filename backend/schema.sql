@@ -8,7 +8,24 @@ CREATE TABLE IF NOT EXISTS lotto_history (
   drwtNo5 INTEGER,
   drwtNo6 INTEGER,
   bnusNo INTEGER,
-  firstWinamnt INTEGER
+  firstWinamnt INTEGER,
+  -- 등위별 당첨자 수·총 지급액과 회차 판매액. 인기 조합 회피 모델의 입력이다 (docs/PLAN.md Phase 1).
+  -- 추첨 직후에는 집계 전이라 NULL 이고, 이후 동기화에서 채워진다.
+  rnk1WnNope INTEGER,
+  rnk2WnNope INTEGER,
+  rnk3WnNope INTEGER,
+  rnk4WnNope INTEGER,
+  rnk5WnNope INTEGER,
+  rnk1SumWnAmt INTEGER,
+  rnk2SumWnAmt INTEGER,
+  rnk3SumWnAmt INTEGER,
+  rnk4SumWnAmt INTEGER,
+  rnk5SumWnAmt INTEGER,
+  salesAmount INTEGER,
+  -- 1등의 자동/수동/반자동 구매 수
+  winType1 INTEGER,
+  winType2 INTEGER,
+  winType3 INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS pension720_draws (

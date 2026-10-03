@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import {
+  backfillLottoPrizeStats,
   generateLottoSetsFromDb,
   getHotNumbersFromDb,
   getLottoResultByDrawNo,
@@ -23,6 +24,16 @@ export function createLottoRoutes() {
       const checked = await checkSavedPicks(c.env.DB, 'lotto')
       return c.json({ success: true, ...result, savedPickCheck: checked } satisfies LottoSyncResponse)
     }, {
+      errorBody: (message) => ({ success: false, error: message } satisfies SyncErrorResponse),
+    }))
+
+  // 등위별 당첨자 수·판매액 백필. 한 호출이 10회차를 받으므로 limit 은 "요청 수"다.
+  app.post('/sync/prizes', requireAdminToken, withRouteErrorHandling(async (c) => {
+      const maxRequests = parseIntQuery(c.req.query('limit'), 10, 1, 200)
+      const result = await backfillLottoPrizeStats(c.env.DB, maxRequests)
+      return c.json({ success: true, ...result })
+    }, {
+      logLabel: 'Error in /api/sync/prizes',
       errorBody: (message) => ({ success: false, error: message } satisfies SyncErrorResponse),
     }))
 

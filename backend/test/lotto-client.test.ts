@@ -12,7 +12,7 @@ const valid: LottoResultRecord = {
   drwtNo5: 37,
   drwtNo6: 40,
   bnusNo: 16,
-  firstWinamnt: 0,
+  firstWinamnt: 0, prizeStats: null,
 }
 
 describe('isValidLottoRecord', () => {
@@ -69,7 +69,7 @@ describe('fetchLottoResult', () => {
 
   it('정상 응답이면 레코드', async () => {
     stubFetch(async () => Response.json({ data: { list: [item] } }))
-    await expect(fetchLottoResult(1)).resolves.toMatchObject({ drwNo: 1, drwNoDate: '2002-12-07', drwtNo1: 10, firstWinamnt: 0 })
+    await expect(fetchLottoResult(1)).resolves.toMatchObject({ drwNo: 1, drwNoDate: '2002-12-07', drwtNo1: 10, firstWinamnt: 0, prizeStats: null })
   })
 
   it('아직 발표 전(목록에 없음)이면 null', async () => {

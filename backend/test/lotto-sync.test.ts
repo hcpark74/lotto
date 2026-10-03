@@ -15,7 +15,7 @@ const queries = await import('../src/queries/lotto')
 
 const db = {} as D1Database
 const record = (drwNo: number) => ({
-  drwNo, drwNoDate: '2026-09-19', drwtNo1: 1, drwtNo2: 2, drwtNo3: 3, drwtNo4: 4, drwtNo5: 5, drwtNo6: 6, bnusNo: 7, firstWinamnt: 0,
+  drwNo, drwNoDate: '2026-09-19', drwtNo1: 1, drwtNo2: 2, drwtNo3: 3, drwtNo4: 4, drwtNo5: 5, drwtNo6: 6, bnusNo: 7, firstWinamnt: 0, prizeStats: null,
 })
 
 describe('syncLatestLottoResults', () => {

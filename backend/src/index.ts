@@ -4,7 +4,7 @@ import { cors } from 'hono/cors'
 import { createLottoRoutes } from './routes/lotto'
 import { createPensionRoutes } from './routes/pension'
 import { createSavedPickRoutes } from './routes/saved-picks'
-import { syncLatestLottoResults } from './services/lotto'
+import { backfillLottoPrizeStats, syncLatestLottoResults } from './services/lotto'
 import { syncPensionResults } from './services/pension'
 import { checkSavedPicks } from './services/saved-picks'
 import type { Bindings } from './types/app'
@@ -25,6 +25,11 @@ async function runLottoCron(db: D1Database) {
   // 새 회차가 들어왔으면 저장된 번호를 채점한다. 결과가 없는 회차는 건너뛰므로 매번 돌려도 된다.
   const checked = await checkSavedPicks(db, 'lotto')
   console.log(`Cron(lotto): checked ${checked.checked} saved pick(s), ${checked.won} won`)
+
+  // 등위별 당첨자 수는 추첨 직후에 비어 있어 나중에 다시 받아야 한다.
+  // 한 번에 조금씩만 메워 과거분도 자연히 따라잡게 한다 (다 차면 요청 0건).
+  const prizes = await backfillLottoPrizeStats(db, LOTTO_PRIZE_BACKFILL_REQUESTS)
+  console.log(`Cron(lotto): prize backfill filled ${prizes.filled} draw(s) in ${prizes.requests} request(s), ${prizes.remaining} left`)
 }
 
 async function runPensionCron(db: D1Database) {
@@ -33,6 +38,10 @@ async function runPensionCron(db: D1Database) {
   const checked = await checkSavedPicks(db, 'pension')
   console.log(`Cron(pension): checked ${checked.checked} saved pick(s), ${checked.won} won`)
 }
+
+// cron 한 번에 보낼 백필 요청 수. 한 요청이 10회차를 받으므로 100회차씩 메운다.
+// 1,243회차를 처음부터 채워도 하루 3회 cron 기준 나흘이면 끝난다.
+const LOTTO_PRIZE_BACKFILL_REQUESTS = 10
 
 export default {
   fetch: app.fetch,

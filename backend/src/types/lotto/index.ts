@@ -2,6 +2,7 @@ export type {
   DrawNumbersRow,
   GeneratedSet,
   LottoHistoryItem,
+  LottoPrizeStats,
   LottoHistoryQueryRow,
   LottoResultRecord,
 } from './models'
