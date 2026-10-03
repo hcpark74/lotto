@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { createLottoRoutes } from './routes/lotto'
 import { createPensionRoutes } from './routes/pension'
+import { createRefreshRoutes } from './routes/refresh'
 import { createSavedPickRoutes } from './routes/saved-picks'
 import { backfillLottoPrizeStats, syncLatestLottoResults } from './services/lotto'
 import { syncPensionResults } from './services/pension'
@@ -18,6 +19,7 @@ app.get('/', (c) => c.text('Lotto Analysis API'))
 app.route('/api', createLottoRoutes())
 app.route('/api/pension', createPensionRoutes())
 app.route('/api/picks', createSavedPickRoutes())
+app.route('/api/refresh', createRefreshRoutes())
 
 async function runLottoCron(db: D1Database) {
   const result = await syncLatestLottoResults(db, Number.POSITIVE_INFINITY)

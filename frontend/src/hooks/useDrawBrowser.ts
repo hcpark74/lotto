@@ -31,6 +31,8 @@ export function useDrawBrowser<T>(api: DrawBrowserApi<T>) {
     const [loading, setLoading] = useState(true);
     const [windowError, setWindowError] = useState('');
 
+    const [reloadKey, setReloadKey] = useState(0);
+    const previousLatest = useRef<number | null>(null);
     const [searchInput, setSearchInput] = useState('');
     const [searchError, setSearchError] = useState('');
     const latestWindowRequest = useRef(0);
@@ -43,7 +45,8 @@ export function useDrawBrowser<T>(api: DrawBrowserApi<T>) {
         });
     };
 
-    // 첫 로드: 최신 회차를 알아내고 그 창을 채운다
+    // 첫 로드: 최신 회차를 알아내고 그 창을 채운다.
+    // reloadKey 가 바뀌면 다시 읽는다 — 새 회차를 받아온 직후가 그 경우다.
     useEffect(() => {
         let cancelled = false;
 
@@ -54,7 +57,12 @@ export function useDrawBrowser<T>(api: DrawBrowserApi<T>) {
                 merge(rows);
                 const latest = rows[0] === undefined ? null : api.drawNoOf(rows[0]);
                 setLatestDrawNo(latest);
-                setSelected(latest);
+                // 새 회차가 들어왔으면 그쪽으로 옮겨 준다. 사용자가 지난 회차를 보고 있었다면 그대로 둔다.
+                // ref 는 setSelected 의 업데이터가 돌기 전에 읽어 둬야 한다 —
+                // 먼저 덮으면 업데이터 안에서 "직전 최신" 이 이미 새 값이라 비교가 항상 어긋난다.
+                const wasLatest = previousLatest.current;
+                previousLatest.current = latest;
+                setSelected(prev => (prev === null || prev === wasLatest ? latest : prev));
             } catch {
                 if (!cancelled) setWindowError('당첨 결과를 불러오지 못했습니다.');
             } finally {
@@ -63,7 +71,7 @@ export function useDrawBrowser<T>(api: DrawBrowserApi<T>) {
         })();
 
         return () => { cancelled = true; };
-    }, []);
+    }, [reloadKey]);
 
     // selected 가 바뀌면 그 회차부터의 창을 확보한다. 이미 캐시에 다 있으면 요청하지 않는다.
     useEffect(() => {
@@ -139,6 +147,7 @@ export function useDrawBrowser<T>(api: DrawBrowserApi<T>) {
         select,
         shiftWindow: (delta: number) => select((selected ?? 0) + delta),
         searchInput, searchError, changeSearchInput, search,
+        reload: () => setReloadKey(key => key + 1),
     };
 }
 

@@ -100,6 +100,20 @@ export const createSavedPick = (lottery: PageLottery, numbers: number[] | string
         body: JSON.stringify({ lottery, numbers, label }),
     });
 
+// 낡았을 때만 새 회차를 받아온다. 토큰이 필요 없는 공개 엔드포인트이고,
+// 평소에는 서버가 일정으로 걸러 외부 요청 없이 up-to-date 를 돌려준다.
+export type RefreshResult = {
+    lottery: PageLottery;
+    status: 'up-to-date' | 'cooldown' | 'synced';
+    latestDraw: number | null;
+    syncedCount: number;
+    checkedPicks: number;
+    retryAfterSeconds?: number;
+};
+
+export const refreshLottery = (lottery: PageLottery) =>
+    request<RefreshResult>(`/api/refresh?lottery=${lottery}`, { method: 'POST' });
+
 // 추천은 5세트가 한 번에 나오므로 저장도 한 번에 보낸다 (요청 1번, 한도 검사 1번)
 export const createSavedPicks = (lottery: PageLottery, picks: { numbers: number[] | string; label: string | null }[]) =>
     request<SavedPick[]>('/api/picks/bulk', {

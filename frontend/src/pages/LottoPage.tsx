@@ -13,6 +13,7 @@ import { SaveAllBar } from '../components/save-all-bar';
 import { DeviceLink } from '../components/device-link';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
+import { FreshnessBar } from '../components/freshness-bar';
 
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
@@ -53,7 +54,7 @@ function LottoResultsTab() {
     const {
         selectedDraw, windowRows, loading, windowError,
         latestDrawNo, selected, canGoOlder, canGoNewer, select, shiftWindow,
-        searchInput, searchError, changeSearchInput, search,
+        searchInput, searchError, changeSearchInput, search, reload,
     } = useDrawBrowser(lottoBrowserApi);
 
     const viewerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +79,8 @@ function LottoResultsTab() {
                         {selected === latestDrawNo ? '최신 회차입니다. 당첨 결과는 매주 자동으로 갱신됩니다.' : `최신은 ${latestDrawNo}회입니다.`}
                     </p>
                 </div>
+
+                <FreshnessBar lottery="lotto" onSynced={reload} />
 
                 {loading ? (
                     <div className="panel flex min-h-[460px] sm:min-h-[620px] items-center justify-center px-4 py-8 text-sm text-ink-soft">데이터를 불러오는 중입니다...</div>

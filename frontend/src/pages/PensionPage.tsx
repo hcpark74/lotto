@@ -11,6 +11,7 @@ import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
 import type { TabKey } from '../routing';
+import { FreshnessBar } from '../components/freshness-bar';
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
     idle: '연금복권 백테스트 진단을 준비하고 있습니다.',
@@ -122,7 +123,7 @@ function PensionResultsTab() {
     const {
         selectedDraw, windowRows, loading, windowError,
         latestDrawNo, selected, canGoOlder, canGoNewer, select, shiftWindow,
-        searchInput, searchError, changeSearchInput, search,
+        searchInput, searchError, changeSearchInput, search, reload,
     } = useDrawBrowser(pensionBrowserApi);
 
     const viewerRef = useRef<HTMLDivElement>(null);
@@ -146,6 +147,8 @@ function PensionResultsTab() {
                         {selected === latestDrawNo ? '최신 회차입니다. 당첨 결과는 매주 자동으로 갱신됩니다.' : `최신은 ${latestDrawNo}회입니다.`}
                     </p>
                 </div>
+
+                <FreshnessBar lottery="pension" onSynced={reload} />
 
                 {loading ? (
                     <div className="panel flex min-h-[540px] sm:min-h-[560px] items-center justify-center px-4 py-8 text-sm text-ink-soft">연금복권 데이터를 불러오는 중입니다...</div>
