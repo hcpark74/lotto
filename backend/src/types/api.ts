@@ -144,6 +144,11 @@ export type LottoBacktestResponse = {
   }
   hitDistribution: Record<number, number>
   bestHitDistribution: Record<number, number>
+  // 추천이 실제로 달성한 인기 백분위. 낮을수록 당첨 시 나눠 갖는 사람이 적다.
+  popularity: {
+    averagePercentile: number
+    randomPercentile: number
+  }
   ruleDiagnostics: {
     currentWeights: RuleWeight[]
     performance: LottoRulePerformance[]

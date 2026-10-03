@@ -116,14 +116,14 @@ export function LottoHonestyPanel({ data }: { data: LottoBacktestDiagnostics }) 
                 </Row>
             </div>
 
-            <PayoutSection />
+            <PayoutSection popularity={data.popularity} />
         </div>
     );
 }
 
 // 위 지표는 모두 "확률은 못 올린다"로 끝난다. 실제로 움직이는 건 배당 하나뿐이라
 // 근거 수치를 여기 모아 둔다 (backend/src/algorithms/popularity.ts).
-function PayoutSection() {
+function PayoutSection({ popularity }: { popularity: LottoBacktestDiagnostics['popularity'] }) {
     return (
         <div className="mt-5 border-t-2 border-ink pt-4">
             <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">확률이 아니라 배당</p>
@@ -135,6 +135,19 @@ function PayoutSection() {
             </p>
 
             <div className="mt-4 grid gap-2 lg:grid-cols-2">
+                <Row
+                    label="이번 추천이 받은 점수"
+                    value={`백분위 ${popularity.averagePercentile}`}
+                    note={`무작위로 고르면 ${popularity.randomPercentile} 입니다. 규칙을 통과한 후보 24개 중 가장 덜 고르는 조합을 골라 내려간 값입니다.`}
+                >
+                    <RangeMeter
+                        value={popularity.randomPercentile - popularity.averagePercentile}
+                        low={0}
+                        high={popularity.randomPercentile}
+                        format={(v) => `${(popularity.randomPercentile - v).toFixed(0)}`}
+                    />
+                </Row>
+
                 <Row
                     label="2등 1인당 당첨금"
                     value="1.140배"
@@ -148,7 +161,7 @@ function PayoutSection() {
                 <Row
                     label="1등 1인당 당첨금"
                     value="구분 불가"
-                    note="1.033배, z = 0.37. 1등 당첨자의 70%가 자동 구매(균등 무작위)라 사람의 선택 편향이 희석됩니다. 이 비율은 20년간 안정적입니다."
+                    note="1.033배, z = 0.37. 1등 당첨자 중 번호를 직접 고른 사람(수동)은 30%뿐이고 나머지는 자동 구매(균등 무작위)라 선택 편향이 희석됩니다. 이 비율은 20년간 안정적입니다."
                 />
                 <Row
                     label="1게임 기대값"

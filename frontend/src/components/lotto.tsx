@@ -113,7 +113,7 @@ function PopularityMeter({ percentile, detailed }: { percentile: number; detaile
                 <p className="mt-3 text-xs leading-relaxed text-ink-soft">
                     당첨 확률은 어떤 번호를 골라도 같습니다. 이 지표는 <strong className="font-semibold text-ink">당첨됐을 때
                     당첨금을 나눠 가질 사람 수</strong>와 관련 있습니다. 1,243회차 당첨자 수로 측정한 결과,
-                    점수가 낮은 조합은 2등 1.14배·3등 1.08배를 받았습니다. 1등은 당첨자의 70%가 자동 구매라 차이가
+                    점수가 낮은 조합은 2등 1.14배·3등 1.08배를 받았습니다. 1등은 번호를 직접 고른 당첨자가 30%뿐이라 차이가
                     확인되지 않았습니다.
                 </p>
             )}

@@ -1,4 +1,5 @@
 import { buildGeneratedSets, buildRuleWeights, countMatches, LOTTO_ALGORITHM_VERSION, SET_CONFIGS } from '../algorithms/lotto'
+import { RANDOM_POPULARITY_PERCENTILE } from '../algorithms/popularity'
 import {
   buildExpectedHitDistribution,
   buildRandomNumbers,
@@ -63,6 +64,8 @@ export function runLottoBacktest(
   let disjointBest3Count = 0
   // 전략 5세트가 실제로 덮는 서로 다른 번호 수
   let distinctSum = 0
+  let popularitySum = 0
+  let popularityCount = 0
   let best3Count = 0
   let best4Count = 0
   let threePlusCount = 0
@@ -121,6 +124,12 @@ export function runLottoBacktest(
     for (const set of sets) for (const num of set.numbers) usedNumbers.add(num)
     distinctSum += usedNumbers.size
 
+    // 생성이 실제로 달성한 인기 백분위. 무작위로 고르면 정의상 50 이다.
+    for (const set of sets) {
+      popularitySum += set.meta?.popularityPercentile ?? 50
+      popularityCount += 1
+    }
+
     for (let repeat = 0; repeat < BASELINE_REPEATS; repeat++) {
       let controlDrawTotal = 0
       let controlBest = 0
@@ -172,6 +181,12 @@ export function runLottoBacktest(
     coverage: {
       averageDistinctNumbers: Number((distinctSum / drawCount).toFixed(2)),
       maxDistinctNumbers: SET_CONFIGS.length * LOTTO_PICK_COUNT,
+    },
+    // 당첨 확률은 어떤 선택 규칙으로도 0.8 에서 움직이지 않는다. 실제로 바뀌는 건 배당뿐이고,
+    // 그 크기를 결정하는 게 이 값이다 (algorithms/popularity.ts).
+    popularity: {
+      averagePercentile: Number((popularitySum / Math.max(popularityCount, 1)).toFixed(1)),
+      randomPercentile: RANDOM_POPULARITY_PERCENTILE,
     },
     drawHitRate: {
       best3Plus: pct(best3Count),
