@@ -39,9 +39,10 @@ async function runPensionCron(db: D1Database) {
   console.log(`Cron(pension): checked ${checked.checked} saved pick(s), ${checked.won} won`)
 }
 
-// cron 한 번에 보낼 백필 요청 수. 한 요청이 10회차를 받으므로 100회차씩 메운다.
-// 1,243회차를 처음부터 채워도 하루 3회 cron 기준 나흘이면 끝난다.
-const LOTTO_PRIZE_BACKFILL_REQUESTS = 10
+// cron 한 번에 보낼 백필 요청 수. 한 요청이 10회차를 받으므로 200회차씩 메운다.
+// cron 은 주 11회 돈다 (매일 1 + 토 2 + 목 2). 1,243회차를 처음부터 채우면 7회 실행,
+// 나흘쯤 걸린다. 다 차면 요청 0건이라 그냥 지나간다.
+const LOTTO_PRIZE_BACKFILL_REQUESTS = 20
 
 export default {
   fetch: app.fetch,
