@@ -141,17 +141,9 @@ export function PensionResultCard({
     );
 }
 
-export function PensionRecommendationCard({
-    set,
-    onSave,
-    saving = false,
-    saved = false,
-}: {
-    set: PensionRecommendationSet;
-    onSave?: () => void;
-    saving?: boolean;
-    saved?: boolean;
-}) {
+// 연금은 같은 6자리를 다섯 조로 사는 게 실제 구매 방식이라, 저장은 대표 추천 한 세트만 받는다.
+// 여기 네 장은 성향별로 어떤 조합이 나오는지 보여 주는 용도다 (FeaturedPensionRecommendationCard 가 저장을 맡는다).
+export function PensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
     const ruleName = set.meta.ruleId ? set.label : null;
 
     return (
@@ -205,23 +197,24 @@ export function PensionRecommendationCard({
                 <span>최대 중복 {set.meta.maxDuplicateCount}개</span>
             </div>
 
-            {onSave && (
-                <div className="mt-5 flex justify-center">
-                    <button
-                        type="button"
-                        onClick={onSave}
-                        disabled={saving || saved}
-                        className="btn-secondary inline-flex min-h-11 items-center justify-center px-5 text-sm"
-                    >
-                        {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
-                    </button>
-                </div>
-            )}
         </div>
     );
 }
 
-export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecommendationSet }) {
+// 저장은 이 카드에서만 받는다. 연금은 조(1~5) + 6자리이고 같은 6자리가 다섯 조에 모두
+// 있어서, 번호 하나를 전 조로 사는 게 실제 구매 방식이다. 성향별 네 조합을 따로 담는 건
+// 그 구조와 맞지 않는다 (저장한 번호는 내 번호 탭에서 1~5조로 펼쳐 보여 준다).
+export function FeaturedPensionRecommendationCard({
+    set,
+    onSave,
+    saving = false,
+    saved = false,
+}: {
+    set: PensionRecommendationSet;
+    onSave?: () => void;
+    saving?: boolean;
+    saved?: boolean;
+}) {
     const ruleName = set.meta.ruleId ? set.label : null;
 
     return (
@@ -280,6 +273,22 @@ export function FeaturedPensionRecommendationCard({ set }: { set: PensionRecomme
                     <div className="mt-1 text-lg font-semibold text-ink">{set.meta.maxDuplicateCount}개</div>
                 </div>
             </div>
+
+            {onSave && (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper px-4 py-3">
+                    <p className="text-xs leading-relaxed text-ink-soft sm:text-sm">
+                        이 번호 하나만 저장합니다. 다섯 조에 같은 번호가 있어 전 조를 사면 1등을 반드시 받습니다.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={saving || saved}
+                        className="btn-secondary inline-flex min-h-11 shrink-0 items-center justify-center px-5 text-sm"
+                    >
+                        {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

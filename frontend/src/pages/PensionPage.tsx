@@ -6,7 +6,6 @@ import { useSavedPicks } from '../hooks/useSavedPicks';
 import { SavedPicksList } from '../components/saved-picks';
 import { DeviceLink } from '../components/device-link';
 import { FeaturedPensionRecommendationCard, PensionNumberStrip, PensionRecommendationCard, PensionResultCard } from '../components/pension';
-import { SaveAllBar } from '../components/save-all-bar';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
@@ -67,11 +66,23 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                 >
                     <p className="mb-4 text-sm text-ink-soft">
                         숫자 6개를 독립 추출한 뒤 공통 규칙을 통과시키고, 추천 성향별 규칙 세트로 여러 조합을 나눠 제안합니다.
+                        저장은 <span className="font-semibold text-ink">대표 추천 한 세트</span>만 받습니다 —
+                        연금복권은 같은 6자리가 1~5조에 모두 있어 번호 하나를 전 조로 사는 구조이기 때문입니다.
+                        아래 네 장은 성향별로 어떤 조합이 나오는지 보여 주는 용도입니다.
                     </p>
 
                     {featuredRecommendation && (
                         <div className="mb-4">
-                            <FeaturedPensionRecommendationCard set={featuredRecommendation} />
+                            <FeaturedPensionRecommendationCard
+                                set={featuredRecommendation}
+                                saving={saved.savingKey === featuredRecommendation.number}
+                                saved={savedKeys.has(featuredRecommendation.number)}
+                                onSave={async () => {
+                                    if (await saved.save(featuredRecommendation.number, featuredRecommendation.number, featuredRecommendation.label)) {
+                                        setSavedKeys(prev => new Set(prev).add(featuredRecommendation.number));
+                                    }
+                                }}
+                            />
                         </div>
                     )}
 
@@ -80,29 +91,11 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                     {pensionGenerateError ? (
                         <div className="panel bg-coral px-4 py-8 text-center text-sm font-medium">{pensionGenerateError}</div>
                     ) : pensionRecommendations.length > 0 ? (
-                        <>
-                        <SaveAllBar
-                            entries={pensionRecommendations.map(set => ({ key: set.number, numbers: set.number, label: set.label }))}
-                            state={saved}
-                            savedKeys={savedKeys}
-                            onSaved={keys => setSavedKeys(prev => new Set([...prev, ...keys]))}
-                        />
                         <div className="grid gap-3 lg:grid-cols-2">
                             {pensionRecommendations.map((set) => (
-                                <PensionRecommendationCard
-                                            key={`${set.label}-${set.number}`}
-                                            set={set}
-                                            saving={saved.savingKey === set.number}
-                                            saved={savedKeys.has(set.number)}
-                                            onSave={async () => {
-                                                if (await saved.save(set.number, set.number, set.label)) {
-                                                    setSavedKeys(prev => new Set(prev).add(set.number));
-                                                }
-                                            }}
-                                        />
+                                <PensionRecommendationCard key={`${set.label}-${set.number}`} set={set} />
                             ))}
                         </div>
-                        </>
                     ) : (
                         <div className="empty-state px-4 py-8 text-center text-sm text-ink-soft">
                             버튼을 눌러 연금복권 추천번호 세트를 생성해 보세요.
