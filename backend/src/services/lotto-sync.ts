@@ -5,6 +5,7 @@ import {
   getLatestStoredLottoDrawNo,
   getLottoDrawsMissingPrizeStatsQuery,
   insertLottoResult,
+  insertLottoResults,
 } from '../queries/lotto'
 import type { LottoSyncSummary } from '../types/lotto'
 
@@ -70,10 +71,14 @@ export async function backfillLottoPrizeStats(
     // 맞추려면 4 를 빼고 요청해야 한다. 그대로 요청하면 위쪽 4개가 이미 채운 회차라 낭비된다.
     const window = await fetchLottoResultWindow(Math.max(drwNo - 4, 1))
 
-    for (const record of window) {
-      if (!record.prizeStats) continue
-      await insertLottoResult(db, record)
-      if (pending.delete(record.drwNo)) filled += 1
+    // 창 하나(최대 10회차)를 한 번의 batch 로 넣는다. 낱개로 넣으면 Workers 구독요청이
+    // 창당 10건씩 늘어 호출당 한도(무료 플랜 50건)를 금방 넘긴다.
+    const ready = window.filter((record) => record.prizeStats != null)
+    if (ready.length > 0) {
+      await insertLottoResults(db, ready)
+      for (const record of ready) {
+        if (pending.delete(record.drwNo)) filled += 1
+      }
     }
 
     // 창에 없었거나 아직 집계 전이면 이번 회차는 비워 둔 채 넘어간다

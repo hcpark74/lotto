@@ -39,9 +39,9 @@ const UPSERT = `INSERT INTO lotto_history
    firstWinamnt = COALESCE(excluded.firstWinamnt, lotto_history.firstWinamnt),
    ${PRIZE_COLUMNS.map((c) => `${c} = COALESCE(excluded.${c}, lotto_history.${c})`).join(', ')}`
 
-export async function insertLottoResult(db: D1Database, result: LottoResultRecord) {
+function bindOf(result: LottoResultRecord) {
   const stats = result.prizeStats
-  const bind = [
+  return [
     result.drwNo,
     result.drwNoDate,
     result.drwtNo1,
@@ -54,6 +54,10 @@ export async function insertLottoResult(db: D1Database, result: LottoResultRecor
     result.firstWinamnt,
     ...PRIZE_COLUMNS.map((c) => (stats ? stats[c] : null)),
   ]
+}
+
+export async function insertLottoResult(db: D1Database, result: LottoResultRecord) {
+  const bind = bindOf(result)
 
   try {
     await db.prepare(UPSERT).bind(...bind).run()
@@ -74,6 +78,22 @@ export async function countLottoDrawsMissingPrizeStatsQuery(db: D1Database) {
     if (!isMissingColumnError(error)) throw error
     await ensureLottoPrizeColumns(db)
     return 0
+  }
+}
+
+// 여러 회차를 한 번의 batch 로 넣는다. 낱개 호출은 회차마다 Workers 구독요청을 하나씩
+// 쓰므로 백필처럼 수백 건을 다룰 때 호출당 한도(무료 플랜 50건)를 넘긴다.
+export async function insertLottoResults(db: D1Database, results: LottoResultRecord[]) {
+  if (results.length === 0) return
+
+  const send = () => db.batch(results.map((result) => db.prepare(UPSERT).bind(...bindOf(result))))
+
+  try {
+    await send()
+  } catch (error) {
+    if (!isMissingColumnError(error)) throw error
+    await ensureLottoPrizeColumns(db)
+    await send()
   }
 }
 
