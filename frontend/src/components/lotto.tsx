@@ -89,6 +89,38 @@ export function DrawResultCard({
         );
 }
 
+// 남들이 얼마나 많이 고르는 조합인지. 당첨 "확률"과는 무관하다 —
+// 1·2·3등은 당첨금을 당첨자끼리 나누므로 덜 고르는 조합이면 같은 당첨에 더 받는다.
+// 수치 근거는 backend/src/algorithms/popularity.ts 주석에 있다.
+function PopularityMeter({ percentile, detailed }: { percentile: number; detailed: boolean }) {
+    return (
+        <div className="mt-6 border-2 border-ink bg-paper px-4 py-3">
+            <div className="flex items-baseline justify-between gap-3">
+                <span className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">남들이 고르는 정도</span>
+                <span className="font-mono text-sm font-bold text-ink">하위 {percentile}%</span>
+            </div>
+            <div className="meter mt-2">
+                <div className="meter-fill" style={{ width: `${Math.max(percentile, 2)}%` }} />
+                {/* 무작위로 골랐을 때의 위치. 아래 라벨의 "무작위 50" 이 가리키는 지점이다. */}
+                <div className="meter-baseline" style={{ left: '50%' }} />
+            </div>
+            <div className="mt-1 flex justify-between font-mono text-2xs text-ink-soft">
+                <span>덜 고름</span>
+                <span>무작위 50</span>
+                <span>많이 고름</span>
+            </div>
+            {detailed && (
+                <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+                    당첨 확률은 어떤 번호를 골라도 같습니다. 이 지표는 <strong className="font-semibold text-ink">당첨됐을 때
+                    당첨금을 나눠 가질 사람 수</strong>와 관련 있습니다. 1,243회차 당첨자 수로 측정한 결과,
+                    점수가 낮은 조합은 2등 1.14배·3등 1.08배를 받았습니다. 1등은 당첨자의 70%가 자동 구매라 차이가
+                    확인되지 않았습니다.
+                </p>
+            )}
+        </div>
+    );
+}
+
 export function RecommendationCard({
     set,
     index,
@@ -103,6 +135,7 @@ export function RecommendationCard({
     saved?: boolean;
 }) {
     const sum = set.numbers.reduce((total, num) => total + num, 0);
+    const popularity = set.meta?.popularityPercentile;
     const oddCount = set.numbers.filter(num => num % 2 === 1).length;
     const spread = Math.max(...set.numbers) - Math.min(...set.numbers);
     // 규칙 기반 세트의 label 은 백엔드 규칙 이름 그대로다
@@ -155,6 +188,8 @@ export function RecommendationCard({
                 <span className="text-ink-soft">/</span>
                 <span>최대 간격 {spread}</span>
             </div>
+
+            {typeof popularity === 'number' && <PopularityMeter percentile={popularity} detailed={index === 0} />}
 
             {onSave && (
                 <div className="mt-5 flex justify-center">

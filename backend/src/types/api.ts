@@ -60,6 +60,9 @@ export type LottoGeneratedSet = {
     oddCount: number
     maxConsecutiveRun: number
     passedRules: string[]
+    // 0 = 남들이 가장 덜 고르는 조합, 100 = 가장 많이 고르는 조합.
+    // 당첨 확률과 무관하고, 당첨 시 나눠 갖는 사람 수와 상관한다 (algorithms/popularity.ts).
+    popularityPercentile: number
   }
 }
 

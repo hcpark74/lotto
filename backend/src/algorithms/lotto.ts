@@ -2,6 +2,7 @@ import type { RuleWeight } from '../types/api'
 import type { DrawNumbersRow, GeneratedSet } from '../types/lotto'
 import type { RandomSource } from '../utils/random'
 import { buildRandomNumbers } from './lotto-baseline'
+import { popularityPercentile, popularityScore } from './popularity'
 
 type SetConfig = {
   id: string
@@ -14,7 +15,7 @@ export type RuleWeightDiagnostic = RuleWeight
 
 const COLS = ['drwtNo1', 'drwtNo2', 'drwtNo3', 'drwtNo4', 'drwtNo5', 'drwtNo6'] as const
 
-export const LOTTO_ALGORITHM_VERSION = 'v3.3'
+export const LOTTO_ALGORITHM_VERSION = 'v3.4'
 
 export const SET_CONFIGS: SetConfig[] = [
   {
@@ -67,6 +68,18 @@ const RULE_WEIGHT_LOOKBACK = 24
 // 1 이면 기존 동작. 값은 백테스트로 정했다 (docs/PLAN.md "세트 간 번호 분산").
 // 0.05 에서 회차 최고 일치가 이론 상한(1.835)에 닿고, 더 낮춰도 나아지지 않는다.
 export const CROSS_SET_PENALTY = 0.05
+
+// 세트마다 모을 후보 수. 240회차 × 24시드 = 5,760표본으로 잰 값이다.
+//   후보  1개(끄면)  인기 백분위 52.2   세트 간 서로 다른 번호 29.11/30
+//   후보  8개        인기 백분위 21.9   28.95/30
+//   후보 24개        인기 백분위 13.0   28.82/30   ← 적용값
+//   후보 96개        인기 백분위  8.3   28.71/30
+// 평균 일치(0.802~0.814)와 회차 최고 일치(1.817~1.846)는 후보 수와 무관하다 —
+// 어떤 선택 규칙을 써도 기대 일치는 6×6/45 = 0.8 로 고정이다. 바뀌는 건 배당뿐이다.
+//
+// 24 에서 멈춘 이유: 당첨금 배수(2등 1.140, 3등 1.077)를 "점수 최하위 20%" 구간에서 측정했다.
+// 백분위 13 은 그 안이라 측정 범위를 넘지 않는다. 더 낮추면 재지 않은 구간을 외삽하게 된다.
+export const POPULARITY_CANDIDATES = 24
 // 페널티가 적용된 번호는 기본 하한(0.02)보다 아래로 내려갈 수 있어야 한다
 const PENALIZED_MIN_WEIGHT = 0.001
 
@@ -115,6 +128,7 @@ function buildSetMeta(numbers: number[], passedRules: string[], ruleId?: string,
     oddCount: getOddCount(numbers),
     maxConsecutiveRun: getConsecutiveRun(numbers),
     passedRules,
+    popularityPercentile: popularityPercentile(numbers),
   }
 }
 
@@ -265,26 +279,52 @@ function penalizeUsed(weights: { num: number; weight: number }[], used: Set<numb
   ))
 }
 
-function pickSet(config: SetConfig, weights: { num: number; weight: number }[], ruleWeight: number, random: RandomSource): GeneratedSet {
-  for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
-    const numbers = pickWeightedNumbers(weights, random)
-    if (passesCommonRules(numbers) && config.check(numbers)) {
-      return {
-        label: config.label,
-        numbers,
-        meta: buildSetMeta(numbers, ['common-rules', config.label], config.id, ruleWeight),
-      }
+// 규칙을 통과한 후보를 모아 그중 인기 점수가 가장 낮은 것을 쓴다.
+// 당첨 확률은 어느 후보든 같다 — 바뀌는 건 당첨 시 나눠 갖는 사람 수다 (algorithms/popularity.ts).
+function leastPopular(candidates: number[][]) {
+  let best = candidates[0]
+  let bestScore = popularityScore(best)
+  for (const numbers of candidates.slice(1)) {
+    const score = popularityScore(numbers)
+    if (score < bestScore) {
+      best = numbers
+      bestScore = score
     }
   }
+  return best
+}
+
+function pickSet(config: SetConfig, weights: { num: number; weight: number }[], ruleWeight: number, random: RandomSource, candidates: number): GeneratedSet {
+  const strict: number[][] = []
+  const relaxed: number[][] = []
 
   for (let attempt = 0; attempt < MAX_PICK_ATTEMPTS; attempt++) {
     const numbers = pickWeightedNumbers(weights, random)
-    if (passesCommonRules(numbers)) {
-      return {
-        label: config.label,
-        numbers,
-        meta: buildSetMeta(numbers, ['common-rules', 'fallback-set-rule-relaxed'], config.id, ruleWeight),
-      }
+    if (!passesCommonRules(numbers)) continue
+
+    if (config.check(numbers)) {
+      strict.push(numbers)
+      if (strict.length >= candidates) break
+    } else if (relaxed.length < candidates) {
+      relaxed.push(numbers)
+    }
+  }
+
+  if (strict.length > 0) {
+    const numbers = leastPopular(strict)
+    return {
+      label: config.label,
+      numbers,
+      meta: buildSetMeta(numbers, ['common-rules', config.label], config.id, ruleWeight),
+    }
+  }
+
+  if (relaxed.length > 0) {
+    const numbers = leastPopular(relaxed)
+    return {
+      label: config.label,
+      numbers,
+      meta: buildSetMeta(numbers, ['common-rules', 'fallback-set-rule-relaxed'], config.id, ruleWeight),
     }
   }
 
@@ -295,6 +335,7 @@ export function buildGeneratedSets(
   draws: DrawNumbersRow[],
   random: RandomSource = Math.random,
   crossSetPenalty: number = CROSS_SET_PENALTY,
+  popularityCandidates: number = POPULARITY_CANDIDATES,
 ): GeneratedSet[] {
   if (draws.length === 0) {
     return SET_CONFIGS.map(({ label, id, baseWeight }) => buildFallbackSet(random, label, id, baseWeight))
@@ -315,6 +356,7 @@ export function buildGeneratedSets(
         penalizeUsed(weights, used, crossSetPenalty),
         weightMap.get(config.id) ?? config.baseWeight,
         random,
+        popularityCandidates,
       )
       for (const num of set.numbers) used.add(num)
       return set

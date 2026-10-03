@@ -115,6 +115,47 @@ export function LottoHonestyPanel({ data }: { data: LottoBacktestDiagnostics }) 
                     <BaselineMeter value={data.averageMatchPerSet} baseline={theoretical.expectedMatchPerSet} />
                 </Row>
             </div>
+
+            <PayoutSection />
+        </div>
+    );
+}
+
+// 위 지표는 모두 "확률은 못 올린다"로 끝난다. 실제로 움직이는 건 배당 하나뿐이라
+// 근거 수치를 여기 모아 둔다 (backend/src/algorithms/popularity.ts).
+function PayoutSection() {
+    return (
+        <div className="mt-5 border-t-2 border-ink pt-4">
+            <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">확률이 아니라 배당</p>
+            <h4 className="mt-1 text-base font-extrabold text-ink">덜 고르는 조합을 고르면 나눌 사람이 줄어듭니다</h4>
+            <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                1·2·3등은 당첨금을 당첨자끼리 나눕니다(4·5등은 50,000원·5,000원 고정액).
+                추첨은 조합을 균등하게 뽑으므로, 회차별 당첨자 수가 곧 그 조합의 인기입니다.
+                1,243회차 당첨자 수로 인기 예측 모델을 만들어 적합에 쓰지 않은 200회차에 적용한 결과입니다.
+            </p>
+
+            <div className="mt-4 grid gap-2 lg:grid-cols-2">
+                <Row
+                    label="2등 1인당 당첨금"
+                    value="1.140배"
+                    note="점수 최하위 20% 조합 기준. 부트스트랩 2,000회로 z = 4.26, Bonferroni 임계 2.39를 넘습니다."
+                />
+                <Row
+                    label="3등 1인당 당첨금"
+                    value="1.077배"
+                    note="같은 기준에서 z = 4.48. 2·3등은 당첨자가 많아 측정 노이즈가 작습니다."
+                />
+                <Row
+                    label="1등 1인당 당첨금"
+                    value="구분 불가"
+                    note="1.033배, z = 0.37. 1등 당첨자의 70%가 자동 구매(균등 무작위)라 사람의 선택 편향이 희석됩니다. 이 비율은 20년간 안정적입니다."
+                />
+                <Row
+                    label="1게임 기대값"
+                    value="520원 → 529원"
+                    note="1,000원 1게임 기준 환급률 52.0% → 52.9%. 올라가는 건 +0.9%p 입니다. 여전히 사는 쪽이 손해입니다."
+                />
+            </div>
         </div>
     );
 }
