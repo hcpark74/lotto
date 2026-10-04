@@ -104,3 +104,23 @@ CREATE TABLE IF NOT EXISTS pick_transfer_codes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pick_transfer_codes_expiry ON pick_transfer_codes (expires_at);
+
+-- cron 실행 기록. 2026-10-03 에 cron 이 두 번 연속 죽었는데 밖에서 알 길이 없었다 —
+-- 결과가 낡은 것만 보였고 "발표가 늦은 것" 인지 "cron 이 죽은 것" 인지 구분되지 않았다.
+CREATE TABLE IF NOT EXISTS cron_runs (
+  id TEXT PRIMARY KEY,
+  lottery TEXT NOT NULL,
+  cron TEXT NOT NULL,
+  ran_at TEXT NOT NULL,
+  ok INTEGER NOT NULL,
+  synced_count INTEGER,
+  detail TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cron_runs_recent ON cron_runs (lottery, ran_at DESC);
+
+-- 공개 새로고침의 쿨다운 기록
+CREATE TABLE IF NOT EXISTS sync_attempts (
+  lottery TEXT PRIMARY KEY,
+  last_attempt_at TEXT NOT NULL
+);

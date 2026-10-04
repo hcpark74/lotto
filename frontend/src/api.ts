@@ -111,6 +111,22 @@ export type RefreshResult = {
     retryAfterSeconds?: number;
 };
 
+// 자동 갱신이 제때 돌고 있는지. cron 이 죽은 것과 발표가 늦은 것을 구분해 준다.
+export type SyncStatus = {
+    lottery: PageLottery;
+    latestDraw: number | null;
+    latestDrawDate: string | null;
+    lastDrawAt: string;
+    lastCronAt: string | null;
+    lastCronOk: boolean | null;
+    lastSuccessAt: string | null;
+    cronOverdue: boolean;
+    behindSchedule: boolean;
+};
+
+export const fetchSyncStatus = (lottery: PageLottery) =>
+    request<SyncStatus>(`/api/refresh/status?lottery=${lottery}`);
+
 export const refreshLottery = (lottery: PageLottery) =>
     request<RefreshResult>(`/api/refresh?lottery=${lottery}`, { method: 'POST' });
 

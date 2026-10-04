@@ -4,7 +4,8 @@
 //      평소에는 여기서 끝나므로 버튼을 연타해도 동행복권에 요청이 가지 않는다.
 //   2) 쿨다운 — 진짜 뒤처졌을 때만, 그것도 COOLDOWN_SECONDS 에 한 번만 받아온다.
 // 등위 집계 백필은 요청이 20건이라 여기서 돌리지 않는다 (cron 몫).
-import { isBehindSchedule } from '../algorithms/draw-schedule'
+import { isBehindSchedule, lastDrawTime } from '../algorithms/draw-schedule'
+import { getLatestCronRunsQuery } from '../queries/cron-runs'
 import { getLastSyncAttemptQuery, markSyncAttemptQuery } from '../queries/sync-attempts'
 import { getRecentLottoResults } from './lotto-results'
 import { getRecentPensionResults } from './pension-results'
@@ -71,5 +72,42 @@ export async function refreshLottery(db: D1Database, lottery: Lottery, now = new
     latestDraw: after?.drawNo ?? null,
     syncedCount,
     checkedPicks: checked.checked,
+  }
+}
+
+export type SyncStatus = {
+  lottery: Lottery
+  latestDraw: number | null
+  latestDrawDate: string | null
+  // 마지막 추첨 시각 (이 뒤로 cron 이 돌았어야 한다)
+  lastDrawAt: string
+  lastCronAt: string | null
+  lastCronOk: boolean | null
+  lastSuccessAt: string | null
+  // cron 이 마지막 추첨 뒤로 한 번도 돌지 않았다. 2026-10-03 에 실제로 일어났다.
+  cronOverdue: boolean
+  // 받아와야 할 회차가 아직 안 들어왔다
+  behindSchedule: boolean
+}
+
+export async function getSyncStatus(db: D1Database, lottery: Lottery, now = new Date()): Promise<SyncStatus> {
+  const stored = await latestStored(db, lottery)
+  const runs = await getLatestCronRunsQuery(db, lottery, 10)
+  const lastDraw = lastDrawTime(lottery, now)
+
+  const last = runs[0] ?? null
+  const lastSuccess = runs.find((run) => run.ok === 1) ?? null
+
+  return {
+    lottery,
+    latestDraw: stored?.drawNo ?? null,
+    latestDrawDate: stored?.date ?? null,
+    lastDrawAt: lastDraw.toISOString(),
+    lastCronAt: last?.ran_at ?? null,
+    lastCronOk: last ? last.ok === 1 : null,
+    lastSuccessAt: lastSuccess?.ran_at ?? null,
+    // 기록이 아예 없으면(기능 추가 직후) 늦었다고 단정하지 않는다
+    cronOverdue: lastSuccess != null && new Date(lastSuccess.ran_at) < lastDraw,
+    behindSchedule: isBehindSchedule(lottery, stored?.date ?? null, now),
   }
 }

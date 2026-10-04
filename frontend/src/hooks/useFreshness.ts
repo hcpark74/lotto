@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { refreshLottery, type RefreshResult } from '../api';
+import { fetchSyncStatus, refreshLottery, type SyncStatus } from '../api';
 import type { PageLottery } from '../types';
 
 // 추첨이 끝났는데 아직 안 들어온 회차를 받아온다.
@@ -10,17 +10,25 @@ import type { PageLottery } from '../types';
 // 연타해도 안전하다. 서버가 일정으로 먼저 걸러 평소에는 외부 요청을 아예 하지 않고,
 // 진짜 뒤처졌을 때만 쿨다운 안에서 한 번 받아온다.
 export function useFreshness(lottery: PageLottery, onSynced: () => void) {
-    const [state, setState] = useState<RefreshResult['status'] | 'checking' | null>(null);
+    const [status, setStatus] = useState<SyncStatus | null>(null);
     const [message, setMessage] = useState('');
+    const [busy, setBusy] = useState(false);
     const tried = useRef(false);
 
+    const loadStatus = useCallback(async () => {
+        try {
+            setStatus(await fetchSyncStatus(lottery));
+        } catch {
+            // 상태 표시는 보조 정보다. 못 받아와도 화면을 막지 않는다.
+        }
+    }, [lottery]);
+
     const run = useCallback(async (manual: boolean) => {
-        setState('checking');
+        setBusy(true);
         setMessage('');
 
         try {
             const result = await refreshLottery(lottery);
-            setState(result.status);
 
             if (result.status === 'synced' && result.syncedCount > 0) {
                 setMessage(result.checkedPicks > 0
@@ -31,13 +39,15 @@ export function useFreshness(lottery: PageLottery, onSynced: () => void) {
                 setMessage(`방금 확인했습니다. ${result.retryAfterSeconds}초 뒤에 다시 시도할 수 있습니다.`);
             } else if (manual) {
                 // 자동 시도에서는 조용히 넘어간다. 눌렀을 때만 결과를 알린다.
-                setMessage(result.status === 'synced' ? '새로 나온 회차가 아직 없습니다.' : '이미 최신입니다.');
+                setMessage('새로 나온 회차가 아직 없습니다.');
             }
         } catch {
-            setState(null);
             if (manual) setMessage('지금은 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            setBusy(false);
+            void loadStatus();
         }
-    }, [lottery, onSynced]);
+    }, [lottery, onSynced, loadStatus]);
 
     // 화면에 들어올 때 한 번만. 서버가 걸러 주므로 비용이 거의 없다.
     useEffect(() => {
@@ -46,5 +56,5 @@ export function useFreshness(lottery: PageLottery, onSynced: () => void) {
         void run(false);
     }, [run]);
 
-    return { state, message, refresh: () => run(true), busy: state === 'checking' };
+    return { status, message, refresh: () => run(true), busy };
 }
