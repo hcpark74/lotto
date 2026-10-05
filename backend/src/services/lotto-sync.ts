@@ -1,7 +1,6 @@
 import { fetchLottoResult, fetchLottoResultWindow, getLatestDrawNo, LOTTO_WINDOW_SIZE } from '../clients/lotto'
 import {
   countLottoDrawsMissingPrizeStatsQuery,
-  ensureLottoPrizeColumns,
   getLatestStoredLottoDrawNo,
   getLottoDrawsMissingPrizeStatsQuery,
   insertLottoResult,
@@ -51,7 +50,10 @@ export async function backfillLottoPrizeStats(
   db: D1Database,
   maxRequests: number,
 ): Promise<LottoPrizeBackfillSummary> {
-  await ensureLottoPrizeColumns(db)
+  // 열을 여기서 미리 만들지 않는다. 그러면 매 실행마다 ALTER 14번이 나가고 전부
+  // "duplicate column name" 으로 실패해 삼켜진다 — Workers 구독요청만 축낸다.
+  // 아래 조회와 저장이 각자 "없는 열" 오류를 잡아 만들어 준다 (queries/lotto/history.ts).
+  // 열이 없는 첫 실행은 조회가 빈 목록을 돌려주므로 그 회차만 건너뛰고 다음 실행부터 채운다.
 
   // 한 번에 처리할 회차 수. 창 하나가 10회차라 요청 수 × 10 만큼만 집어 온다.
   const missing = await getLottoDrawsMissingPrizeStatsQuery(db, maxRequests * LOTTO_WINDOW_SIZE)

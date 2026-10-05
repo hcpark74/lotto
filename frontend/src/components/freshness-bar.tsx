@@ -21,6 +21,8 @@ function describe(status: SyncStatus | null, now: number) {
     if (!status) return { text: '추첨 후 자동으로 받아옵니다. 늦으면 직접 받아올 수 있습니다.', alert: false };
 
     const lastSuccess = status.lastSuccessAt ? sinceText(status.lastSuccessAt, now) : null;
+    // 회차가 하나도 없는 DB 에서는 null 이다. 그대로 끼우면 "최신 null회" 가 찍힌다.
+    const latest = status.latestDraw == null ? null : `${status.latestDraw}회`;
 
     if (status.behindSchedule && status.cronOverdue) {
         return {
@@ -33,15 +35,17 @@ function describe(status: SyncStatus | null, now: number) {
         return { text: '추첨은 끝났지만 당첨 결과가 아직 발표되지 않았습니다.', alert: false };
     }
 
+    const head = latest ? `최신 ${latest}` : '받아온 회차가 없습니다';
+
     if (status.cronOverdue) {
-        return { text: `최신 ${status.latestDraw}회 · 자동 갱신은 멈춰 있습니다${lastSuccess ? ` (마지막 성공 ${lastSuccess})` : ''}`, alert: false };
+        return { text: `${head} · 자동 갱신은 멈춰 있습니다${lastSuccess ? ` (마지막 성공 ${lastSuccess})` : ''}`, alert: false };
     }
 
     if (lastSuccess) {
-        return { text: `최신 ${status.latestDraw}회 · 마지막 자동 갱신 ${lastSuccess}`, alert: false };
+        return { text: `${head} · 마지막 자동 갱신 ${lastSuccess}`, alert: false };
     }
 
-    return { text: `최신 ${status.latestDraw}회입니다.`, alert: false };
+    return { text: latest ? `${head}입니다.` : head, alert: false };
 }
 
 export function FreshnessBar({ lottery, onSynced }: { lottery: PageLottery; onSynced: () => void }) {

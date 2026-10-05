@@ -4,6 +4,7 @@ import {
   deleteSavedPick,
   getNextDrawNo,
   isValidClientId,
+  MAX_PICKS_PER_REQUEST,
   issueTransferCode,
   listSavedPicks,
   normalizeNumbers,
@@ -85,6 +86,11 @@ export function createSavedPickRoutes() {
 
       if (!Array.isArray(body.picks) || body.picks.length === 0) {
         return badRequest(c, 'picks 는 비어 있지 않은 배열이어야 합니다.')
+      }
+      // 개수를 먼저 본다. 뒤에서 걸러도 되지만 그러면 거절할 입력에 normalizeNumbers 를
+      // 수만 번 돌리게 된다 (토큰 없이 열려 있는 경로다).
+      if (body.picks.length > MAX_PICKS_PER_REQUEST) {
+        return badRequest(c, `한 번에 ${MAX_PICKS_PER_REQUEST}개까지 저장할 수 있습니다.`)
       }
 
       const entries: { numbers: string; label: string | null }[] = []

@@ -7,20 +7,20 @@ vi.mock('../src/services/pension-sync', () => ({ syncPensionResults: vi.fn() }))
 vi.mock('../src/services/saved-picks', () => ({ checkSavedPicks: vi.fn() }))
 vi.mock('../src/queries/sync-attempts', () => ({
   getLastSyncAttemptQuery: vi.fn(),
-  markSyncAttemptQuery: vi.fn(),
+  claimSyncAttemptQuery: vi.fn(),
 }))
 
 const { COOLDOWN_SECONDS, refreshLottery } = await import('../src/services/refresh')
 const { getRecentLottoResults } = await import('../src/services/lotto-results')
 const { syncLatestLottoResults } = await import('../src/services/lotto-sync')
 const { checkSavedPicks } = await import('../src/services/saved-picks')
-const { getLastSyncAttemptQuery, markSyncAttemptQuery } = await import('../src/queries/sync-attempts')
+const { getLastSyncAttemptQuery, claimSyncAttemptQuery } = await import('../src/queries/sync-attempts')
 
 const stored = vi.mocked(getRecentLottoResults)
 const sync = vi.mocked(syncLatestLottoResults)
 const check = vi.mocked(checkSavedPicks)
 const lastAttempt = vi.mocked(getLastSyncAttemptQuery)
-const mark = vi.mocked(markSyncAttemptQuery)
+const claim = vi.mocked(claimSyncAttemptQuery)
 
 const db = {} as D1Database
 const kst = (s: string) => new Date(`${s}+09:00`)
@@ -32,7 +32,7 @@ describe('refreshLottery', () => {
     sync.mockReset().mockResolvedValue({ syncedCount: 1, latestDraw: 1244, nextDrwNo: 1245 })
     check.mockReset().mockResolvedValue({ checked: 3, won: 0 })
     lastAttempt.mockReset().mockResolvedValue(null)
-    mark.mockReset().mockResolvedValue(undefined)
+    claim.mockReset().mockResolvedValue(true)
   })
 
   // 1차 방어: 평소에는 외부 요청이 아예 나가지 않아야 버튼을 연타해도 안전하다
@@ -40,7 +40,7 @@ describe('refreshLottery', () => {
     const result = await refreshLottery(db, 'lotto', kst('2026-10-04T01:00'))
     expect(result.status).toBe('up-to-date')
     expect(sync).not.toHaveBeenCalled()
-    expect(mark).not.toHaveBeenCalled()
+    expect(claim).not.toHaveBeenCalled()
   })
 
   it('추첨 전이면 동기화하지 않는다', async () => {
@@ -65,13 +65,16 @@ describe('refreshLottery', () => {
     expect(result.latestDraw).toBe(1244)
     expect(result.syncedCount).toBe(1)
     expect(result.checkedPicks).toBe(3)
-    expect(mark).toHaveBeenCalledOnce()
+    expect(claim).toHaveBeenCalledOnce()
   })
 
   // 2차 방어: 진짜 뒤처졌을 때도 간격을 강제한다
-  it('쿨다운 안이면 받아오지 않고 남은 초를 돌려준다', async () => {
+  // 자리를 못 잡았다 = 쿨다운 안이다. 검사와 기록이 한 문장이라
+  // 동시에 들어온 요청 중 하나만 통과한다.
+  it('자리를 못 잡으면 받아오지 않고 남은 초를 돌려준다', async () => {
     stored.mockResolvedValue(row(1243, '2026-09-26'))
     const now = kst('2026-10-04T01:00')
+    claim.mockResolvedValue(false)
     lastAttempt.mockResolvedValue(new Date(now.getTime() - 20_000).toISOString())
 
     const result = await refreshLottery(db, 'lotto', now)
@@ -80,12 +83,20 @@ describe('refreshLottery', () => {
     expect(sync).not.toHaveBeenCalled()
   })
 
-  it('쿨다운이 지났으면 다시 받아온다', async () => {
+  it('쿨다운 경계에서도 남은 초는 1 이상이다', async () => {
     stored.mockResolvedValue(row(1243, '2026-09-26'))
     const now = kst('2026-10-04T01:00')
-    lastAttempt.mockResolvedValue(new Date(now.getTime() - (COOLDOWN_SECONDS + 1) * 1000).toISOString())
+    claim.mockResolvedValue(false)
+    lastAttempt.mockResolvedValue(new Date(now.getTime() - COOLDOWN_SECONDS * 1000).toISOString())
 
-    expect((await refreshLottery(db, 'lotto', now)).status).toBe('synced')
+    expect((await refreshLottery(db, 'lotto', now)).retryAfterSeconds).toBe(1)
+  })
+
+  it('자리를 잡으면 받아온다', async () => {
+    stored.mockResolvedValue(row(1243, '2026-09-26'))
+    claim.mockResolvedValue(true)
+
+    expect((await refreshLottery(db, 'lotto', kst('2026-10-04T01:00'))).status).toBe('synced')
     expect(sync).toHaveBeenCalledOnce()
   })
 

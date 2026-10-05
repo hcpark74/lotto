@@ -32,12 +32,23 @@ async function runLottoCron(db: D1Database) {
 
   // 등위별 당첨자 수는 추첨 직후에 비어 있어 나중에 다시 받아야 한다.
   // 한 번에 조금씩만 메워 과거분도 자연히 따라잡게 한다 (다 차면 요청 0건).
-  const prizes = await backfillLottoPrizeStats(db, LOTTO_PRIZE_BACKFILL_REQUESTS)
-  console.log(`Cron(lotto): prize backfill filled ${prizes.filled} draw(s) in ${prizes.requests} request(s), ${prizes.remaining} left`)
+  //
+  // 보조 작업이라 실패해도 이 실행을 실패로 기록하지 않는다. 동행복권이 한 번 5xx 를
+  // 내면 동기화·채점이 이미 끝났는데도 실행이 실패로 남고, 그게 쌓이면 화면에
+  // "자동 갱신이 멈춰 있습니다" 붉은 경고가 뜬다 — 실제로는 멀쩡한데도.
+  let backfill = 'skipped'
+  try {
+    const prizes = await backfillLottoPrizeStats(db, LOTTO_PRIZE_BACKFILL_REQUESTS)
+    console.log(`Cron(lotto): prize backfill filled ${prizes.filled} draw(s) in ${prizes.requests} request(s), ${prizes.remaining} left`)
+    backfill = `${prizes.filled}/${prizes.remaining}`
+  } catch (error) {
+    console.error('Cron(lotto): prize backfill failed (동기화는 성공)', error)
+    backfill = `failed: ${error instanceof Error ? error.message : String(error)}`.slice(0, 80)
+  }
 
   return {
     syncedCount: result.syncedCount,
-    detail: `latest=${result.latestDraw} checked=${checked.checked} backfill=${prizes.filled}/${prizes.remaining}`,
+    detail: `latest=${result.latestDraw} checked=${checked.checked} backfill=${backfill}`,
   }
 }
 

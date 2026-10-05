@@ -47,6 +47,15 @@ describe('getSyncStatus', () => {
     expect(s.cronOverdue).toBe(true)     // 성공은 추첨 전이 마지막
   })
 
+  // 리뷰에서 잡힌 구멍 — 최근 기록이 전부 실패면 lastSuccess 가 없어서
+  // "늦지 않았다" 로 빠졌다. cron 이 계속 죽는 바로 그 경우라 거꾸로였다.
+  it('최근 기록이 전부 실패면 늦은 것으로 본다', async () => {
+    runs.mockResolvedValue([run('2026-10-03T22:10', 0), run('2026-10-03T21:10', 0)])
+    const s = await getSyncStatus(db, 'lotto', kst('2026-10-04T01:00'))
+    expect(s.cronOverdue).toBe(true)
+    expect(s.lastSuccessAt).toBeNull()
+  })
+
   // 기능을 막 넣었을 때 기록이 없다고 "늦었다" 고 하면 거짓 경보가 된다
   it('기록이 아예 없으면 늦었다고 단정하지 않는다', async () => {
     const s = await getSyncStatus(db, 'lotto', kst('2026-10-04T01:00'))

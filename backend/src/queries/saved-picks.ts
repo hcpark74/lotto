@@ -13,7 +13,8 @@ const CREATE_SAVED_PICKS_TABLE = `CREATE TABLE IF NOT EXISTS saved_picks (
   matched_count INTEGER,
   bonus_matched INTEGER,
   rank_no INTEGER,
-  checked_at TEXT
+  checked_at TEXT,
+  winning_band TEXT
 )`
 
 const CREATE_CLIENT_INDEX = 'CREATE INDEX IF NOT EXISTS idx_saved_picks_client ON saved_picks (client_id, saved_at DESC)'

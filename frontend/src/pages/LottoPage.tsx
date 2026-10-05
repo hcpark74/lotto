@@ -277,6 +277,7 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                                 set={set}
                                 index={si}
                                 saving={saved.savingKey === String(si)}
+                                disabled={saved.savingKey !== null}
                                 saved={savedKeys.has(String(si))}
                                 onSave={async () => {
                                     if (await saved.save(String(si), set.numbers, set.label)) {

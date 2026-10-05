@@ -6,7 +6,7 @@
 // 등위 집계 백필은 요청이 20건이라 여기서 돌리지 않는다 (cron 몫).
 import { isBehindSchedule, lastDrawTime } from '../algorithms/draw-schedule'
 import { getLatestCronRunsQuery } from '../queries/cron-runs'
-import { getLastSyncAttemptQuery, markSyncAttemptQuery } from '../queries/sync-attempts'
+import { claimSyncAttemptQuery, getLastSyncAttemptQuery } from '../queries/sync-attempts'
 import { getRecentLottoResults } from './lotto-results'
 import { getRecentPensionResults } from './pension-results'
 import { syncLatestLottoResults } from './lotto-sync'
@@ -47,15 +47,14 @@ export async function refreshLottery(db: D1Database, lottery: Lottery, now = new
     return { ...base, status: 'up-to-date' }
   }
 
-  // 2) 쿨다운
-  const last = await getLastSyncAttemptQuery(db, lottery)
-  if (last) {
-    const elapsed = (now.getTime() - new Date(last).getTime()) / 1000
-    if (elapsed < COOLDOWN_SECONDS) {
-      return { ...base, status: 'cooldown', retryAfterSeconds: Math.ceil(COOLDOWN_SECONDS - elapsed) }
-    }
+  // 2) 쿨다운. 검사와 기록을 한 문장으로 해야 동시 요청이 함께 빠져나가지 않는다.
+  const notBefore = new Date(now.getTime() - COOLDOWN_SECONDS * 1000).toISOString()
+  const claimed = await claimSyncAttemptQuery(db, lottery, now.toISOString(), notBefore)
+  if (!claimed) {
+    const last = await getLastSyncAttemptQuery(db, lottery)
+    const elapsed = last ? (now.getTime() - new Date(last).getTime()) / 1000 : 0
+    return { ...base, status: 'cooldown', retryAfterSeconds: Math.max(Math.ceil(COOLDOWN_SECONDS - elapsed), 1) }
   }
-  await markSyncAttemptQuery(db, lottery, now.toISOString())
 
   const synced = lottery === 'lotto'
     ? await syncLatestLottoResults(db, 5)
@@ -106,8 +105,10 @@ export async function getSyncStatus(db: D1Database, lottery: Lottery, now = new 
     lastCronAt: last?.ran_at ?? null,
     lastCronOk: last ? last.ok === 1 : null,
     lastSuccessAt: lastSuccess?.ran_at ?? null,
-    // 기록이 아예 없으면(기능 추가 직후) 늦었다고 단정하지 않는다
-    cronOverdue: lastSuccess != null && new Date(lastSuccess.ran_at) < lastDraw,
+    // 기록이 아예 없으면(기능 추가 직후) 늦었다고 단정하지 않는다.
+    // 다만 기록은 있는데 그 안에 성공이 하나도 없으면 늦은 것이다 —
+    // cron 이 계속 죽고 있는 바로 그 경우이고, 이 기능이 잡으려던 상황이다.
+    cronOverdue: runs.length > 0 && (lastSuccess == null || new Date(lastSuccess.ran_at) < lastDraw),
     behindSchedule: isBehindSchedule(lottery, stored?.date ?? null, now),
   }
 }

@@ -14,7 +14,9 @@ export function SaveAllBar({
     onSaved: (keys: string[]) => void;
 }) {
     const remaining = entries.filter(entry => !savedKeys.has(entry.key));
-    const busy = state.savingKey === SAVE_ALL_KEY;
+    // 낱개 저장이 날아가는 중이면 그 세트는 아직 savedKeys 에 없다. 그 사이에 일괄 저장을
+    // 누르면 같은 세트가 두 번 들어간다. 저장이 하나라도 진행 중이면 막는다.
+    const busy = state.savingKey !== null;
     const allSaved = remaining.length === 0;
 
     const label = busy

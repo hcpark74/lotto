@@ -29,7 +29,9 @@ export function createLottoRoutes() {
 
   // 등위별 당첨자 수·판매액 백필. 한 호출이 10회차를 받으므로 limit 은 "요청 수"다.
   app.post('/sync/prizes', requireAdminToken, withRouteErrorHandling(async (c) => {
-      const maxRequests = parseIntQuery(c.req.query('limit'), 10, 1, 200)
+      // 요청 1건마다 fetch 1 + D1 batch 1 이라 상한을 올리면 Workers 구독요청
+      // 한도(무료 플랜 호출당 50건)를 중간에 넘겨 일부만 쓰인 채 500 이 난다.
+      const maxRequests = parseIntQuery(c.req.query('limit'), 10, 1, 20)
       const result = await backfillLottoPrizeStats(c.env.DB, maxRequests)
       return c.json({ success: true, ...result })
     }, {

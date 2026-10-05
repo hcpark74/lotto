@@ -127,11 +127,14 @@ export function RecommendationCard({
     onSave,
     saving = false,
     saved = false,
+    disabled = false,
 }: {
     set: LottoSet;
     index: number;
     onSave?: () => void;
     saving?: boolean;
+    // 다른 저장이 진행 중이면 막는다 — 겹쳐 누르면 같은 세트가 두 번 들어간다
+    disabled?: boolean;
     saved?: boolean;
 }) {
     const sum = set.numbers.reduce((total, num) => total + num, 0);
@@ -196,7 +199,7 @@ export function RecommendationCard({
                     <button
                         type="button"
                         onClick={onSave}
-                        disabled={saving || saved}
+                        disabled={saving || saved || disabled}
                         className="btn-secondary inline-flex min-h-11 items-center justify-center px-5 text-sm"
                     >
                         {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
