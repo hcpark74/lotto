@@ -124,3 +124,13 @@ CREATE TABLE IF NOT EXISTS sync_attempts (
   lottery TEXT PRIMARY KEY,
   last_attempt_at TEXT NOT NULL
 );
+
+-- 구글 계정 ↔ 보관함. 저장하는 개인정보는 없다 — 구글이 준 식별자(sub)만 두고
+-- 이메일·이름은 토큰에 들어와도 버린다. 계정이 client_id 하나를 소유하고,
+-- 로그인하면 그 식별자를 기기에 넘겨준다.
+CREATE TABLE IF NOT EXISTS accounts (
+  google_sub TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL
+);

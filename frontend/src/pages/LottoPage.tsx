@@ -14,6 +14,7 @@ import { DeviceLink } from '../components/device-link';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 import { FreshnessBar } from '../components/freshness-bar';
+import { AccountLink } from '../components/account-link';
 
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
@@ -44,6 +45,8 @@ function LottoMineTab() {
                 </p>
                 <SavedPicksList lottery="lotto" state={saved} />
             </SectionCard>
+
+            <AccountLink onChanged={saved.load} />
 
             <DeviceLink onLinked={saved.load} />
         </section>

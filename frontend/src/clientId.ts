@@ -38,3 +38,11 @@ export function adoptClientId(id: string) {
         // 저장소가 막힌 환경에서는 세션 동안만 유지된다
     }
 }
+
+// 로그아웃. 이 브라우저와 계정의 연결만 끊는다 — 서버의 보관함은 그대로 남고,
+// 다시 로그인하면 같은 번호를 본다. 새 식별자를 발급해 이 기기에서는 빈 보관함이 보이게 한다.
+export function resetClientId() {
+    const fresh = createId();
+    adoptClientId(fresh);
+    return fresh;
+}

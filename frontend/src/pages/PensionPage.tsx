@@ -11,6 +11,7 @@ import type { BacktestStatus } from '../hooks/useBacktest';
 import type { PensionState } from '../hooks/usePension';
 import type { TabKey } from '../routing';
 import { FreshnessBar } from '../components/freshness-bar';
+import { AccountLink } from '../components/account-link';
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
     idle: '연금복권 백테스트 진단을 준비하고 있습니다.',
@@ -261,6 +262,8 @@ function PensionMineTab() {
                 </p>
                 <SavedPicksList lottery="pension" state={saved} />
             </SectionCard>
+
+            <AccountLink onChanged={saved.load} />
 
             <DeviceLink onLinked={saved.load} />
         </section>

@@ -1,0 +1,51 @@
+import { useState } from 'react';
+import { useGoogleSignIn } from '../hooks/useGoogleSignIn';
+
+// 구글 로그인. 계정이 보관함 하나를 소유하고, 로그인하면 그 보관함을 이어받는다 —
+// 그래서 폰에서 저장한 번호가 PC 에서도 그대로 보인다.
+//
+// 저장하는 개인정보는 없다. 서버는 구글이 준 식별자(sub)만 두고 이메일·이름은 버린다.
+export function AccountLink({ onChanged }: { onChanged: () => void }) {
+    const [message, setMessage] = useState('');
+
+    const { enabled, ready, error, buttonRef, signOut } = useGoogleSignIn((moved) => {
+        setMessage(moved > 0
+            ? `로그인했습니다. 이 기기에 있던 ${moved}건을 계정으로 합쳤습니다.`
+            : '로그인했습니다. 어느 기기에서 열어도 같은 번호가 보입니다.');
+        onChanged();
+    });
+
+    // 클라이언트 ID 가 설정되지 않았으면 조용히 감춘다 — 기기 연동 코드는 그대로 쓸 수 있다.
+    if (!enabled) return null;
+
+    return (
+        <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5 lg:mt-6">
+            <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">어디서든 같은 번호</p>
+            <h3 className="mt-1 text-lg font-extrabold text-ink">구글 계정 연결</h3>
+            <p className="mt-2 text-sm text-ink-soft">
+                로그인하면 저장한 번호가 계정에 묶입니다. 다른 기기에서 같은 계정으로 들어오면
+                그대로 이어집니다. 저장하는 개인정보는 없습니다 — 계정을 구분할 식별자만 두고
+                이메일과 이름은 보관하지 않습니다.
+            </p>
+
+            {error && <p className="mt-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{error}</p>}
+            {message && <p className="mt-3 border-2 border-ink bg-mint px-3 py-2 text-sm font-medium">{message}</p>}
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div ref={buttonRef} className="min-h-11" />
+                {!ready && !error && <span className="text-xs text-ink-soft">불러오는 중...</span>}
+                <button
+                    type="button"
+                    onClick={() => {
+                        signOut();
+                        setMessage('이 기기에서 연결을 끊었습니다. 저장한 번호는 계정에 남아 있습니다.');
+                        onChanged();
+                    }}
+                    className="btn-secondary inline-flex min-h-11 items-center justify-center px-4 text-sm"
+                >
+                    이 기기에서 연결 끊기
+                </button>
+            </div>
+        </div>
+    );
+}

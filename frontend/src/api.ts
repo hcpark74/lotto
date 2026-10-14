@@ -100,6 +100,20 @@ export const createSavedPick = (lottery: PageLottery, numbers: number[] | string
         body: JSON.stringify({ lottery, numbers, label }),
     });
 
+// 구글 로그인. 클라이언트 ID 는 서버가 알려 준다 — 프런트에 박아 두면 바꿀 때마다
+// 다시 빌드해야 한다. 비어 있으면 로그인 기능이 꺼진 것이다.
+export const fetchAuthConfig = () =>
+    request<{ googleClientId: string | null }>('/api/auth/config');
+
+export type SignInResult = { clientId: string; movedCount: number; created: boolean };
+
+export const signInWithGoogle = (idToken: string) =>
+    request<SignInResult>('/api/auth/google', {
+        method: 'POST',
+        headers: clientHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ idToken }),
+    });
+
 // 낡았을 때만 새 회차를 받아온다. 토큰이 필요 없는 공개 엔드포인트이고,
 // 평소에는 서버가 일정으로 걸러 외부 요청 없이 up-to-date 를 돌려준다.
 export type RefreshResult = {
