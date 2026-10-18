@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAuthConfig, signInWithGoogle } from '../api';
-import { adoptClientId, resetClientId } from '../clientId';
+import { adoptClientId, isAccountLinked, markAccountLinked, resetClientId } from '../clientId';
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 
@@ -33,6 +33,7 @@ type Gis = {
 export function useGoogleSignIn(onSignedIn: (moved: number) => void) {
     const [clientIdConfig, setClientIdConfig] = useState<string | null>(null);
     const [ready, setReady] = useState(false);
+    const [linked, setLinked] = useState(isAccountLinked);
     const [error, setError] = useState('');
     const buttonRef = useRef<HTMLDivElement>(null);
     const handler = useRef(onSignedIn);
@@ -43,6 +44,8 @@ export function useGoogleSignIn(onSignedIn: (moved: number) => void) {
         try {
             const result = await signInWithGoogle(credential);
             adoptClientId(result.clientId);
+            markAccountLinked();
+            setLinked(true);
             handler.current(result.movedCount);
         } catch {
             setError('로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
@@ -102,7 +105,8 @@ export function useGoogleSignIn(onSignedIn: (moved: number) => void) {
     const signOut = useCallback(() => {
         (window as unknown as { google?: Gis }).google?.accounts.id.disableAutoSelect();
         resetClientId();
+        setLinked(false);
     }, []);
 
-    return { enabled: clientIdConfig != null, ready, error, buttonRef, signOut };
+    return { enabled: clientIdConfig != null, ready, linked, error, buttonRef, signOut };
 }

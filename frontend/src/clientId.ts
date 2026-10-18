@@ -3,6 +3,9 @@
 // 이 값을 아는 사람은 그 저장분을 읽고 지울 수 있으므로 추측 불가능해야 한다 (UUID v4 = 122비트).
 // 서버는 이 값만 보고 행을 찾는다. 기기나 브라우저를 바꾸면 이어지지 않는다.
 const KEY = 'lotto-client-id';
+// 구글 계정에 연결된 상태인지. 서버에 묻지 않고 이 브라우저의 기억만으로 판단한다 —
+// 연결을 끊는 건 이 기기에서만 일어나는 일이라 서버가 알 필요가 없다.
+const LINKED_KEY = 'lotto-account-linked';
 
 function createId() {
     // randomUUID 는 보안 컨텍스트에서만 있다. 없으면 getRandomValues 로 만든다.
@@ -40,10 +43,31 @@ export function adoptClientId(id: string) {
     }
 }
 
+export function isAccountLinked() {
+    try {
+        return localStorage.getItem(LINKED_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function markAccountLinked() {
+    try {
+        localStorage.setItem(LINKED_KEY, '1');
+    } catch {
+        // 저장소가 막힌 환경에서는 연결 끊기 버튼이 안 보일 뿐이다
+    }
+}
+
 // 로그아웃. 이 브라우저와 계정의 연결만 끊는다 — 서버의 보관함은 그대로 남고,
 // 다시 로그인하면 같은 번호를 본다. 새 식별자를 발급해 이 기기에서는 빈 보관함이 보이게 한다.
 export function resetClientId() {
     const fresh = createId();
     adoptClientId(fresh);
+    try {
+        localStorage.removeItem(LINKED_KEY);
+    } catch {
+        // 지우지 못해도 다음 로그인에서 다시 덮어쓴다
+    }
     return fresh;
 }

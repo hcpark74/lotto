@@ -8,7 +8,7 @@ import { useGoogleSignIn } from '../hooks/useGoogleSignIn';
 export function AccountLink({ onChanged }: { onChanged: () => void }) {
     const [message, setMessage] = useState('');
 
-    const { enabled, ready, error, buttonRef, signOut } = useGoogleSignIn((moved) => {
+    const { enabled, ready, linked, error, buttonRef, signOut } = useGoogleSignIn((moved) => {
         setMessage(moved > 0
             ? `로그인했습니다. 이 기기에 있던 ${moved}건을 계정으로 합쳤습니다.`
             : '로그인했습니다. 어느 기기에서 열어도 같은 번호가 보입니다.');
@@ -28,23 +28,33 @@ export function AccountLink({ onChanged }: { onChanged: () => void }) {
                 이메일과 이름은 보관하지 않습니다.
             </p>
 
+            {linked && !message && (
+                <p className="mt-3 border-2 border-ink bg-mint px-3 py-2 text-sm font-medium">
+                    이 기기는 계정에 연결되어 있습니다.
+                </p>
+            )}
+
             {error && <p className="mt-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{error}</p>}
             {message && <p className="mt-3 border-2 border-ink bg-mint px-3 py-2 text-sm font-medium">{message}</p>}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
                 <div ref={buttonRef} className="min-h-11" />
                 {!ready && !error && <span className="text-xs text-ink-soft">불러오는 중...</span>}
-                <button
-                    type="button"
-                    onClick={() => {
-                        signOut();
-                        setMessage('이 기기에서 연결을 끊었습니다. 저장한 번호는 계정에 남아 있습니다.');
-                        onChanged();
-                    }}
-                    className="btn-secondary inline-flex min-h-11 items-center justify-center px-4 text-sm"
-                >
-                    이 기기에서 연결 끊기
-                </button>
+                {/* 연결한 적이 없으면 숨긴다. 익명 상태에서 누르면 새 식별자가 발급되면서
+                    지금 보고 있는 저장분이 조용히 끊긴다 — 되돌릴 방법도 없다. */}
+                {linked && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            signOut();
+                            setMessage('이 기기에서 연결을 끊었습니다. 저장한 번호는 계정에 남아 있습니다.');
+                            onChanged();
+                        }}
+                        className="btn-secondary inline-flex min-h-11 items-center justify-center px-4 text-sm"
+                    >
+                        이 기기에서 연결 끊기
+                    </button>
+                )}
             </div>
         </div>
     );
