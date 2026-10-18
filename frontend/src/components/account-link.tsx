@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGoogleSignIn } from '../hooks/useGoogleSignIn';
+import { DeviceLink } from './device-link';
 
 // 구글 로그인. 계정이 보관함 하나를 소유하고, 로그인하면 그 보관함을 이어받는다 —
 // 그래서 폰에서 저장한 번호가 PC 에서도 그대로 보인다.
@@ -15,8 +16,8 @@ export function AccountLink({ onChanged }: { onChanged: () => void }) {
         onChanged();
     });
 
-    // 클라이언트 ID 가 설정되지 않았으면 조용히 감춘다 — 기기 연동 코드는 그대로 쓸 수 있다.
-    if (!enabled) return null;
+    // 클라이언트 ID 가 설정되지 않은 배포에서는 일회용 코드가 유일한 길이라 그대로 펼친다.
+    if (!enabled) return <DeviceLink onLinked={onChanged} />;
 
     return (
         <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5 lg:mt-6">
@@ -56,6 +57,20 @@ export function AccountLink({ onChanged }: { onChanged: () => void }) {
                     </button>
                 )}
             </div>
+
+            {/* 일회용 코드는 같은 일을 더 번거롭게 한다 — 두 기기를 10분 안에 함께 열고 코드를
+                받아 적어야 한다. 계정을 연결하고 싶지 않거나 로그인 버튼이 뜨지 않는 경우를
+                위해 남겨 두되, 동등한 선택지 자리에서는 뺀다. */}
+            <details className="mt-5 border-t-2 border-ink pt-4">
+                <summary className="cursor-pointer py-3 text-sm font-semibold text-ink">
+                    계정 연결 없이 다른 기기로 옮기기
+                </summary>
+                <p className="mt-2 text-sm text-ink-soft">
+                    이 기기에서 일회용 코드를 만들어 다른 기기에 입력합니다. 코드는 10분 동안만
+                    쓸 수 있고 한 번 쓰면 사라집니다. 로그인과 달리 두 기기를 함께 열어 둬야 합니다.
+                </p>
+                <DeviceLink onLinked={onChanged} inline />
+            </details>
         </div>
     );
 }

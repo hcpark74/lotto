@@ -4,7 +4,6 @@ import { PensionHonestyPanel } from '../components/diagnostics';
 import { pensionBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import { useSavedPicks } from '../hooks/useSavedPicks';
 import { SavedPicksList } from '../components/saved-picks';
-import { DeviceLink } from '../components/device-link';
 import { FeaturedPensionRecommendationCard, PensionNumberStrip, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
 import type { BacktestStatus } from '../hooks/useBacktest';
@@ -265,8 +264,6 @@ function PensionMineTab() {
             </SectionCard>
 
             <AccountLink onChanged={saved.load} />
-
-            <DeviceLink onLinked={saved.load} />
         </section>
     );
 }

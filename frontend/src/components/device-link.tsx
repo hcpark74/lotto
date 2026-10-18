@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { adoptClientId } from '../clientId';
 import { ApiError, claimTransferCode, issueTransferCode } from '../api';
 
-// 로그인하지 않았으면 저장분은 브라우저가 만든 식별자에 묶인다. 다른 기기에서 이어 보려면
-// 그 식별자를 넘겨야 하는데, 값을 그대로 보여주면 받아 적다 틀리기 쉽고 수명도 없다.
-// 짧은 일회용 코드(10분)를 만들어 교환한다.
-export function DeviceLink({ onLinked }: { onLinked: () => void }) {
+// 구글 로그인을 쓰지 않을 때 보관함을 다른 기기로 넘기는 길. 식별자를 그대로 보여주면
+// 받아 적다 틀리기 쉽고 수명도 없어서, 짧은 일회용 코드(10분)를 만들어 교환한다.
+//
+// inline 은 구글 로그인 패널 안에 접혀 들어갈 때다 — 바깥 테두리와 제목을 떼고 본문만 낸다.
+export function DeviceLink({ onLinked, inline = false }: { onLinked: () => void; inline?: boolean }) {
     const [code, setCode] = useState<string | null>(null);
     const [expiresAt, setExpiresAt] = useState<string | null>(null);
     const [issuing, setIssuing] = useState(false);
@@ -55,15 +56,8 @@ export function DeviceLink({ onLinked }: { onLinked: () => void }) {
         ? new Date(expiresAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
         : null;
 
-    return (
-        <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5 lg:mt-6">
-            <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">다른 기기에서 보기</p>
-            <h3 className="mt-1 text-lg font-extrabold text-ink">기기 연동</h3>
-            <p className="mt-2 text-sm text-ink-soft">
-                이 기기에서 코드를 만들어 다른 기기에 입력하면 같은 보관함을 보게 됩니다.
-                코드는 10분 동안만 쓸 수 있고 한 번 쓰면 사라집니다.
-            </p>
-
+    const body = (
+        <>
             {error && <p className="mt-3 border-2 border-ink bg-coral px-3 py-2 text-sm font-medium">{error}</p>}
             {message && <p className="mt-3 border-2 border-ink bg-mint px-3 py-2 text-sm font-medium">{message}</p>}
 
@@ -114,6 +108,20 @@ export function DeviceLink({ onLinked }: { onLinked: () => void }) {
                     </p>
                 </div>
             </div>
+        </>
+    );
+
+    if (inline) return body;
+
+    return (
+        <div className="mt-5 border-2 border-ink bg-paper p-4 sm:p-5 lg:mt-6">
+            <p className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink">다른 기기에서 보기</p>
+            <h3 className="mt-1 text-lg font-extrabold text-ink">기기 연동</h3>
+            <p className="mt-2 text-sm text-ink-soft">
+                이 기기에서 코드를 만들어 다른 기기에 입력하면 같은 보관함을 보게 됩니다.
+                코드는 10분 동안만 쓸 수 있고 한 번 쓰면 사라집니다.
+            </p>
+            {body}
         </div>
     );
 }

@@ -10,7 +10,6 @@ import { lottoBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBr
 import { useSavedPicks } from '../hooks/useSavedPicks';
 import { SavedPicksList } from '../components/saved-picks';
 import { SaveAllBar } from '../components/save-all-bar';
-import { DeviceLink } from '../components/device-link';
 import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 import { FreshnessBar } from '../components/freshness-bar';
@@ -48,8 +47,6 @@ function LottoMineTab() {
             </SectionCard>
 
             <AccountLink onChanged={saved.load} />
-
-            <DeviceLink onLinked={saved.load} />
         </section>
     );
 }
