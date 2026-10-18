@@ -49,29 +49,14 @@ export function useGoogleSignIn(onSignedIn: (moved: number) => void) {
         }
     }, []);
 
+    // 설정부터 받아 온다. 이 값이 들어와야 패널이 화면에 붙고, 그때 버튼 자리가 생긴다.
     useEffect(() => {
         let cancelled = false;
 
         (async () => {
             try {
                 const config = await fetchAuthConfig();
-                if (cancelled || !config.googleClientId) return;
-                setClientIdConfig(config.googleClientId);
-
-                await loadScript();
-                if (cancelled) return;
-
-                const gis = (window as unknown as { google?: Gis }).google;
-                if (!gis || !buttonRef.current) return;
-
-                gis.accounts.id.initialize({
-                    client_id: config.googleClientId,
-                    callback: (response) => { if (response.credential) void handleCredential(response.credential); },
-                });
-                gis.accounts.id.renderButton(buttonRef.current, {
-                    theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular', locale: 'ko',
-                });
-                setReady(true);
+                if (!cancelled && config.googleClientId) setClientIdConfig(config.googleClientId);
             } catch {
                 // 로그인은 부가 기능이다. 실패해도 익명 보관함은 그대로 쓸 수 있어야 한다.
                 if (!cancelled) setError('구글 로그인을 준비하지 못했습니다.');
@@ -79,7 +64,38 @@ export function useGoogleSignIn(onSignedIn: (moved: number) => void) {
         })();
 
         return () => { cancelled = true; };
-    }, [handleCredential]);
+    }, []);
+
+    // 버튼 그리기는 별도 effect 다. 같은 effect 안에서 setState 직후에 buttonRef 를 읽으면
+    // 리렌더가 아직 안 돌아 null 이다 — 스크립트가 이미 DOM 에 있어 loadScript 가 마이크로태스크로
+    // 끝나는 경우(탭 이동 후 재마운트)가 그렇고, 그러면 버튼이 끝까지 그려지지 않았다.
+    useEffect(() => {
+        if (!clientIdConfig) return;
+        let cancelled = false;
+
+        (async () => {
+            try {
+                await loadScript();
+                if (cancelled) return;
+
+                const gis = (window as unknown as { google?: Gis }).google;
+                if (!gis || !buttonRef.current) return;
+
+                gis.accounts.id.initialize({
+                    client_id: clientIdConfig,
+                    callback: (response) => { if (response.credential) void handleCredential(response.credential); },
+                });
+                gis.accounts.id.renderButton(buttonRef.current, {
+                    theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular', locale: 'ko',
+                });
+                setReady(true);
+            } catch {
+                if (!cancelled) setError('구글 로그인을 준비하지 못했습니다.');
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [clientIdConfig, handleCredential]);
 
     // 로그아웃은 이 기기에서 연결만 끊는다. 서버의 보관함은 그대로 남는다 —
     // 다시 로그인하면 같은 번호를 본다.
