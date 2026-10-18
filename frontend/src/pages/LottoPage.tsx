@@ -40,8 +40,9 @@ function LottoMineTab() {
             <SectionCard title="내 번호" eyebrow="저장한 추천" icon={<Bookmark className="h-5 w-5" />}>
                 <p className="mb-4 text-sm text-ink-soft">
                     추천 탭에서 저장한 번호입니다. 추첨 결과가 들어오면 자동으로 채점됩니다.
-                    로그인이 없어 이 브라우저가 만든 식별자로 묶어 두므로, 브라우저나 기기를 바꾸거나
-                    저장소를 비우면 다시 볼 수 없습니다.
+                    로그인하지 않으면 이 브라우저가 만든 식별자로 묶이므로, 브라우저나 기기를 바꾸거나
+                    저장소를 비우면 다시 볼 수 없습니다. 아래에서 구글 계정을 연결하면 어느 기기에서나
+                    같은 번호가 보입니다.
                 </p>
                 <SavedPicksList lottery="lotto" state={saved} />
             </SectionCard>

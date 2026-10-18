@@ -15,7 +15,7 @@ import type { Lottery } from '../types/saved-picks'
 import type { Bindings } from '../types/app'
 import { badRequest, notFound, withRouteErrorHandling } from '../utils/route-handler'
 
-// 브라우저가 만든 익명 ID. 로그인이 없어 이 값이 곧 권한이므로 항상 요구한다.
+// 브라우저가 만든 익명 ID (로그인하면 계정이 가진 값). 이 값이 곧 권한이므로 항상 요구한다.
 const CLIENT_ID_HEADER = 'X-Client-Id'
 
 function parseLottery(value: string | undefined): Lottery | null {

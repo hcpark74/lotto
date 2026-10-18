@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { adoptClientId } from '../clientId';
 import { ApiError, claimTransferCode, issueTransferCode } from '../api';
 
-// 로그인이 없어 저장분은 브라우저가 만든 식별자에 묶인다. 다른 기기에서 이어 보려면
+// 로그인하지 않았으면 저장분은 브라우저가 만든 식별자에 묶인다. 다른 기기에서 이어 보려면
 // 그 식별자를 넘겨야 하는데, 값을 그대로 보여주면 받아 적다 틀리기 쉽고 수명도 없다.
 // 짧은 일회용 코드(10분)를 만들어 교환한다.
 export function DeviceLink({ onLinked }: { onLinked: () => void }) {
