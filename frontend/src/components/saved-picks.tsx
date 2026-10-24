@@ -123,45 +123,52 @@ function GroupSummary({ lottery, picks }: { lottery: PageLottery; picks: SavedPi
 }
 
 function PickRow({ lottery, pick, onRemove }: { lottery: PageLottery; pick: SavedPick; onRemove: (id: string) => void }) {
-    // 연금은 같은 번호를 다섯 조로 펼쳐 보여주므로 번호를 한 줄에 끼워 넣지 않는다
-    const byBand = lottery === 'pension';
+    // 회차는 묶음 머리글이 이미 말한다. 여기서는 어떤 전략으로 뽑은 세트인지를 낸다.
+    const label = pick.label ?? '저장 번호';
 
-    const head = (
-        <>
-            {/* 회차는 묶음 머리글이 이미 말한다. 여기서는 어떤 전략으로 뽑은 세트인지를 낸다. */}
-            <div className="text-sm font-semibold text-ink">{pick.label ?? '저장 번호'}</div>
-
-            {!byBand && <PickNumbers lottery={lottery} numbers={pick.numbers} />}
-
-            {/* 추첨 전이라는 말은 묶음 머리글이 한 번만 한다. 세트마다 반복하면 칩 다섯 개가
-                같은 말을 한다. 채점된 뒤에는 세트마다 결과가 다르므로 줄마다 낸다. */}
-            <div className="lg:text-right">
-                {pick.result != null && <ResultChip lottery={lottery} pick={pick} />}
-            </div>
-
-            <button
-                type="button"
-                onClick={() => onRemove(pick.id)}
-                aria-label={`${pick.drawNo}회 ${pick.label ?? '저장 번호'} 삭제`}
-                className="btn-icon shrink-0 lg:justify-self-end"
-            >
-                <Trash2 className="h-4 w-4" />
-            </button>
-        </>
+    const removeButton = (
+        <button
+            type="button"
+            onClick={() => onRemove(pick.id)}
+            aria-label={`${pick.drawNo}회 ${label} 삭제`}
+            className="btn-icon order-2 ml-auto shrink-0 lg:order-4 lg:ml-0"
+        >
+            <Trash2 className="h-4 w-4" />
+        </button>
     );
 
-    if (byBand) {
+    // 연금은 같은 번호를 다섯 조로 펼쳐 보여주므로 번호를 한 줄에 끼워 넣지 않는다
+    if (lottery === 'pension') {
         return (
             <div className="border-2 border-ink bg-card px-4 py-4">
-                <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_auto_44px] lg:items-center">{head}</div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <div className="text-sm font-semibold text-ink">{label}</div>
+                    {removeButton}
+                    {pick.result != null && (
+                        <div className="order-3 w-full lg:order-1 lg:ml-auto lg:w-auto">
+                            <ResultChip lottery={lottery} pick={pick} />
+                        </div>
+                    )}
+                </div>
                 <PensionBandRows pick={pick} />
             </div>
         );
     }
 
+    // 좁은 화면에서는 전략 이름과 삭제 버튼이 한 줄을 함께 쓰고, 번호와 결과가 아래로 쌓인다.
+    // 넓은 화면에서는 order 로 되돌려 전략·번호·결과·삭제 순서의 한 줄이 된다.
     return (
-        <div className="flex flex-col gap-3 border-2 border-ink bg-card px-4 py-4 lg:grid lg:grid-cols-[140px_1fr_auto_44px] lg:items-center">
-            {head}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-3 border-2 border-ink bg-card px-4 py-4 lg:flex-nowrap">
+            <div className="order-1 text-sm font-semibold text-ink lg:w-[140px] lg:shrink-0">{label}</div>
+            {removeButton}
+            <div className="order-3 w-full lg:order-2 lg:w-auto lg:flex-1">
+                <PickNumbers lottery={lottery} numbers={pick.numbers} />
+            </div>
+            {pick.result != null && (
+                <div className="order-4 w-full lg:order-3 lg:w-auto lg:text-right">
+                    <ResultChip lottery={lottery} pick={pick} />
+                </div>
+            )}
         </div>
     );
 }
