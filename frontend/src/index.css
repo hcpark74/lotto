@@ -226,6 +226,53 @@
     background: var(--color-paper);
   }
 
+  /* ── 저장 번호 한 줄 ──────────────────────────────────
+     좁은 화면: 전략 이름과 삭제가 첫 줄, 번호·결과는 아래로 쌓인다.
+     넓은 화면(lg, 64rem): 전략·번호·결과·삭제 한 줄.
+     order 로 순서를 바꾸지 않고 칸 이름으로 놓는다 — DOM 순서가 곧 넓은 화면의
+     순서라 키보드·스크린리더가 보이는 순서대로 지나간다.
+     번호·결과 칸은 있을 때만 템플릿에 넣는다. 빈 칸을 남기면 gap 이 한 번 더 붙는다. */
+  .pick-row {
+    display: grid;
+    align-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "label remove";
+  }
+  .pick-row.has-result {
+    grid-template-areas: "label remove" "result result";
+  }
+  .pick-row.has-numbers {
+    grid-template-areas: "label remove" "numbers numbers";
+  }
+  .pick-row.has-numbers.has-result {
+    grid-template-areas: "label remove" "numbers numbers" "result result";
+  }
+
+  /* 전략 이름이 길어도 삭제 버튼을 밀어내지 않고 제 칸 안에서 줄바꿈한다 */
+  .pick-row-label { grid-area: label; min-width: 0; overflow-wrap: anywhere; }
+  .pick-row-numbers { grid-area: numbers; min-width: 0; }
+  .pick-row-result { grid-area: result; justify-self: start; }
+  .pick-row-remove { grid-area: remove; justify-self: end; }
+
+  @media (width >= 64rem) {
+    .pick-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "label remove";
+    }
+    .pick-row.has-result {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-areas: "label result remove";
+    }
+    .pick-row.has-numbers {
+      grid-template-columns: 140px minmax(0, 1fr) auto;
+      grid-template-areas: "label numbers remove";
+    }
+    .pick-row.has-numbers.has-result {
+      grid-template-columns: 140px minmax(0, 1fr) auto auto;
+      grid-template-areas: "label numbers result remove";
+    }
+  }
+
   /* ── 버튼 ─────────────────────────────────────────── */
   .btn-primary,
   .btn-secondary,

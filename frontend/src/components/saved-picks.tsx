@@ -125,50 +125,36 @@ function GroupSummary({ lottery, picks }: { lottery: PageLottery; picks: SavedPi
 function PickRow({ lottery, pick, onRemove }: { lottery: PageLottery; pick: SavedPick; onRemove: (id: string) => void }) {
     // 회차는 묶음 머리글이 이미 말한다. 여기서는 어떤 전략으로 뽑은 세트인지를 낸다.
     const label = pick.label ?? '저장 번호';
+    // 연금은 같은 번호를 다섯 조로 펼쳐 보여주므로 번호를 머리 줄에 끼워 넣지 않는다
+    const isPension = lottery === 'pension';
+    const hasResult = pick.result != null;
 
-    const removeButton = (
-        <button
-            type="button"
-            onClick={() => onRemove(pick.id)}
-            aria-label={`${pick.drawNo}회 ${label} 삭제`}
-            className="btn-icon order-2 ml-auto shrink-0 lg:order-4 lg:ml-0"
-        >
-            <Trash2 className="h-4 w-4" />
-        </button>
-    );
-
-    // 연금은 같은 번호를 다섯 조로 펼쳐 보여주므로 번호를 한 줄에 끼워 넣지 않는다
-    if (lottery === 'pension') {
-        return (
-            <div className="border-2 border-ink bg-card px-4 py-4">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <div className="text-sm font-semibold text-ink">{label}</div>
-                    {removeButton}
-                    {pick.result != null && (
-                        <div className="order-3 w-full lg:order-1 lg:ml-auto lg:w-auto">
-                            <ResultChip lottery={lottery} pick={pick} />
-                        </div>
-                    )}
-                </div>
-                <PensionBandRows pick={pick} />
-            </div>
-        );
-    }
-
-    // 좁은 화면에서는 전략 이름과 삭제 버튼이 한 줄을 함께 쓰고, 번호와 결과가 아래로 쌓인다.
-    // 넓은 화면에서는 order 로 되돌려 전략·번호·결과·삭제 순서의 한 줄이 된다.
+    // 배치는 index.css 의 .pick-row 가 칸 이름으로 정한다. DOM 은 넓은 화면의 순서
+    // (전략·번호·결과·삭제) 그대로라 포커스·낭독 순서가 보이는 순서와 어긋나지 않는다.
     return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-3 border-2 border-ink bg-card px-4 py-4 lg:flex-nowrap">
-            <div className="order-1 text-sm font-semibold text-ink lg:w-[140px] lg:shrink-0">{label}</div>
-            {removeButton}
-            <div className="order-3 w-full lg:order-2 lg:w-auto lg:flex-1">
-                <PickNumbers lottery={lottery} numbers={pick.numbers} />
+        <div className="border-2 border-ink bg-card px-4 py-4">
+            <div className={`pick-row gap-x-3 ${isPension ? 'gap-y-2' : 'has-numbers gap-y-3'} ${hasResult ? 'has-result' : ''}`}>
+                <div className="pick-row-label text-sm font-semibold text-ink">{label}</div>
+                {!isPension && (
+                    <div className="pick-row-numbers">
+                        <PickNumbers lottery={lottery} numbers={pick.numbers} />
+                    </div>
+                )}
+                {hasResult && (
+                    <div className="pick-row-result">
+                        <ResultChip lottery={lottery} pick={pick} />
+                    </div>
+                )}
+                <button
+                    type="button"
+                    onClick={() => onRemove(pick.id)}
+                    aria-label={`${pick.drawNo}회 ${label} 삭제`}
+                    className="btn-icon pick-row-remove"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </button>
             </div>
-            {pick.result != null && (
-                <div className="order-4 w-full lg:order-3 lg:w-auto lg:text-right">
-                    <ResultChip lottery={lottery} pick={pick} />
-                </div>
-            )}
+            {isPension && <PensionBandRows pick={pick} />}
         </div>
     );
 }
