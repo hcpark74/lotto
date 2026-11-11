@@ -17,3 +17,14 @@ export async function getLottoResultsUpToQuery(db: D1Database, drwNo: number, li
     .all<LottoHistoryQueryRow>()
   return results
 }
+
+// 여러 회차를 한 번에. 저장한 번호 목록에 당첨번호를 곁들일 때 쓴다.
+// D1 은 한 쿼리에 바인딩 100개까지라 호출하는 쪽이 그 안으로 준다 (목록 상한 60).
+export async function getLottoResultsByDrawNosQuery(db: D1Database, drwNos: number[]) {
+  if (drwNos.length === 0) return []
+  const { results } = await db
+    .prepare(`SELECT * FROM lotto_history WHERE drwNo IN (${drwNos.map(() => '?').join(', ')})`)
+    .bind(...drwNos)
+    .all<LottoHistoryQueryRow>()
+  return results
+}

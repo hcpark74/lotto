@@ -55,3 +55,40 @@ export function isBehindSchedule(lottery: Lottery, latestStoredDate: string | nu
   const lastDay = toKst(last).toISOString().slice(0, 10)
   return storedDay < lastDay
 }
+
+const WEEK_MS = 7 * 24 * 60 * 60_000
+
+// 아직 열리지 않은 가장 가까운 추첨 시각
+export function nextDrawTime(lottery: Lottery, now: Date): Date {
+  return new Date(lastDrawTime(lottery, now).getTime() + WEEK_MS)
+}
+
+// 'YYYY-MM-DD' 를 날짜끼리 빼고 더하기 위한 값으로. 시각이 붙어 있어도 앞 10자만 본다.
+function dayToMs(day: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(day)
+  return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
+}
+
+export type StoredDraw = { drawNo: number; date: string | null }
+
+// 저장된 최신 회차에서 7일씩 세어 얻은 회차의 추첨일(KST, YYYY-MM-DD).
+// 두 복권 모두 매주 같은 요일에 빠짐없이 추첨하므로 회차 차이가 곧 주 차이다.
+export function projectDrawDate(latest: StoredDraw, drawNo: number) {
+  const base = latest.date ? dayToMs(latest.date) : null
+  if (base == null) return null
+  return new Date(base + (drawNo - latest.drawNo) * WEEK_MS).toISOString().slice(0, 10)
+}
+
+// 지금 저장하면 걸리는 회차와 그 추첨일.
+// "저장된 최신 회차 + 1" 이 아니다. 추첨은 끝났는데 결과가 아직 안 들어온 사이에는
+// (로또라면 토 20:35 ~ 발표) 최신 + 1 이 방금 추첨한 회차라, 거기에 저장하면
+// 나온 번호를 보고 담을 수 있다. 아직 열리지 않은 추첨까지 건너뛴다.
+export function upcomingDraw(lottery: Lottery, latest: StoredDraw, now: Date) {
+  const base = latest.date ? dayToMs(latest.date) : null
+  // 날짜를 모르면 몇 주 뒤처졌는지 알 수 없다. 예전 동작(최신 + 1)으로 물러난다.
+  if (base == null) return { drawNo: latest.drawNo + 1, drawDate: null }
+
+  const nextDay = dayToMs(toKst(nextDrawTime(lottery, now)).toISOString())!
+  const drawNo = latest.drawNo + Math.max(1, Math.round((nextDay - base) / WEEK_MS))
+  return { drawNo, drawDate: projectDrawDate(latest, drawNo) }
+}

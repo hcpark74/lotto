@@ -13,13 +13,16 @@ function getBallBand(num: number) {
     return BALL_BANDS[Math.min(Math.ceil(num / 10), 5) - 1];
 }
 
-export function Ball({ num, size = 'md', delay = 0 }: { num: number; size?: 'sm' | 'md' | 'responsive'; delay?: number }) {
+export function Ball({ num, size = 'md', delay = 0 }: { num: number; size?: 'xs' | 'sm' | 'md' | 'responsive'; delay?: number }) {
     const band = getBallBand(num);
-    const dimensions = size === 'sm'
-        ? { width: 36, height: 36, fontSize: 13 }
-        : size === 'responsive'
-            ? { width: 'clamp(34px, 8.4vw, 52px)', height: 'clamp(34px, 8.4vw, 52px)', fontSize: 'clamp(12px, 3.7vw, 17px)' }
-            : { width: 52, height: 52, fontSize: 17 };
+    // xs 는 묶음 머리글의 당첨번호용. 360px 에서 6개 + 보너스가 한 줄에 들어가는 크기다.
+    const dimensions = size === 'xs'
+        ? { width: 28, height: 28, fontSize: 11 }
+        : size === 'sm'
+            ? { width: 36, height: 36, fontSize: 13 }
+            : size === 'responsive'
+                ? { width: 'clamp(34px, 8.4vw, 52px)', height: 'clamp(34px, 8.4vw, 52px)', fontSize: 'clamp(12px, 3.7vw, 17px)' }
+                : { width: 52, height: 52, fontSize: 17 };
 
     return (
         <div
@@ -39,7 +42,7 @@ export function Ball({ num, size = 'md', delay = 0 }: { num: number; size?: 'sm'
                 flexShrink: 0,
                 border: '2px solid var(--color-ink)',
                 background: band.bg,
-                boxShadow: size === 'sm' ? 'var(--shadow-brutal-sm)' : 'var(--shadow-brutal)',
+                boxShadow: size === 'xs' || size === 'sm' ? 'var(--shadow-brutal-sm)' : 'var(--shadow-brutal)',
             }}
         >
             {num}

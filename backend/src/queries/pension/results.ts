@@ -7,6 +7,16 @@ export async function getPensionResultByDrawNoQuery(db: D1Database, drawNo: numb
   ).bind(drawNo).first<Pension720ResultQueryRow>()
 }
 
+// 여러 회차를 한 번에. 저장한 번호 목록에 당첨번호를 곁들일 때 쓴다 (바인딩 100개 한도 안에서).
+export async function getPensionResultsByDrawNosQuery(db: D1Database, drawNos: number[]) {
+  if (drawNos.length === 0) return []
+  const { results } = await db.prepare(
+    `SELECT draw_no, draw_date, winning_band, winning_number, bonus_number, synced_at FROM pension720_draws WHERE draw_no IN (${drawNos.map(() => '?').join(', ')})`
+  ).bind(...drawNos).all<Pension720ResultQueryRow>()
+
+  return results
+}
+
 export async function getPensionPrizeCountsByDrawNoQuery(db: D1Database, drawNo: number) {
   const { results } = await db.prepare(
     'SELECT rank_no, internet_count, store_count, total_count, win_amount, total_amount FROM pension720_prize_counts WHERE draw_no = ? ORDER BY rank_no ASC'

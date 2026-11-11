@@ -128,6 +128,7 @@ export function RecommendationCard({
     saving = false,
     saved = false,
     disabled = false,
+    targetDrawNo = null,
 }: {
     set: LottoSet;
     index: number;
@@ -136,6 +137,8 @@ export function RecommendationCard({
     // 다른 저장이 진행 중이면 막는다 — 겹쳐 누르면 같은 세트가 두 번 들어간다
     disabled?: boolean;
     saved?: boolean;
+    // 지금 저장하면 걸리는 회차. 모르면 "다음 회차" 라고만 말한다.
+    targetDrawNo?: number | null;
 }) {
     const sum = set.numbers.reduce((total, num) => total + num, 0);
     const popularity = set.meta?.popularityPercentile;
@@ -202,7 +205,7 @@ export function RecommendationCard({
                         disabled={saving || saved || disabled}
                         className="btn-secondary inline-flex min-h-11 items-center justify-center px-5 text-sm"
                     >
-                        {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
+                        {saved ? '저장됨' : saving ? '저장 중...' : targetDrawNo ? `${targetDrawNo}회로 저장` : '다음 회차로 저장'}
                     </button>
                 </div>
             )}

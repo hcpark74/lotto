@@ -14,5 +14,6 @@ export {
   getPensionPrizeCountsByDrawNoQuery,
   getPensionDataVersionQuery,
   getPensionResultByDrawNoQuery,
+  getPensionResultsByDrawNosQuery,
   getRecentPensionWinningNumbersQuery,
 } from './results'

@@ -15,6 +15,7 @@ import {
   replaceTransferCodeQuery,
 } from '../queries/transfer-codes'
 import { PENSION_DIGIT_COUNT } from '../algorithms/pension-baseline'
+import { projectDrawDate, upcomingDraw, type StoredDraw } from '../algorithms/draw-schedule'
 import {
   countSavedPicksByClientQuery,
   deleteSavedPickQuery,
@@ -24,9 +25,9 @@ import {
   insertSavedPicksQuery,
   markSavedPickCheckedQuery,
 } from '../queries/saved-picks'
-import { getLottoResultByDrawNoQuery, getRecentLottoResultsQuery } from '../queries/lotto'
-import { getPensionResultByDrawNoQuery, getRecentPensionResultsQuery } from '../queries/pension'
-import type { Lottery, SavedPick, SavedPickCheckSummary, SavedPickRow } from '../types/saved-picks'
+import { getLottoResultByDrawNoQuery, getLottoResultsByDrawNosQuery, getRecentLottoResultsQuery } from '../queries/lotto'
+import { getPensionResultByDrawNoQuery, getPensionResultsByDrawNosQuery, getRecentPensionResultsQuery } from '../queries/pension'
+import type { DrawInfo, Lottery, SavedPick, SavedPickCheckSummary, SavedPickRow } from '../types/saved-picks'
 
 // 한 브라우저가 쌓을 수 있는 최대 저장 수. 서버 저장이라 상한이 없으면 한 명이 테이블을 채울 수 있다.
 export const MAX_PICKS_PER_CLIENT = 200
@@ -44,11 +45,13 @@ export function isValidClientId(value: string | undefined): value is string {
   return typeof value === 'string' && CLIENT_ID_PATTERN.test(value)
 }
 
-export function toSavedPick(row: SavedPickRow): SavedPick {
+// extra 는 목록에서만 채운다. 추첨일과 당첨번호는 저장분 행에 없고 회차 테이블에 있다.
+export function toSavedPick(row: SavedPickRow, extra?: { drawDate?: string | null; draw?: DrawInfo | null }): SavedPick {
   return {
     id: row.id,
     lottery: row.lottery,
     drawNo: row.draw_no,
+    drawDate: extra?.draw?.drawDate ?? extra?.drawDate ?? null,
     numbers: row.numbers,
     label: row.label,
     savedAt: row.saved_at,
@@ -58,6 +61,7 @@ export function toSavedPick(row: SavedPickRow): SavedPick {
       rankNo: row.rank_no,
       checkedAt: row.checked_at,
       winningBand: row.winning_band ?? null,
+      winning: extra?.draw?.winning ?? null,
     },
   }
 }
@@ -76,15 +80,72 @@ export function normalizeNumbers(lottery: Lottery, raw: unknown): string | null 
   return new RegExp(`^\\d{${PENSION_DIGIT_COUNT}}$`).test(text) ? text : null
 }
 
+// 저장된 최신 회차와 그 추첨일
+async function getLatestStoredDraw(db: D1Database, lottery: Lottery): Promise<StoredDraw | null> {
+  if (lottery === 'lotto') {
+    const [latest] = await getRecentLottoResultsQuery(db, 1)
+    return latest?.drwNo == null ? null : { drawNo: latest.drwNo, date: latest.drwNoDate ?? null }
+  }
+
+  const [latest] = await getRecentPensionResultsQuery(db, 1)
+  return latest?.draw_no == null ? null : { drawNo: latest.draw_no, date: latest.draw_date ?? null }
+}
+
+async function getDrawInfos(db: D1Database, lottery: Lottery, drawNos: number[]): Promise<Map<number, DrawInfo>> {
+  const infos = new Map<number, DrawInfo>()
+
+  if (lottery === 'lotto') {
+    for (const draw of await getLottoResultsByDrawNosQuery(db, drawNos)) {
+      infos.set(draw.drwNo, {
+        drawNo: draw.drwNo,
+        drawDate: draw.drwNoDate ?? null,
+        winning: {
+          numbers: [draw.drwtNo1, draw.drwtNo2, draw.drwtNo3, draw.drwtNo4, draw.drwtNo5, draw.drwtNo6].join(','),
+          bonus: draw.bnusNo == null ? null : String(draw.bnusNo),
+        },
+      })
+    }
+    return infos
+  }
+
+  for (const draw of await getPensionResultsByDrawNosQuery(db, drawNos)) {
+    infos.set(draw.draw_no, {
+      drawNo: draw.draw_no,
+      drawDate: draw.draw_date ?? null,
+      winning: { numbers: draw.winning_number, bonus: draw.bonus_number || null },
+    })
+  }
+  return infos
+}
+
 export async function listSavedPicks(db: D1Database, clientId: string, lottery: Lottery) {
   const rows = await getSavedPicksByClientQuery(db, clientId, lottery, PICK_LIST_LIMIT)
-  return rows.map(toSavedPick)
+  if (rows.length === 0) return []
+
+  // 추첨일과 당첨번호는 곁들이는 정보다. 못 읽어도 저장분 자체는 돌려준다.
+  let latest: StoredDraw | null = null
+  let draws = new Map<number, DrawInfo>()
+  try {
+    // 회차 수는 행 수(PICK_LIST_LIMIT) 를 넘지 않으므로 바인딩 한도(100) 안이다
+    const drawNos = [...new Set(rows.map((row) => row.draw_no))]
+    ;[latest, draws] = await Promise.all([getLatestStoredDraw(db, lottery), getDrawInfos(db, lottery, drawNos)])
+  } catch (error) {
+    console.error('listSavedPicks: 회차 정보를 읽지 못했습니다', error)
+  }
+
+  return rows.map((row) => toSavedPick(row, {
+    draw: draws.get(row.draw_no),
+    // 결과가 아직 없는 회차는 최신 회차에서 세어 예정일을 낸다
+    drawDate: latest ? projectDrawDate(latest, row.draw_no) : null,
+  }))
 }
 
 export type SavePickInput = {
   clientId: string
   lottery: Lottery
   drawNo: number
+  // 응답에 실어 보낼 추첨 예정일. 행에는 저장하지 않는다.
+  drawDate?: string | null
   numbers: string
   label: string | null
 }
@@ -114,6 +175,7 @@ export async function savePicks(
   lottery: Lottery,
   drawNo: number,
   entries: { numbers: string; label: string | null }[],
+  drawDate: string | null = null,
 ): Promise<SavedPick[]> {
   if (entries.length === 0) throw new Error('저장할 번호가 없습니다.')
   if (entries.length > MAX_PICKS_PER_REQUEST) {
@@ -130,7 +192,7 @@ export async function savePicks(
   }))
 
   await insertSavedPicksQuery(db, rows)
-  return rows.map(toSavedPick)
+  return rows.map((row) => toSavedPick(row, { drawDate }))
 }
 
 export async function savePick(db: D1Database, input: SavePickInput): Promise<SavedPick> {
@@ -142,22 +204,18 @@ export async function savePick(db: D1Database, input: SavePickInput): Promise<Sa
   const row = buildPickRow(input)
 
   await insertSavedPickQuery(db, row)
-  return toSavedPick(row)
+  return toSavedPick(row, { drawDate: input.drawDate })
 }
 
 export async function deleteSavedPick(db: D1Database, clientId: string, id: string) {
   return deleteSavedPickQuery(db, clientId, id)
 }
 
-// 저장할 수 있는 다음 회차. 결과가 들어온 최신 회차 + 1.
-export async function getNextDrawNo(db: D1Database, lottery: Lottery) {
-  if (lottery === 'lotto') {
-    const [latest] = await getRecentLottoResultsQuery(db, 1)
-    return latest?.drwNo == null ? null : latest.drwNo + 1
-  }
-
-  const [latest] = await getRecentPensionResultsQuery(db, 1)
-  return latest?.draw_no == null ? null : latest.draw_no + 1
+// 지금 저장하면 걸리는 회차와 추첨일. 아직 열리지 않은 가장 가까운 추첨이다
+// (결과가 늦게 들어오는 사이에 방금 추첨한 회차로 저장되지 않게 — upcomingDraw 참고).
+export async function getNextDraw(db: D1Database, lottery: Lottery, now = new Date()) {
+  const latest = await getLatestStoredDraw(db, lottery)
+  return latest ? upcomingDraw(lottery, latest, now) : null
 }
 
 // 동기화 직후 호출한다. 결과가 들어온 회차의 미채점 저장분을 매긴다.

@@ -3,6 +3,7 @@ import { Bookmark, ChevronLeft, ChevronRight, Search, Sparkles } from 'lucide-re
 import { PensionHonestyPanel } from '../components/diagnostics';
 import { pensionBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import { useSavedPicks } from '../hooks/useSavedPicks';
+import { useNextDraw } from '../hooks/useNextDraw';
 import { SavedPicksList } from '../components/saved-picks';
 import { FeaturedPensionRecommendationCard, PensionNumberStrip, PensionRecommendationCard, PensionResultCard } from '../components/pension';
 import { SectionCard } from '../components/SectionCard';
@@ -38,6 +39,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
 
     const featuredRecommendation = pensionRecommendations[0] ?? null;
     const saved = useSavedPicks('pension');
+    const nextDraw = useNextDraw('pension', tab === 'picks');
     // 세트를 새로 생성하면 저장 표시를 초기화한다
     const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
     useEffect(() => { setSavedKeys(new Set()); }, [pensionRecommendations]);
@@ -77,6 +79,7 @@ export function PensionPage({ pension, tab }: { pension: PensionState; tab: TabK
                                 set={featuredRecommendation}
                                 saving={saved.savingKey === featuredRecommendation.number}
                                 saved={savedKeys.has(featuredRecommendation.number)}
+                                target={nextDraw}
                                 onSave={async () => {
                                     if (await saved.save(featuredRecommendation.number, featuredRecommendation.number, featuredRecommendation.label)) {
                                         setSavedKeys(prev => new Set(prev).add(featuredRecommendation.number));

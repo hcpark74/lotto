@@ -7,5 +7,10 @@ export {
   insertLottoResult,
   insertLottoResults,
 } from './history'
-export { getLottoResultByDrawNoQuery, getLottoResultsUpToQuery, getRecentLottoResultsQuery } from './results'
+export {
+  getLottoResultByDrawNoQuery,
+  getLottoResultsByDrawNosQuery,
+  getLottoResultsUpToQuery,
+  getRecentLottoResultsQuery,
+} from './results'
 export { getAllLottoBacktestRowsQuery, getAllLottoDrawNumbersQuery, getLottoDataVersionQuery } from './stats'

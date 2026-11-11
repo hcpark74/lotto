@@ -8,6 +8,7 @@ import { formatMoneyKRW } from '../format';
 import type { BacktestStatus } from '../hooks/useBacktest';
 import { lottoBrowserApi, useDrawBrowser, WINDOW_SIZE } from '../hooks/useDrawBrowser';
 import { useSavedPicks } from '../hooks/useSavedPicks';
+import { useNextDraw } from '../hooks/useNextDraw';
 import { SavedPicksList } from '../components/saved-picks';
 import { SaveAllBar } from '../components/save-all-bar';
 import type { LottoState } from '../hooks/useLotto';
@@ -228,6 +229,7 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
         ensureBacktest,
     } = lotto;
     const saved = useSavedPicks('lotto');
+    const nextDraw = useNextDraw('lotto');
     // 세트를 새로 생성하면 저장 표시를 초기화한다
     const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
     useEffect(() => { setSavedKeys(new Set()); }, [sets]);
@@ -271,6 +273,7 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                             state={saved}
                             savedKeys={savedKeys}
                             onSaved={keys => setSavedKeys(prev => new Set([...prev, ...keys]))}
+                            target={nextDraw}
                         />
                         {sets.map((set, si) => (
                             <RecommendationCard
@@ -280,6 +283,7 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                                 saving={saved.savingKey === String(si)}
                                 disabled={saved.savingKey !== null}
                                 saved={savedKeys.has(String(si))}
+                                targetDrawNo={nextDraw?.drawNo}
                                 onSave={async () => {
                                     if (await saved.save(String(si), set.numbers, set.label)) {
                                         setSavedKeys(prev => new Set(prev).add(String(si)));

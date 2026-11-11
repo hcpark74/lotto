@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import {
   claimTransferCode,
   deleteSavedPick,
-  getNextDrawNo,
+  getNextDraw,
   isValidClientId,
   MAX_PICKS_PER_REQUEST,
   issueTransferCode,
@@ -40,10 +40,10 @@ export function createSavedPickRoutes() {
       const lottery = parseLottery(c.req.query('lottery'))
       if (!lottery) return badRequest(c, 'lottery 는 lotto 또는 pension 이어야 합니다.')
 
-      const drawNo = await getNextDrawNo(c.env.DB, lottery)
-      if (drawNo == null) return notFound(c, '아직 회차 데이터가 없습니다.')
+      const next = await getNextDraw(c.env.DB, lottery)
+      if (next == null) return notFound(c, '아직 회차 데이터가 없습니다.')
 
-      return c.json({ lottery, drawNo })
+      return c.json({ lottery, drawNo: next.drawNo, drawDate: next.drawDate })
     }, { logLabel: 'Error in GET /api/picks/next-draw' }))
 
   app.post('/', withRouteErrorHandling(async (c) => {
@@ -60,13 +60,13 @@ export function createSavedPickRoutes() {
       if (!numbers) return badRequest(c, '번호 형식이 올바르지 않습니다.')
 
       // 대상 회차는 서버가 정한다 — 지난 회차에 저장해 결과를 맞춘 것처럼 만들 수 없게.
-      const drawNo = await getNextDrawNo(c.env.DB, lottery)
-      if (drawNo == null) return notFound(c, '아직 회차 데이터가 없어 저장할 수 없습니다.')
+      const next = await getNextDraw(c.env.DB, lottery)
+      if (next == null) return notFound(c, '아직 회차 데이터가 없어 저장할 수 없습니다.')
 
       const label = typeof body.label === 'string' ? body.label.slice(0, 40) : null
 
       try {
-        return c.json(await savePick(c.env.DB, { clientId, lottery, drawNo, numbers, label }), 201)
+        return c.json(await savePick(c.env.DB, { clientId, lottery, ...next, numbers, label }), 201)
       } catch (error) {
         return badRequest(c, error instanceof Error ? error.message : '저장에 실패했습니다.')
       }
@@ -102,11 +102,11 @@ export function createSavedPickRoutes() {
       }
 
       // 대상 회차는 서버가 정한다 — 지난 회차에 저장해 결과를 맞춘 것처럼 만들 수 없게.
-      const drawNo = await getNextDrawNo(c.env.DB, lottery)
-      if (drawNo == null) return notFound(c, '아직 회차 데이터가 없어 저장할 수 없습니다.')
+      const next = await getNextDraw(c.env.DB, lottery)
+      if (next == null) return notFound(c, '아직 회차 데이터가 없어 저장할 수 없습니다.')
 
       try {
-        return c.json(await savePicks(c.env.DB, clientId, lottery, drawNo, entries), 201)
+        return c.json(await savePicks(c.env.DB, clientId, lottery, next.drawNo, entries, next.drawDate), 201)
       } catch (error) {
         return badRequest(c, error instanceof Error ? error.message : '저장에 실패했습니다.')
       }

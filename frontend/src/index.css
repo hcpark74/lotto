@@ -254,6 +254,9 @@
   .pick-row-result { grid-area: result; justify-self: start; }
   .pick-row-remove { grid-area: remove; justify-self: end; }
 
+  /* 채점된 세트에서 맞지 않은 번호. 색이 아니라 농도로 가른다 — 구간색은 그대로 읽힌다. */
+  .pick-miss { opacity: 0.3; }
+
   @media (width >= 64rem) {
     .pick-row {
       grid-template-columns: minmax(0, 1fr) auto;

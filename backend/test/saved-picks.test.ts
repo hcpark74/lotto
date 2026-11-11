@@ -122,7 +122,9 @@ describe('toSavedPick', () => {
 
   it('채점 후에는 result 를 채운다', () => {
     const graded = toSavedPick({ ...base, matched_count: 3, bonus_matched: 0, rank_no: 5, checked_at: '2026-09-27T00:00:00.000Z' })
-    expect(graded.result).toEqual({ matchedCount: 3, bonusMatched: false, rankNo: 5, checkedAt: '2026-09-27T00:00:00.000Z', winningBand: null })
+    expect(graded.result).toEqual({
+      matchedCount: 3, bonusMatched: false, rankNo: 5, checkedAt: '2026-09-27T00:00:00.000Z', winningBand: null, winning: null,
+    })
   })
 
   // 연금은 같은 6자리가 1~5조에 모두 있어 조에 따라 1등과 2등이 갈린다.
@@ -141,5 +143,28 @@ describe('toSavedPick', () => {
     const row = { ...base, matched_count: 3, bonus_matched: 0, rank_no: 5, checked_at: '2026-09-27T00:00:00.000Z' }
     delete (row as { winning_band?: unknown }).winning_band
     expect(toSavedPick(row).result?.winningBand).toBeNull()
+  })
+
+  const draw = { drawNo: 1243, drawDate: '2026-09-26', winning: { numbers: '1,2,3,10,20,30', bonus: '7' } }
+
+  // 어느 번호가 맞았는지 보여주려면 당첨번호가 같이 가야 한다
+  it('채점된 저장분에는 그 회차 당첨번호를 싣는다', () => {
+    const graded = toSavedPick(
+      { ...base, matched_count: 3, bonus_matched: 0, rank_no: 5, checked_at: '2026-09-27T00:00:00.000Z' },
+      { draw },
+    )
+    expect(graded.result?.winning).toEqual({ numbers: '1,2,3,10,20,30', bonus: '7' })
+    expect(graded.drawDate).toBe('2026-09-26')
+  })
+
+  it('채점 전이면 회차가 있어도 당첨번호를 붙일 곳이 없다', () => {
+    expect(toSavedPick(base, { draw }).result).toBeNull()
+  })
+
+  // 결과가 들어온 회차는 실제 추첨일, 아직이면 예정일
+  it('추첨일은 회차 행의 날짜를 예정일보다 먼저 쓴다', () => {
+    expect(toSavedPick(base, { draw, drawDate: '2026-09-27' }).drawDate).toBe('2026-09-26')
+    expect(toSavedPick(base, { drawDate: '2026-10-03' }).drawDate).toBe('2026-10-03')
+    expect(toSavedPick(base).drawDate).toBeNull()
   })
 })

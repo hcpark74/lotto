@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PENSION_BAND_COLOR, PENSION_DIGIT_COLORS } from '../constants';
-import { formatDateTime } from '../format';
+import type { NextDraw } from '../api';
+import { describeDrawTarget, formatDateTime } from '../format';
 import type { PensionDrawResult, PensionRecommendationSet } from '../types';
 
 export function PensionDigitBall({ value, color, compact = false }: { value: string; color: string; compact?: boolean }) {
@@ -209,11 +210,14 @@ export function FeaturedPensionRecommendationCard({
     onSave,
     saving = false,
     saved = false,
+    target = null,
 }: {
     set: PensionRecommendationSet;
     onSave?: () => void;
     saving?: boolean;
     saved?: boolean;
+    // 지금 저장하면 걸리는 회차. 모르면 "다음 회차" 라고만 말한다.
+    target?: NextDraw | null;
 }) {
     const ruleName = set.meta.ruleId ? set.label : null;
 
@@ -277,6 +281,7 @@ export function FeaturedPensionRecommendationCard({
             {onSave && (
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper px-4 py-3">
                     <p className="text-xs leading-relaxed text-ink-soft sm:text-sm">
+                        {target && <><span className="font-semibold text-ink">{describeDrawTarget(target)}</span>에 </>}
                         이 번호 하나만 저장합니다. 다섯 조에 같은 번호가 있어 전 조를 사면 1등을 반드시 받습니다.
                     </p>
                     <button
@@ -285,7 +290,7 @@ export function FeaturedPensionRecommendationCard({
                         disabled={saving || saved}
                         className="btn-secondary inline-flex min-h-11 shrink-0 items-center justify-center px-5 text-sm"
                     >
-                        {saved ? '저장됨' : saving ? '저장 중...' : '다음 회차로 저장'}
+                        {saved ? '저장됨' : saving ? '저장 중...' : target ? `${target.drawNo}회로 저장` : '다음 회차로 저장'}
                     </button>
                 </div>
             )}

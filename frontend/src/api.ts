@@ -90,8 +90,11 @@ function clientHeaders(extra?: HeadersInit): HeadersInit {
 export const fetchSavedPicks = (lottery: PageLottery) =>
     request<unknown>(`/api/picks?lottery=${lottery}`, { headers: clientHeaders() }).then(data => toArray<SavedPick>(data));
 
-export const fetchNextDrawNo = (lottery: PageLottery) =>
-    request<{ lottery: PageLottery; drawNo: number }>(`/api/picks/next-draw?lottery=${lottery}`);
+// 지금 저장하면 걸리는 회차와 추첨일. 회차는 서버가 정하므로 화면은 물어서 보여 줄 뿐이다.
+export type NextDraw = { lottery: PageLottery; drawNo: number; drawDate: string | null };
+
+export const fetchNextDraw = (lottery: PageLottery) =>
+    request<NextDraw>(`/api/picks/next-draw?lottery=${lottery}`);
 
 export const createSavedPick = (lottery: PageLottery, numbers: number[] | string, label: string | null) =>
     request<SavedPick>('/api/picks', {
@@ -152,8 +155,9 @@ export const createSavedPicks = (lottery: PageLottery, picks: { numbers: number[
         body: JSON.stringify({ lottery, picks }),
     });
 
-export const deleteSavedPick = (id: string) =>
-    request<{ success: true }>(`/api/picks/${id}`, { method: 'DELETE', headers: clientHeaders() });
+// keepalive: 페이지를 떠나는 중에 보내는 삭제가 끊기지 않게 한다 (실행 취소 대기 중이던 것)
+export const deleteSavedPick = (id: string, options?: { keepalive?: boolean }) =>
+    request<{ success: true }>(`/api/picks/${id}`, { method: 'DELETE', headers: clientHeaders(), keepalive: options?.keepalive });
 
 export const issueTransferCode = () =>
     request<{ code: string; expiresAt: string; ttlMinutes: number }>('/api/picks/transfer-code', {
