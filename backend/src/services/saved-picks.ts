@@ -15,7 +15,7 @@ import {
   replaceTransferCodeQuery,
 } from '../queries/transfer-codes'
 import { PENSION_DIGIT_COUNT } from '../algorithms/pension-baseline'
-import { projectDrawDate, upcomingDraw, type StoredDraw } from '../algorithms/draw-schedule'
+import { drawTimeOf, projectDrawDate, upcomingDraw, type StoredDraw } from '../algorithms/draw-schedule'
 import {
   countSavedPicksByClientQuery,
   deleteSavedPickQuery,
@@ -47,11 +47,14 @@ export function isValidClientId(value: string | undefined): value is string {
 
 // extra 는 목록에서만 채운다. 추첨일과 당첨번호는 저장분 행에 없고 회차 테이블에 있다.
 export function toSavedPick(row: SavedPickRow, extra?: { drawDate?: string | null; draw?: DrawInfo | null }): SavedPick {
+  const drawDate = extra?.draw?.drawDate ?? extra?.drawDate ?? null
+
   return {
     id: row.id,
     lottery: row.lottery,
     drawNo: row.draw_no,
-    drawDate: extra?.draw?.drawDate ?? extra?.drawDate ?? null,
+    drawDate,
+    drawAt: drawTimeOf(row.lottery, drawDate),
     numbers: row.numbers,
     label: row.label,
     savedAt: row.saved_at,

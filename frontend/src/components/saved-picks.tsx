@@ -1,8 +1,11 @@
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Trash2, Undo2 } from 'lucide-react';
 import { Ball, BonusBadge } from './Ball';
+import { Countdown } from './countdown';
 import { PENSION_BAND_COLOR, PENSION_DIGIT_COLORS } from '../constants';
-import { describeDaysUntil, daysUntil, formatDrawDate } from '../format';
+import { formatDrawDate } from '../format';
 import { PensionDigitBall } from './pension';
+import { getSeenDrawNo, markSeenDrawNo } from '../seenResults';
 import type { PageLottery, SavedPick } from '../types';
 import type { SavedPicksState } from '../hooks/useSavedPicks';
 
@@ -15,6 +18,24 @@ const PENSION_DIGIT_COUNT = 6;
 const PENSION_BONUS_RANK = 8;
 
 type Winning = NonNullable<NonNullable<SavedPick['result']>['winning']>;
+
+// ── 결과 공개 연출 ──
+// 새로 채점된 회차를 처음 열 때 한 번, 당첨번호를 하나씩 내보인다. 각 요소는 자기 차례의
+// 시각을 animation-delay 로 받는다 (애니메이션 자체는 index.css 의 reveal-*).
+// 로또는 번호 6개 + 보너스, 연금은 끝자리부터 6자리 + 조 — 둘 다 일곱 걸음이다.
+const REVEAL_START_MS = 400;
+const REVEAL_STEP_MS = 450;
+const REVEAL_STEPS = 7;
+// 로또 보너스 번호의 차례 (번호 6개 다음)
+const LOTTO_BONUS_STEP = 6;
+// 당첨번호가 나오고 한 박자 뒤에 내 공이 반응한다
+const REVEAL_REACT_MS = 150;
+const REVEAL_END_MS = REVEAL_START_MS + REVEAL_STEPS * REVEAL_STEP_MS;
+
+const revealAt = (step: number) => REVEAL_START_MS + step * REVEAL_STEP_MS;
+const delay = (ms: number): CSSProperties => ({ animationDelay: `${ms}ms` });
+// 다 나온 뒤에 뜨는 것 (결과 칩, 요약). 연출이 없으면 아무것도 붙이지 않는다.
+const late = (reveal: boolean) => (reveal ? { className: 'reveal-late', style: delay(REVEAL_END_MS) } : {});
 
 // 등위 이름. 연금 8 은 보너스 등위다.
 function rankLabel(lottery: PageLottery, rankNo: number | null) {
@@ -46,21 +67,35 @@ function ResultChip({ lottery, pick }: { lottery: PageLottery; pick: SavedPick }
 // 로또 한 세트. 채점됐고 당첨번호를 알면 맞은 공만 또렷이 두고 나머지를 흐린다 —
 // "3개 일치" 만으로는 어느 셋인지 알 수 없다. 보너스 번호에 걸린 공에는 B 를 단다.
 // (흐림은 공을 감싼 칸에 건다. 공 자체는 등장 애니메이션이 opacity 를 쥐고 있다.)
-function LottoPickNumbers({ numbers, winning }: { numbers: string; winning: Winning | null }) {
-    const hits = winning ? new Set(winning.numbers.split(',').map(Number)) : null;
+function LottoPickNumbers({ numbers, winning, reveal }: { numbers: string; winning: Winning | null; reveal: boolean }) {
+    const winningNumbers = winning ? winning.numbers.split(',').map(Number) : null;
     const bonus = winning?.bonus != null ? Number(winning.bonus) : null;
 
     return (
         <div className="flex flex-wrap items-center gap-2">
             {numbers.split(',').map((raw, i) => {
                 const n = Number(raw);
-                const isHit = hits?.has(n) ?? false;
+                const hitIndex = winningNumbers ? winningNumbers.indexOf(n) : -1;
+                const isHit = hitIndex >= 0;
                 const isBonus = bonus === n;
+                const isMiss = winningNumbers != null && !isHit && !isBonus;
+
+                // 공개 중이면 맞은 공은 그 당첨번호가 나올 때 튀고, 나머지는 다 나온 뒤에 흐려진다
+                const motion = !reveal || !winningNumbers
+                    ? null
+                    : isMiss
+                        ? { className: 'reveal-dim', style: delay(REVEAL_END_MS) }
+                        : { className: 'reveal-hit', style: delay(revealAt(isHit ? hitIndex : LOTTO_BONUS_STEP) + REVEAL_REACT_MS) };
 
                 return (
-                    <span key={i} className={`relative ${hits && !isHit && !isBonus ? 'pick-miss' : ''}`}>
+                    <span key={i} className={`relative ${isMiss ? 'pick-miss' : ''} ${motion?.className ?? ''}`} style={motion?.style}>
                         <Ball num={n} size="sm" delay={i * 15} />
-                        {isBonus && <BonusBadge compact />}
+                        {/* 공개 중에는 보너스 표시도 보너스 번호가 나올 때 뜬다. 먼저 달려 있으면 답을 미리 말한다. */}
+                        {isBonus && (
+                            <span className={motion ? 'reveal-late' : ''} style={motion ? delay(revealAt(LOTTO_BONUS_STEP)) : undefined}>
+                                <BonusBadge compact />
+                            </span>
+                        )}
                         {isHit && <span className="sr-only">맞음</span>}
                         {isBonus && <span className="sr-only">보너스 번호</span>}
                     </span>
@@ -78,7 +113,7 @@ function pensionHitCount(pick: SavedPick) {
 
 // 저장한 6자리를 조마다 한 줄씩 펼친다. 전 조를 사면 번호가 맞았을 때
 // 1등 1매 + 2등 4매가 함께 나오므로, 어느 조가 1등인지 보이는 편이 낫다.
-function PensionBandRows({ pick }: { pick: SavedPick }) {
+function PensionBandRows({ pick, reveal }: { pick: SavedPick; reveal: boolean }) {
     const result = pick.result;
     const digitsHit = result != null && result.matchedCount === PENSION_DIGIT_COUNT;
     const winningBand = result?.winningBand ?? null;
@@ -102,14 +137,26 @@ function PensionBandRows({ pick }: { pick: SavedPick }) {
                     >
                         <div className="flex items-center gap-1">
                             <span className="shrink-0 pr-0.5 font-mono text-2xs font-bold text-ink">{band}조</span>
-                            {pick.numbers.split('').map((d, i) => (
-                                <span key={i} className={i < firstHitIndex ? 'pick-miss' : ''}>
-                                    <PensionDigitBall value={d} color={PENSION_DIGIT_COLORS[i]} compact />
-                                </span>
-                            ))}
+                            {pick.numbers.split('').map((d, i) => {
+                                const isMiss = i < firstHitIndex;
+                                // 당첨번호가 끝자리부터 나오므로 내 숫자도 끝자리부터 반응한다
+                                const motion = !reveal || hitCount == null
+                                    ? null
+                                    : isMiss
+                                        ? { className: 'reveal-dim', style: delay(REVEAL_END_MS) }
+                                        : { className: 'reveal-hit', style: delay(revealAt(PENSION_DIGIT_COUNT - 1 - i) + REVEAL_REACT_MS) };
+
+                                return (
+                                    <span key={i} className={`${isMiss ? 'pick-miss' : ''} ${motion?.className ?? ''}`} style={motion?.style}>
+                                        <PensionDigitBall value={d} color={PENSION_DIGIT_COLORS[i]} compact />
+                                    </span>
+                                );
+                            })}
                         </div>
                         {rank != null && (
-                            <span className={`chip shrink-0 ${rank === 1 ? 'chip-lemon' : 'chip-mint'}`}>{rank}등</span>
+                            <span {...late(reveal)}>
+                                <span className={`chip shrink-0 ${rank === 1 ? 'chip-lemon' : 'chip-mint'}`}>{rank}등</span>
+                            </span>
                         )}
                     </div>
                 );
@@ -149,18 +196,25 @@ function GroupSummary({ lottery, picks }: { lottery: PageLottery; picks: SavedPi
 }
 
 // 그 회차의 당첨번호. 저장한 번호와 눈으로 맞대어 볼 수 있게 묶음 머리글 아래에 둔다.
-function WinningNumbers({ lottery, winning, band }: { lottery: PageLottery; winning: Winning; band: string | null }) {
+function WinningNumbers({ lottery, winning, band, reveal }: { lottery: PageLottery; winning: Winning; band: string | null; reveal: boolean }) {
+    // 공개 중이면 step 번째 차례에 나타난다
+    const pop = (step: number) => (reveal ? { className: 'reveal-pop', style: delay(revealAt(step)) } : {});
+
     if (lottery === 'lotto') {
         return (
             <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-                {winning.numbers.split(',').map((n, i) => <Ball key={i} num={Number(n)} size="xs" />)}
+                {winning.numbers.split(',').map((n, i) => (
+                    <span key={i} {...pop(i)}><Ball num={Number(n)} size="xs" /></span>
+                ))}
                 {/* "+" 와 보너스 공은 한 덩어리로 줄바꿈한다. 따로 두면 "+" 만 줄 끝에 남는다. */}
                 {winning.bonus != null && (
-                    <span className="inline-flex items-center gap-1 sm:gap-1.5">
-                        <span className="text-sm font-semibold text-ink-soft">+</span>
-                        <span className="relative">
-                            <Ball num={Number(winning.bonus)} size="xs" />
-                            <BonusBadge compact />
+                    <span {...pop(LOTTO_BONUS_STEP)}>
+                        <span className="inline-flex items-center gap-1 sm:gap-1.5">
+                            <span className="text-sm font-semibold text-ink-soft">+</span>
+                            <span className="relative">
+                                <Ball num={Number(winning.bonus)} size="xs" />
+                                <BonusBadge compact />
+                            </span>
                         </span>
                     </span>
                 )}
@@ -171,27 +225,34 @@ function WinningNumbers({ lottery, winning, band }: { lottery: PageLottery; winn
     return (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <div className="flex items-center gap-1">
+                {/* 조는 맨 마지막에 나온다. 6자리가 다 맞았을 때 1등과 2등을 가르는 것이 조다. */}
                 {band != null && (
-                    <>
+                    <span className={`inline-flex items-center gap-1 ${pop(PENSION_DIGIT_COUNT).className ?? ''}`} style={pop(PENSION_DIGIT_COUNT).style}>
                         <PensionDigitBall value={band} color={PENSION_BAND_COLOR} compact />
                         <span className="pr-0.5 text-xs font-medium text-ink-soft">조</span>
-                    </>
+                    </span>
                 )}
+                {/* 등위가 끝자리부터 갈리므로 끝자리부터 내보인다 */}
                 {winning.numbers.split('').map((d, i) => (
-                    <PensionDigitBall key={i} value={d} color={PENSION_DIGIT_COLORS[i]} compact />
+                    <span key={i} {...pop(PENSION_DIGIT_COUNT - 1 - i)}>
+                        <PensionDigitBall value={d} color={PENSION_DIGIT_COLORS[i]} compact />
+                    </span>
                 ))}
             </div>
             {winning.bonus != null && (
-                <span className="font-mono text-xs font-medium text-ink-soft">보너스 각조 {winning.bonus}</span>
+                <span {...late(reveal)}>
+                    <span className="font-mono text-xs font-medium text-ink-soft">보너스 각조 {winning.bonus}</span>
+                </span>
             )}
         </div>
     );
 }
 
-function PickRow({ lottery, pick, removing, onRemove, onUndo }: {
+function PickRow({ lottery, pick, removing, reveal, onRemove, onUndo }: {
     lottery: PageLottery;
     pick: SavedPick;
     removing: boolean;
+    reveal: boolean;
     onRemove: (id: string) => void;
     onUndo: (id: string) => void;
 }) {
@@ -203,6 +264,7 @@ function PickRow({ lottery, pick, removing, onRemove, onUndo }: {
     // 삭제를 누른 줄은 되돌릴 시간 동안 흐려진 채 제자리에 남는다. 줄이 바로 사라지면
     // 아래 줄들이 올라와 방금 뭘 지웠는지 알 수 없고, 되돌릴 버튼이 손에서 멀어진다.
     const fade = removing ? 'opacity-40' : '';
+    const lateResult = late(reveal);
 
     // 배치는 index.css 의 .pick-row 가 칸 이름으로 정한다. DOM 은 넓은 화면의 순서
     // (전략·번호·결과·삭제) 그대로라 포커스·낭독 순서가 보이는 순서와 어긋나지 않는다.
@@ -215,11 +277,11 @@ function PickRow({ lottery, pick, removing, onRemove, onUndo }: {
                 </div>
                 {!isPension && (
                     <div className={`pick-row-numbers ${fade}`}>
-                        <LottoPickNumbers numbers={pick.numbers} winning={pick.result?.winning ?? null} />
+                        <LottoPickNumbers numbers={pick.numbers} winning={pick.result?.winning ?? null} reveal={reveal} />
                     </div>
                 )}
                 {hasResult && (
-                    <div className={`pick-row-result ${fade}`}>
+                    <div className={`pick-row-result ${fade} ${lateResult.className ?? ''}`} style={lateResult.style}>
                         <ResultChip lottery={lottery} pick={pick} />
                     </div>
                 )}
@@ -245,39 +307,75 @@ function PickRow({ lottery, pick, removing, onRemove, onUndo }: {
                     </button>
                 )}
             </div>
-            {isPension && <div className={fade}><PensionBandRows pick={pick} /></div>}
+            {isPension && <div className={fade}><PensionBandRows pick={pick} reveal={reveal} /></div>}
         </div>
     );
 }
 
 // 로또는 한 번에 다섯 세트가 저장된다. 회차로 묶지 않으면 같은 "1246회" 머리가 다섯 번
 // 반복되고, 그 주에 어떻게 됐는지는 다섯 줄을 눈으로 훑어야 알 수 있다.
-function DrawGroup({ lottery, drawNo, picks, state }: {
+function DrawGroup({ lottery, drawNo, picks, state, reveal }: {
     lottery: PageLottery;
     drawNo: number;
     picks: SavedPick[];
     state: SavedPicksState;
+    // 이 묶음의 결과를 지금 처음 내보이는 중인지
+    reveal: boolean;
 }) {
     // 세트 수와 요약은 지우는 중인 줄을 빼고 센다
     const kept = picks.filter(p => !state.removingIds.has(p.id));
     const graded = picks.find(p => p.result != null)?.result ?? null;
-    const drawDate = picks.find(p => p.drawDate != null)?.drawDate ?? null;
-    const dateText = formatDrawDate(drawDate);
-    // 추첨 전이면 며칠 남았는지도 같이 말한다
-    const whenText = graded ? dateText : [dateText, describeDaysUntil(daysUntil(drawDate))].filter(Boolean).join(' · ');
+    const dated = picks.find(p => p.drawDate != null) ?? null;
+    const dateText = formatDrawDate(dated?.drawDate);
+    // 당첨번호를 모르면 내보일 것이 없다
+    const revealing = reveal && graded?.winning != null;
+    // 당첨된 세트가 있으면 다 나온 뒤에 머리글이 번쩍인다
+    const flash = revealing && bestRank(kept) != null;
+
+    // 지난 결과는 대기 중 묶음 아래에 있어 열자마자는 화면 밖일 수 있다. 당첨번호 줄이
+    // 눈에 들어올 때까지 연출을 세워 둔다 — 안 보이는 데서 혼자 끝나면 의미가 없다.
+    const winningRef = useRef<HTMLDivElement>(null);
+    const [started, setStarted] = useState(false);
+    useEffect(() => {
+        const target = winningRef.current;
+        if (!revealing || started || !target) return;
+        if (typeof IntersectionObserver === 'undefined') {
+            setStarted(true);
+            return;
+        }
+
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(entry => entry.isIntersecting)) setStarted(true);
+        }, { threshold: 1 });
+        observer.observe(target);
+        return () => observer.disconnect();
+    }, [revealing, started]);
 
     return (
-        <div className="border-2 border-ink bg-paper">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b-2 border-ink px-3 py-2">
+        <div className={`border-2 border-ink bg-paper ${revealing && !started ? 'reveal-wait' : ''}`}>
+            <div
+                className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b-2 border-ink px-3 py-2 ${flash ? 'reveal-flash' : ''}`}
+                style={flash ? delay(REVEAL_END_MS) : undefined}
+            >
                 <span className="font-mono text-sm font-bold text-ink">{drawNo}회</span>
-                {whenText && <span className="text-xs text-ink-soft">{whenText}</span>}
+                {dateText && (
+                    <span className="text-xs text-ink-soft">
+                        {dateText}
+                        {/* 추첨 전이면 얼마나 남았는지도 같이 센다 */}
+                        {!graded && dated?.drawAt && <> · <Countdown at={dated.drawAt} /></>}
+                    </span>
+                )}
                 {kept.length > 1 && <span className="text-xs text-ink-soft">{kept.length}세트</span>}
-                {kept.length > 0 && <span className="ml-auto"><GroupSummary lottery={lottery} picks={kept} /></span>}
+                {kept.length > 0 && (
+                    <span className={`ml-auto ${late(revealing).className ?? ''}`} style={late(revealing).style}>
+                        <GroupSummary lottery={lottery} picks={kept} />
+                    </span>
+                )}
             </div>
             {graded?.winning && (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b-2 border-ink px-3 py-2.5">
+                <div ref={winningRef} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b-2 border-ink px-3 py-2.5">
                     <span className="font-mono text-2xs font-bold uppercase tracking-[0.12em] text-ink-soft">당첨번호</span>
-                    <WinningNumbers lottery={lottery} winning={graded.winning} band={graded.winningBand} />
+                    <WinningNumbers lottery={lottery} winning={graded.winning} band={graded.winningBand} reveal={revealing} />
                 </div>
             )}
             <div className="grid gap-2 p-2 sm:p-3">
@@ -287,6 +385,7 @@ function DrawGroup({ lottery, drawNo, picks, state }: {
                         lottery={lottery}
                         pick={p}
                         removing={state.removingIds.has(p.id)}
+                        reveal={revealing}
                         onRemove={state.remove}
                         onUndo={state.undoRemove}
                     />
@@ -307,12 +406,13 @@ function groupByDraw(picks: SavedPick[]) {
     return [...groups.entries()].sort((a, b) => b[0] - a[0]);
 }
 
-function PickSection({ lottery, title, picks, emptyText, state }: {
+function PickSection({ lottery, title, picks, emptyText, state, revealDrawNo = null }: {
     lottery: PageLottery;
     title: string;
     picks: SavedPick[];
     emptyText: string;
     state: SavedPicksState;
+    revealDrawNo?: number | null;
 }) {
     const keptCount = picks.filter(p => !state.removingIds.has(p.id)).length;
 
@@ -322,7 +422,14 @@ function PickSection({ lottery, title, picks, emptyText, state }: {
             <div className="mt-2 grid gap-3">
                 {picks.length > 0
                     ? groupByDraw(picks).map(([drawNo, group]) => (
-                        <DrawGroup key={drawNo} lottery={lottery} drawNo={drawNo} picks={group} state={state} />
+                        <DrawGroup
+                            key={drawNo}
+                            lottery={lottery}
+                            drawNo={drawNo}
+                            picks={group}
+                            state={state}
+                            reveal={drawNo === revealDrawNo}
+                        />
                     ))
                     : <p className="text-sm text-ink-soft">{emptyText}</p>}
             </div>
@@ -336,6 +443,21 @@ export function SavedPicksList({ lottery, state }: { lottery: PageLottery; state
     // 추첨 전과 지난 결과를 나눈다. 둘 다 회차 내림차순이다.
     const pending = picks.filter(p => p.result == null);
     const done = picks.filter(p => p.result != null);
+
+    // 결과 공개는 "지난번에 본 것보다 새 회차가 채점돼 있을 때" 그 회차에만, 한 번 돈다.
+    // undefined = 아직 정하지 않음 (목록이 오기 전). 한 번 정하면 이 화면이 떠 있는 동안
+    // 바꾸지 않는다 — 다시 그릴 때마다 연출이 되감기면 안 된다.
+    // 처음 온 기기(본 기록 없음)에서는 돌리지 않는다. 쌓인 결과가 한꺼번에 움직일 이유가 없다.
+    const newestDone = done.length > 0 ? Math.max(...done.map(p => p.drawNo)) : null;
+    const [revealDrawNo, setRevealDrawNo] = useState<number | null | undefined>(undefined);
+    if (revealDrawNo === undefined && newestDone != null) {
+        const seen = getSeenDrawNo(lottery);
+        setRevealDrawNo(seen != null && newestDone > seen ? newestDone : null);
+    }
+
+    useEffect(() => {
+        if (newestDone != null) markSeenDrawNo(lottery, newestDone);
+    }, [lottery, newestDone]);
 
     if (loading && picks.length === 0) {
         return <div className="panel px-4 py-8 text-sm text-ink-soft">저장한 번호를 불러오는 중입니다...</div>;
@@ -374,6 +496,7 @@ export function SavedPicksList({ lottery, state }: { lottery: PageLottery; state
                 picks={done}
                 emptyText="아직 채점된 번호가 없습니다."
                 state={state}
+                revealDrawNo={revealDrawNo}
             />
         </div>
     );

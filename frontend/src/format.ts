@@ -45,20 +45,38 @@ export function describeDrawTarget(draw: { drawNo: number; drawDate?: string | n
     return date ? `${draw.drawNo}회 · ${date} 추첨` : `${draw.drawNo}회`;
 }
 
-// 오늘(KST) 부터 그 날까지 남은 날 수. 지났으면 음수.
-export function daysUntil(day: string | null | undefined, now = new Date()) {
-    const target = day ? dayToUtcMs(day) : null;
-    // en-CA 로케일은 YYYY-MM-DD 를 낸다
-    const today = dayToUtcMs(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now));
-    if (target == null || today == null) return null;
-    return Math.round((target - today) / 86_400_000);
+// 추첨까지 남은 시간. 멀면 굵게, 가까우면 잘게 말한다: '2일 3시간' → '3시간 12분' → '12분 34초'.
+// 지났으면 null.
+export function formatRemaining(ms: number) {
+    if (ms <= 0) return null;
+
+    const totalSeconds = Math.floor(ms / 1000);
+    const days = Math.floor(totalSeconds / 86_400);
+    const hours = Math.floor((totalSeconds % 86_400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return hours > 0 ? `${days}일 ${hours}시간` : `${days}일`;
+    if (hours > 0) return `${hours}시간 ${minutes}분`;
+    return `${minutes}분 ${String(seconds).padStart(2, '0')}초`;
 }
 
-// 추첨 전 회차 옆에 붙이는 말. 날짜가 지났는데 아직 대기 중이면 결과가 안 들어온 것이다.
-export function describeDaysUntil(days: number | null) {
-    if (days == null) return null;
-    if (days < 0) return '결과 대기 중';
-    if (days === 0) return '오늘 추첨';
-    if (days === 1) return '내일 추첨';
-    return `${days}일 뒤 추첨`;
+// ── 금액 ──
+// 원 단위까지 말한다. formatMoneyKRW 는 1등 당첨금처럼 억 단위로 뭉뚱그릴 때 쓰고,
+// 이쪽은 5,000원과 20억이 한 표에 같이 놓일 때 쓴다: '5,000원' · '124만 9,000원' · '20억 2,504만 원'.
+export function formatWon(amount: number) {
+    const value = Math.max(0, Math.floor(amount));
+    const group = (n: number) => n.toLocaleString('ko-KR');
+
+    if (value >= 100_000_000) {
+        const eok = Math.floor(value / 100_000_000);
+        const man = Math.floor((value % 100_000_000) / 10_000);
+        return man > 0 ? `${group(eok)}억 ${group(man)}만 원` : `${group(eok)}억 원`;
+    }
+    if (value >= 10_000) {
+        const man = Math.floor(value / 10_000);
+        const rest = value % 10_000;
+        return rest > 0 ? `${group(man)}만 ${group(rest)}원` : `${group(man)}만 원`;
+    }
+    return `${group(value)}원`;
 }

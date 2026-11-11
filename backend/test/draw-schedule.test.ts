@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  drawTimeOf,
   isBehindSchedule,
   lastDrawTime,
   nextDrawTime,
@@ -98,34 +99,62 @@ describe('upcomingDraw', () => {
   const latest = { drawNo: 1243, date: '2026-09-26' }
 
   it('추첨 전에는 최신 + 1', () => {
-    expect(upcomingDraw('lotto', latest, kst('2026-09-28T09:00'))).toEqual({ drawNo: 1244, drawDate: '2026-10-03' })
-    expect(upcomingDraw('lotto', latest, kst('2026-10-03T20:34'))).toEqual({ drawNo: 1244, drawDate: '2026-10-03' })
+    expect(upcomingDraw('lotto', latest, kst('2026-09-28T09:00'))).toMatchObject({ drawNo: 1244, drawDate: '2026-10-03' })
+    expect(upcomingDraw('lotto', latest, kst('2026-10-03T20:34'))).toMatchObject({ drawNo: 1244, drawDate: '2026-10-03' })
   })
 
   // 추첨은 끝났고 결과는 아직 안 들어온 사이. 여기서 1244회로 저장하면 나온 번호를 보고 담을 수 있다.
   it('추첨이 끝났는데 결과가 아직이면 그다음 회차로 건너뛴다', () => {
-    expect(upcomingDraw('lotto', latest, kst('2026-10-03T20:36'))).toEqual({ drawNo: 1245, drawDate: '2026-10-10' })
-    expect(upcomingDraw('lotto', latest, kst('2026-10-04T09:00'))).toEqual({ drawNo: 1245, drawDate: '2026-10-10' })
+    expect(upcomingDraw('lotto', latest, kst('2026-10-03T20:36'))).toMatchObject({ drawNo: 1245, drawDate: '2026-10-10' })
+    expect(upcomingDraw('lotto', latest, kst('2026-10-04T09:00'))).toMatchObject({ drawNo: 1245, drawDate: '2026-10-10' })
   })
 
   it('결과가 들어오면 다시 최신 + 1', () => {
     expect(upcomingDraw('lotto', { drawNo: 1244, date: '2026-10-03' }, kst('2026-10-03T22:30')))
-      .toEqual({ drawNo: 1245, drawDate: '2026-10-10' })
+      .toMatchObject({ drawNo: 1245, drawDate: '2026-10-10' })
   })
 
   // 동기화가 몇 주 멈춰 있어도 지난 회차로 저장되지 않는다
   it('여러 주 뒤처져 있어도 아직 열리지 않은 회차를 고른다', () => {
-    expect(upcomingDraw('lotto', latest, kst('2026-10-20T12:00'))).toEqual({ drawNo: 1247, drawDate: '2026-10-24' })
+    expect(upcomingDraw('lotto', latest, kst('2026-10-20T12:00'))).toMatchObject({ drawNo: 1247, drawDate: '2026-10-24' })
   })
 
   it('연금은 목요일 19:05 기준', () => {
     const pension = { drawNo: 330, date: '2026-09-24' }
-    expect(upcomingDraw('pension', pension, kst('2026-10-01T19:00'))).toEqual({ drawNo: 331, drawDate: '2026-10-01' })
-    expect(upcomingDraw('pension', pension, kst('2026-10-01T19:06'))).toEqual({ drawNo: 332, drawDate: '2026-10-08' })
+    expect(upcomingDraw('pension', pension, kst('2026-10-01T19:00'))).toMatchObject({ drawNo: 331, drawDate: '2026-10-01' })
+    expect(upcomingDraw('pension', pension, kst('2026-10-01T19:06'))).toMatchObject({ drawNo: 332, drawDate: '2026-10-08' })
   })
 
   // 몇 주 뒤처졌는지 알 길이 없다. 예전 동작으로 물러나고 날짜는 내지 않는다.
   it('최신 회차의 날짜를 모르면 최신 + 1, 날짜 없음', () => {
-    expect(upcomingDraw('lotto', { drawNo: 1243, date: null }, kst('2026-10-04T09:00'))).toEqual({ drawNo: 1244, drawDate: null })
+    expect(upcomingDraw('lotto', { drawNo: 1243, date: null }, kst('2026-10-04T09:00')))
+      .toEqual({ drawNo: 1244, drawDate: null, drawAt: null })
+  })
+
+  // 화면이 "추첨까지 얼마" 를 세는 기준
+  it('추첨 시각을 함께 돌려준다', () => {
+    expect(upcomingDraw('lotto', latest, kst('2026-09-28T09:00')).drawAt).toBe('2026-10-03T11:35:00.000Z')
+    expect(upcomingDraw('pension', { drawNo: 330, date: '2026-09-24' }, kst('2026-09-28T09:00')).drawAt)
+      .toBe('2026-10-01T10:05:00.000Z')
+  })
+
+  // 저장 대상은 아직 열리지 않은 추첨이다. 그 시각이 지금보다 앞이면 규칙이 깨진 것이다.
+  it('추첨 시각은 언제나 지금보다 뒤다', () => {
+    for (const at of ['2026-10-03T20:34', '2026-10-03T20:36', '2026-10-04T00:10', '2026-10-20T12:00']) {
+      const now = kst(at)
+      expect(new Date(upcomingDraw('lotto', latest, now).drawAt!).getTime()).toBeGreaterThan(now.getTime())
+    }
+  })
+})
+
+describe('drawTimeOf', () => {
+  it('그 날의 추첨 시각을 UTC 로 돌려준다', () => {
+    expect(drawTimeOf('lotto', '2026-10-03')).toBe('2026-10-03T11:35:00.000Z')
+    expect(drawTimeOf('pension', '2026-10-01')).toBe('2026-10-01T10:05:00.000Z')
+  })
+
+  it('날짜를 모르면 null', () => {
+    expect(drawTimeOf('lotto', null)).toBeNull()
+    expect(drawTimeOf('lotto', '날짜 없음')).toBeNull()
   })
 })

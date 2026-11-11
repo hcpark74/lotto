@@ -15,6 +15,7 @@ import type { LottoState } from '../hooks/useLotto';
 import type { TabKey } from '../routing';
 import { FreshnessBar } from '../components/freshness-bar';
 import { AccountLink } from '../components/account-link';
+import { LottoWhatIf } from '../components/what-if';
 
 
 const BACKTEST_EMPTY_TEXT: Record<BacktestStatus, string> = {
@@ -300,6 +301,10 @@ function LottoPicksTab({ lotto }: { lotto: LottoState }) {
                     </div>
                 )}
             </SectionCard>
+
+            <div className="mt-5 lg:mt-6">
+                <LottoWhatIf sets={sets} />
+            </div>
 
             {backtest && <LottoHonestyPanel data={backtest} />}
         </section>

@@ -7,12 +7,13 @@ import {
   getLottoResultsUpTo,
   getRecentLottoResults,
   runLottoBacktestFromDb,
+  simulateLottoPickFromDb,
   syncLatestLottoResults,
 } from '../services/lotto'
 import type { LottoSyncResponse, SyncErrorResponse } from '../types/api'
 import type { Bindings } from '../types/app'
 import { requireAdminToken } from '../utils/admin-auth'
-import { checkSavedPicks } from '../services/saved-picks'
+import { checkSavedPicks, normalizeNumbers } from '../services/saved-picks'
 import { badRequest, notFound, parseDrawNoQuery, parseIntQuery, withRouteErrorHandling } from '../utils/route-handler'
 
 export function createLottoRoutes() {
@@ -73,6 +74,20 @@ export function createLottoRoutes() {
 
   app.post('/generate', withRouteErrorHandling(async (c) => {
       return c.json(await generateLottoSetsFromDb(c.env.DB))
+    }))
+
+  // "이 번호를 역대 회차에 전부 샀다면". 번호만 받는 읽기 전용 계산이라 GET 이고,
+  // 같은 번호를 다시 물으면 브라우저 캐시가 답한다.
+  app.get('/what-if', withRouteErrorHandling(async (c) => {
+      const raw = (c.req.query('numbers') ?? '').split(',')
+      const numbers = normalizeNumbers('lotto', raw.map((part) => (/^\d{1,2}$/.test(part.trim()) ? Number(part) : NaN)))
+      if (!numbers) return badRequest(c, 'numbers 는 1~45 중 서로 다른 6개여야 합니다. 예: numbers=3,11,19,27,35,44')
+
+      c.header('Cache-Control', 'public, max-age=600')
+      return c.json(await simulateLottoPickFromDb(c.env.DB, numbers.split(',').map(Number)))
+    }, {
+      logLabel: 'Error in /api/what-if',
+      errorStatus: (_error, message) => message === '대입할 회차 데이터가 없습니다.' ? 404 : 500,
     }))
 
   return app

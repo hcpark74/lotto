@@ -9,7 +9,7 @@ const BALL_BANDS = [
     { bg: 'var(--color-ball-4)', fg: 'var(--color-card)' },
     { bg: 'var(--color-ball-5)', fg: 'var(--color-ink)' },
 ];
-function getBallBand(num: number) {
+export function getBallBand(num: number) {
     return BALL_BANDS[Math.min(Math.ceil(num / 10), 5) - 1];
 }
 

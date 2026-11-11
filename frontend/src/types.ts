@@ -31,5 +31,6 @@ export type PensionRuleWeight = RuleWeight;
 export type PensionBacktestDiagnostics = PensionBacktestResponse;
 
 export type { SavedPick } from '../../backend/src/types/saved-picks';
+export type { LottoWhatIfResult } from '../../backend/src/algorithms/lotto-what-if';
 // 라우팅의 PageKey 와 같은 값이지만, api.ts 가 routing.ts 에 의존하지 않도록 따로 둔다
 export type PageLottery = 'lotto' | 'pension';

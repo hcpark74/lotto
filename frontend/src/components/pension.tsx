@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PENSION_BAND_COLOR, PENSION_DIGIT_COLORS } from '../constants';
 import type { NextDraw } from '../api';
 import { describeDrawTarget, formatDateTime } from '../format';
+import { Countdown } from './countdown';
 import type { PensionDrawResult, PensionRecommendationSet } from '../types';
 
 export function PensionDigitBall({ value, color, compact = false }: { value: string; color: string; compact?: boolean }) {
@@ -283,6 +284,7 @@ export function FeaturedPensionRecommendationCard({
                     <p className="text-xs leading-relaxed text-ink-soft sm:text-sm">
                         {target && <><span className="font-semibold text-ink">{describeDrawTarget(target)}</span>에 </>}
                         이 번호 하나만 저장합니다. 다섯 조에 같은 번호가 있어 전 조를 사면 1등을 반드시 받습니다.
+                        {target?.drawAt && <> <Countdown at={target.drawAt} doneText="추첨이 끝났습니다" />.</>}
                     </p>
                     <button
                         type="button"

@@ -123,12 +123,12 @@ describe('getNextDraw', () => {
   })
 
   it('저장 대상 회차와 추첨일을 함께 돌려준다', async () => {
-    expect(await getNextDraw(db, 'lotto', kst('2026-09-28T09:00'))).toEqual({ drawNo: 1244, drawDate: '2026-10-03' })
+    expect(await getNextDraw(db, 'lotto', kst('2026-09-28T09:00'))).toMatchObject({ drawNo: 1244, drawDate: '2026-10-03' })
   })
 
   // 1244회 추첨은 10/3 20:35. 결과가 들어오기 전에 저장하면 1245회로 간다.
   it('방금 추첨한 회차로는 저장하지 않는다', async () => {
-    expect(await getNextDraw(db, 'lotto', kst('2026-10-03T21:00'))).toEqual({ drawNo: 1245, drawDate: '2026-10-10' })
+    expect(await getNextDraw(db, 'lotto', kst('2026-10-03T21:00'))).toMatchObject({ drawNo: 1245, drawDate: '2026-10-10' })
   })
 
   it('회차 데이터가 없으면 null', async () => {

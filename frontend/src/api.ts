@@ -5,6 +5,7 @@ import type {
     LottoGenerateResponse,
     LottoRuleWeight,
     LottoSet,
+    LottoWhatIfResult,
     PensionBacktestDiagnostics,
     PensionDrawResult,
     PensionGenerateResponse,
@@ -60,6 +61,10 @@ export const generateLotto = () =>
 export const fetchLottoBacktest = (draws: number) =>
     request<LottoBacktestDiagnostics>(`/api/generate/backtest?draws=${draws}`);
 
+// 이 번호를 역대 회차에 전부 샀다면. 번호만 보내는 읽기 전용 계산이다.
+export const fetchLottoWhatIf = (numbers: number[]) =>
+    request<LottoWhatIfResult>(`/api/what-if?numbers=${numbers.join(',')}`);
+
 // ── 연금복권 ──
 
 // 목록 응답이 단건 객체로 올 때도 배열로 맞춘다
@@ -91,7 +96,7 @@ export const fetchSavedPicks = (lottery: PageLottery) =>
     request<unknown>(`/api/picks?lottery=${lottery}`, { headers: clientHeaders() }).then(data => toArray<SavedPick>(data));
 
 // 지금 저장하면 걸리는 회차와 추첨일. 회차는 서버가 정하므로 화면은 물어서 보여 줄 뿐이다.
-export type NextDraw = { lottery: PageLottery; drawNo: number; drawDate: string | null };
+export type NextDraw = { lottery: PageLottery; drawNo: number; drawDate: string | null; drawAt: string | null };
 
 export const fetchNextDraw = (lottery: PageLottery) =>
     request<NextDraw>(`/api/picks/next-draw?lottery=${lottery}`);

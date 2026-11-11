@@ -23,6 +23,8 @@ export type SavedPick = {
   drawNo: number
   // 추첨일 (KST, YYYY-MM-DD). 결과가 들어온 회차는 실제 날짜, 아직이면 최신 회차에서 7일씩 센 예정일.
   drawDate: string | null
+  // 추첨 시각 (ISO). drawDate 의 그 복권 추첨 시각이다 — 로또 토 20:35, 연금 목 19:05 KST.
+  drawAt: string | null
   numbers: string
   label: string | null
   savedAt: string

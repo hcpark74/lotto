@@ -13,4 +13,9 @@ export {
   getLottoResultsUpToQuery,
   getRecentLottoResultsQuery,
 } from './results'
-export { getAllLottoBacktestRowsQuery, getAllLottoDrawNumbersQuery, getLottoDataVersionQuery } from './stats'
+export {
+  getAllLottoBacktestRowsQuery,
+  getAllLottoDrawNumbersQuery,
+  getAllLottoWhatIfRowsQuery,
+  getLottoDataVersionQuery,
+} from './stats'

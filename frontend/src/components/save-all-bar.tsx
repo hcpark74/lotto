@@ -1,5 +1,6 @@
 import type { NextDraw } from '../api';
 import { describeDrawTarget } from '../format';
+import { Countdown } from './countdown';
 import type { SavedPicksState } from '../hooks/useSavedPicks';
 
 // 추천은 세트가 한 번에 나온다. 실제로도 로또 한 장이 A~E 5게임이라 저장 단위도 그게 맞다.
@@ -45,7 +46,8 @@ export function SaveAllBar({
                 ) : target ? (
                     <>
                         <span className="font-semibold text-ink">{describeDrawTarget(target)}</span>에 저장됩니다.
-                        낱개로 담으려면 카드의 저장 버튼을 쓰세요.
+                        {target.drawAt && <> <Countdown at={target.drawAt} doneText="추첨이 끝났습니다" />.</>}
+                        {' '}낱개로 담으려면 카드의 저장 버튼을 쓰세요.
                     </>
                 ) : '한 번에 생성된 세트라 한 번에 저장합니다. 낱개로 담으려면 카드의 저장 버튼을 쓰세요.'}
             </p>

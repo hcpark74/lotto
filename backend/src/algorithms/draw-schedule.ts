@@ -86,9 +86,19 @@ export function projectDrawDate(latest: StoredDraw, drawNo: number) {
 export function upcomingDraw(lottery: Lottery, latest: StoredDraw, now: Date) {
   const base = latest.date ? dayToMs(latest.date) : null
   // 날짜를 모르면 몇 주 뒤처졌는지 알 수 없다. 예전 동작(최신 + 1)으로 물러난다.
-  if (base == null) return { drawNo: latest.drawNo + 1, drawDate: null }
+  if (base == null) return { drawNo: latest.drawNo + 1, drawDate: null, drawAt: null }
 
   const nextDay = dayToMs(toKst(nextDrawTime(lottery, now)).toISOString())!
   const drawNo = latest.drawNo + Math.max(1, Math.round((nextDay - base) / WEEK_MS))
-  return { drawNo, drawDate: projectDrawDate(latest, drawNo) }
+  const drawDate = projectDrawDate(latest, drawNo)
+  return { drawNo, drawDate, drawAt: drawTimeOf(lottery, drawDate) }
+}
+
+// 그 날(KST 달력)의 추첨 시각. 화면이 "추첨까지 얼마" 를 세려면 날짜만으로는 모자라다.
+export function drawTimeOf(lottery: Lottery, day: string | null) {
+  const base = day ? dayToMs(day) : null
+  if (base == null) return null
+
+  const { hour, minute } = SCHEDULES[lottery]
+  return fromKst(new Date(base + (hour * 60 + minute) * 60_000)).toISOString()
 }
